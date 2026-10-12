@@ -1,0 +1,77 @@
+name: SemVer release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: semver-release
+  cancel-in-progress: false
+
+jobs:
+  release-ref:
+    name: Require main
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reject non-main releases
+        shell: pwsh
+        run: |
+          if ($env:GITHUB_REF -ne 'refs/heads/main') {
+            throw 'Releases must run from main after a reviewed version-bump PR.'
+          }
+
+  validate:
+    needs: release-ref
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    name: Tag and publish validated version
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout exact validated commit and tags
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check increasing SemVer
+        id: version
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tags = @(git tag --list 'v*')
+          if ($LASTEXITCODE -ne 0) { throw 'Could not read existing release tags.' }
+          $version = ./scripts/Get-ReleaseVersion.ps1 -ExistingTags $tags
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "tag=v$version" >> $env:GITHUB_OUTPUT
+      - name: Build source package and SHA-256 checksum
+        run: ./scripts/New-ReleasePackage.ps1
+      - name: Create draft, upload assets, and publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $arguments = @(
+            'release', 'create', $env:RELEASE_TAG,
+            "dist/ApimAssessment-$($env:RELEASE_VERSION).zip",
+            "dist/ApimAssessment-$($env:RELEASE_VERSION).zip.sha256",
+            '--repo', $env:GITHUB_REPOSITORY,
+            '--target', $env:GITHUB_SHA,
+            '--title', "APIM Assessment Toolkit $($env:RELEASE_TAG)",
+            '--generate-notes', '--draft'
+          )
+          if ($env:RELEASE_VERSION.StartsWith('0.')) {
+            $arguments += @('--prerelease', '--latest=false')
+          }
+          gh @arguments
+          if ($LASTEXITCODE -ne 0) { throw 'Draft release or asset upload failed. Inspect the draft before retrying.' }
+          gh release edit $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY --draft=false
+          if ($LASTEXITCODE -ne 0) { throw 'Release publication failed. Inspect and finish the draft manually.' }
