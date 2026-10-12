@@ -2,10 +2,11 @@
 
 ## Availability
 
-The bootstrap is **not ready for customer assessment runs**. It has an importable
-module skeleton, development checks, and release automation only. Collection,
-analysis, the model-data airlock, Copilot operator workflow, reporting, comparison,
-authentication/error handling, and the Excel/HTML templates are not implemented.
+The toolkit is **not ready for customer assessment runs**. It has an importable
+module foundation, strict private configuration validation, structured logging,
+a guarded ARM transport, development checks, and release automation. Collection
+orchestration, run persistence, models/rules, the model-data airlock, Copilot
+operator workflow, reports/comparison, and Excel/HTML templates are not implemented.
 
 Do not run the planned commands in specification section 14 until their tasks
 are implemented, tested, and marked available in the root README.
@@ -21,9 +22,11 @@ Get-Module ApimAssessment
 .\scripts\Invoke-Checks.ps1
 ```
 
-These commands do not connect to Azure. The initial module exports no public
-assessment functions. Missing development modules are installed into the
-current user's module path; Pester results go to ignored `artifacts`.
+These commands do not connect to Azure. The module exports no public assessment
+functions. Its ARM helper is exercised only through mocked offline tests unless
+called later by an implemented collector. Missing development modules are
+installed into the current user's module path; Pester results go to ignored
+`artifacts`.
 
 ## Future operator requirements
 

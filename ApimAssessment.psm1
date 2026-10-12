@@ -3,7 +3,7 @@
 Set-StrictMode -Version Latest
 
 $sourceRoot = Join-Path $PSScriptRoot 'src'
-foreach ($area in @('Core', 'Collect', 'Model', 'Rules', 'Report')) {
+foreach ($area in @('Core', 'Collect', 'Model', 'Rules', 'Package', 'Report')) {
     $areaPath = Join-Path $sourceRoot $area
     foreach ($sourceFile in Get-ChildItem -LiteralPath $areaPath -Filter '*.ps1' -File -Recurse |
             Sort-Object FullName) {

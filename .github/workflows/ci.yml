@@ -41,6 +41,14 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
+      - name: Verify PowerShell 7.4+ module import
+        run: |
+          $minimumVersion = [version]'7.4.0'
+          Write-Output "PowerShell runtime: $($PSVersionTable.PSVersion)"
+          if ($PSVersionTable.PSVersion -lt $minimumVersion) {
+              throw "PowerShell $minimumVersion or later is required."
+          }
+          Import-Module ./ApimAssessment.psd1 -Force -ErrorAction Stop
       - name: Install pinned development modules
         run: ./scripts/Install-DevDependencies.ps1
       - name: Lint and run offline tests

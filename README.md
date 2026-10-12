@@ -9,18 +9,21 @@ HTML executive presentation, and run comparisons.
 
 ## Current status
 
-**Bootstrap only; not yet an operational assessment tool.** The module imports,
-but exports no assessment commands. Collectors, configuration validation, models,
-rules, the model-data airlock, Copilot operator workflow, CLI entry points, and
-report templates are not implemented yet.
+**Core foundation only; not yet an operational assessment tool.** The module
+imports and now contains private configuration validation, structured logging,
+and a guarded ARM transport, but exports no assessment commands. Collectors,
+models, rules, run persistence, the model-data airlock, Copilot operator workflow,
+CLI entry points, and report templates are not implemented yet.
 
 | Available | Planned |
 |---|---|
-| Module manifest and deterministic source loader | Read-only ARM wrapper and collectors |
-| Customer-neutral sample configuration | Validated configuration and structured logging |
-| Synthetic-fixture scaffold | Policy merge, exposure model, and rule engine |
-| Windows/Linux lint and test CI | Excel report, carry-forward, and run comparison |
-| Copilot development instructions, agents, and skills | Fail-closed model-data airlock and narrow local Copilot broker |
+| Module manifest and deterministic source loader | Run persistence and collectors |
+| Strict private configuration validation | Public assessment entry points |
+| Structured JSON-lines logging and progress | Policy merge, exposure model, and rule engine |
+| Guarded ARM transport with paging/retry | Excel report, carry-forward, and run comparison |
+| Synthetic-fixture scaffold | Populated fixtures and offline integration pipeline |
+| Windows/Linux lint and test CI | Model-data airlock and local Copilot broker |
+| Copilot development instructions, agents, and skills | Assessment analyst agents and operator skills |
 | Guarded SemVer tag/release workflow | v1.0 acceptance against the technical specification |
 |  | Architecture/exposure, security, and executive synthesis agents |
 |  | Self-contained HTML executive presentation |
@@ -82,7 +85,8 @@ Use **synthetic fixtures only** for development and automated tests. Never commi
 customer configurations, tenant/subscription/workspace identifiers from real
 environments, assessment outputs, credentials, subscription keys, or secret values.
 Only `config/sample.psd1` and `config/README.md` are tracked under `config`.
-The entire `runs` directory is ignored and will be created by the runtime.
+The conventional local `runs` and `model-safe` directories are ignored; the
+runtime will create configured output paths when persistence is implemented.
 
 Real runs must remain local in a customer-approved storage location and be
 deleted after the readout according to the agreed retention policy. Do not

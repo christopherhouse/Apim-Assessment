@@ -1,5 +1,6 @@
 # Assessment data and customer configuration never belong in source control.
 /runs/
+/model-safe/
 /config/*
 !/config/sample.psd1
 !/config/README.md

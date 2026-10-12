@@ -49,7 +49,7 @@ foreach ($contentPath in $contentPaths) {
 $archive = [System.IO.Compression.ZipFile]::Open($archivePath, 'Create')
 try {
     # Keep empty source areas importable before their first implementation lands.
-    foreach ($area in @('Core', 'Collect', 'Model', 'Rules', 'Report')) {
+    foreach ($area in @('Core', 'Collect', 'Model', 'Rules', 'Package', 'Report')) {
         $archive.CreateEntry("src/$area/") | Out-Null
     }
     foreach ($file in $files | Sort-Object FullName -Unique) {
