@@ -56,14 +56,14 @@ Develop only on `feature/<name>`, `chore/<name>`, or `bugfix/<name>` branches.
 Open a pull request to `main`; CI rejects other source-branch prefixes.
 For host-side enforcement, a maintainer must protect `main` and require the
 `Branch policy`, `Validate (ubuntu-latest)`, and `Validate (windows-latest)` checks.
-This bootstrap does not change GitHub repository settings.
+This repository setup does not change GitHub repository settings.
 
 ## Intended runtime and permissions
 
 When collection is implemented, the runtime modules will be `Az.Accounts`,
 `Az.ResourceGraph`, `Az.OperationalInsights`, `Az.Monitor`, and `ImportExcel`.
 Optional OpenAPI linting will use Node.js and Spectral. They are not needed to
-import or validate this initial skeleton.
+import or validate the current core module.
 
 The optional operator experience will use GitHub Copilot CLI repository agents
 and skills through a narrow local broker. The deterministic collection, analysis,
@@ -74,10 +74,10 @@ Reader on the APIM and network resource groups, Log Analytics Reader on the
 workspaces, and Cost Management Reader on configured cost scopes. The toolkit
 will neither retain authentication tokens nor perform Azure remediation.
 
-Copy `config/sample.psd1` to an ignored customer-specific file only when the
-configuration loader is implemented. Planned invocation and exit-code contracts
-are in the specification's section 14; those entry points are **not available**
-in this bootstrap.
+The private configuration loader can validate an ignored copy of
+`config/sample.psd1`, but no public assessment command consumes it yet. Planned
+invocation and exit-code contracts are in the specification's section 14; those
+entry points are **not available**.
 
 ## Data handling
 
