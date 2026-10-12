@@ -1,0 +1,11 @@
+{
+  "value": [
+    {
+      "name": "developers",
+      "properties": {
+        "displayName": "Developers",
+        "type": "system"
+      }
+    }
+  ]
+}

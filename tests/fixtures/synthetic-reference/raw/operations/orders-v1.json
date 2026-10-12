@@ -1,0 +1,14 @@
+{
+  "value": [
+    {
+      "name": "get-orders",
+      "properties": {
+        "displayName": "List orders",
+        "method": "GET",
+        "urlTemplate": "/",
+        "description": "Returns synthetic orders.",
+        "templateParameters": []
+      }
+    }
+  ]
+}

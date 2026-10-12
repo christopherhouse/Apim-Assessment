@@ -1,0 +1,14 @@
+{
+  "value": [
+    {
+      "name": "get-status",
+      "properties": {
+        "displayName": "Get status",
+        "method": "GET",
+        "urlTemplate": "/",
+        "description": "Returns synthetic service status.",
+        "templateParameters": []
+      }
+    }
+  ]
+}

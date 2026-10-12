@@ -15,13 +15,7 @@ function Invoke-ApimServiceCollector {
 
     $collectorName = 'Service'
     $logPath = Join-Path $RunPath 'logs/run.log'
-    $resourcePath = (
-        '/subscriptions/{0}/resourceGroups/{1}/providers/' +
-        'Microsoft.ApiManagement/service/{2}'
-    ) -f
-        $Environment.SubscriptionId,
-        [System.Uri]::EscapeDataString([string] $Environment.ApimResourceGroup),
-        [System.Uri]::EscapeDataString([string] $Environment.ApimName)
+    $resourcePath = Get-ApimServiceResourcePath -Environment $Environment
     $uri = "${resourcePath}?api-version=2024-05-01"
     $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
 

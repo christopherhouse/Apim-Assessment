@@ -1,0 +1,11 @@
+{
+  "value": [
+    {
+      "name": "partners",
+      "properties": {
+        "displayName": "Partners",
+        "type": "custom"
+      }
+    }
+  ]
+}
