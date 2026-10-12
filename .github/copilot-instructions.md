@@ -107,7 +107,10 @@
   available. Generate `docs/RULES.md` from the implemented catalog when that task
   is built; do not manually create a competing catalog.
 - Use the PR checklist. Report meaningful changes, evidence, and remaining
-  limitations. Do not push, release, or modify repository settings unless asked.
+  limitations. Do not release or modify repository settings unless asked.
+- For completed requested repository changes, commit, push, and open or update a
+  pull request before handoff unless the user explicitly asks not to. Do not merge
+  without the required checks/review or explicit user approval.
 
 ## Versioning
 
