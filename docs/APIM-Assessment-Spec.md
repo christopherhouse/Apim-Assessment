@@ -1,0 +1,657 @@
+# APIM Assessment Toolkit — Technical Specification
+
+| | |
+|---|---|
+| **Document** | Build specification for a coding agent |
+| **Version** | 1.0 (draft) |
+| **Date** | 2026-10-12 |
+| **Product owners** | Chris House (Principal Cloud Solution Architect, Microsoft), JohnHenry Hain |
+| **First customer** | Brother (BIC USA) — integration APIM, Prod first, then Dev/Test |
+| **Companion docs** | `APIM-Assessment-Project-Plan.md`, `APIM-Assessment-Task-Register.md` |
+
+---
+
+## 1. Purpose
+
+Build a reusable, **read-only** PowerShell toolkit that assesses an Azure API Management (APIM) deployment and its network front door, in the style of Microsoft's WARA (Well-Architected Reliability Assessment): **Collect → Analyze → Report**.
+
+The toolkit must:
+
+1. Collect APIM configuration, policies, network path, security posture, usage telemetry and cost into versioned JSON.
+2. Normalize the raw data into a stable **model** (one file per report sheet).
+3. Evaluate a **rule catalog** aligned to the Azure Well-Architected Framework (WAF) pillars and Microsoft Cloud Security Benchmark (MCSB) controls, producing `findings.json`.
+4. Generate an Excel **action plan** from a pre-formatted template, carrying forward human-entered tracking fields between runs.
+5. Diff two runs (new / resolved / persisting findings).
+
+The toolkit is **customer-neutral**. All customer specifics live in a config file.
+
+### 1.1 Goals
+- Run end-to-end by a Microsoft CSA with Reader-level access, from a workstation, in < 30 minutes for a ~60-API instance (excluding Cost Management throttling).
+- Every finding is traceable to evidence and to the raw source file(s) it came from.
+- Analysis and reporting can be re-run offline from a saved run folder.
+- Deterministic output: same inputs → same `findings.json` (stable ordering, stable keys).
+
+### 1.2 Non-goals
+- No write/remediation actions against Azure. Ever.
+- No reading of secret values (subscription keys, named-value secrets, certificates' private material).
+- No assessment of Logic Apps workflow design (cost data only).
+- No Cloudflare API integration in v1 (Cloudflare is configured as "assumed reachable").
+- AI gateway design is out of scope for the tool (separate advisory workstream).
+
+---
+
+## 2. Reference environment (Brother)
+
+The defaults and the exposure algorithm must handle this topology correctly; it is the acceptance environment.
+
+| Item | Value |
+|---|---|
+| APIM tier | Premium (classic) in Prod, Developer in non-prod |
+| Network | APIM **Internal VNet** mode, behind **Application Gateway (WAF v2)** |
+| App Gateway routing | **Host-wide forwarding** (basic rule; no path-based allowlist) to APIM gateway hostname |
+| Edge | **Cloudflare** in front of App Gateway; App Gateway allows Cloudflare IP ranges; WAF reportedly disabled in favour of Cloudflare. Cloudflare config is **not** collected — treated as "assumed reachable". |
+| Scale | ~60 APIs, external partners/vendors (e.g., Salesforce), Lakehouse-backed APIs |
+| Environments | Dev, Test, Prod (separate resource groups for the integration platform) |
+| Access | Reader on integration RGs (granted); Cost data access available |
+| Source control | GitHub repos (APIM/IaC) — access in progress |
+| Also in RG | Logic Apps (cost spike reported) — cost-only scope |
+
+Implication encoded in the spec: with Internal VNet + host-wide forwarding, **every API on a published hostname is internet-reachable unless a policy blocks it** (APIM does not scope APIs to hostnames).
+
+---
+
+## 3. Technology and runtime requirements
+
+| Item | Requirement |
+|---|---|
+| Runtime | PowerShell **7.4+** (cross-platform; Windows primary) |
+| Modules | `Az.Accounts`, `Az.ResourceGraph`, `Az.OperationalInsights`, `Az.Monitor`, `ImportExcel`; tests: `Pester` 5.x, `PSScriptAnalyzer` |
+| Optional | Node.js + `@stoplight/spectral-cli` for OpenAPI linting; `git` CLI for repo comparison |
+| Auth | Existing `Connect-AzAccount` context (interactive or device code). Toolkit never stores tokens. |
+| ARM API version | APIM `2024-05-01` (configurable); Cost Management query `2023-11-01` (configurable) |
+| Permissions | Reader (APIM + network RGs), Log Analytics Reader (workspaces), Cost Management Reader (subscription or RG) |
+| No admin rights | Must run without local admin |
+
+### 3.1 Read-only enforcement
+- All ARM calls go through one wrapper (`Invoke-ApimArm`). The wrapper **rejects any method other than GET**, except an explicit allowlist:
+  - `POST .../providers/Microsoft.CostManagement/query`
+  - Log Analytics query API (via `Invoke-AzOperationalInsightsQuery`)
+  - Resource Graph (via `Search-AzGraph`)
+- The wrapper must refuse any URL containing `listSecrets`, `listValue`, `listKeys`, `/secrets`, `regenerate`, `token` (denylist; unit-tested).
+
+---
+
+## 4. Repository layout
+
+```
+ApimAssessment/
+  ApimAssessment.psd1 / .psm1          # module manifest + loader
+  Invoke-ApimCollect.ps1               # Stage 1 entry point
+  Invoke-ApimAnalyze.ps1               # Stage 2 entry point
+  Invoke-ApimReport.ps1                # Stage 3 entry point
+  Compare-ApimRun.ps1                  # Run diff
+  Invoke-ApimAssessment.ps1            # Convenience: all stages
+  src/
+    Core/        Invoke-ApimArm.ps1, Write-RunFile.ps1, Get-Config.ps1, Logging.ps1, Retry.ps1
+    Collect/     Collect-Service.ps1, Collect-Apis.ps1, Collect-Policies.ps1, Collect-Network.ps1,
+                 Collect-Security.ps1, Collect-Logs.ps1, Collect-Metrics.ps1, Collect-Cost.ps1, Collect-Git.ps1
+    Model/       Build-ApiModel.ps1, Merge-ApimPolicy.ps1, Get-PolicyFlags.ps1, Build-ExposureModel.ps1,
+                 Build-SubscriptionModel.ps1, Build-UsageModel.ps1, Build-CostModel.ps1, Build-DriftModel.ps1
+    Rules/       Invoke-RuleEngine.ps1, Get-PriorityScore.ps1
+    Report/      Export-ActionPlan.ps1, Merge-PriorTracking.ps1
+  rules/         SEC.rules.ps1, NET.rules.ps1, GOV.rules.ps1, REL.rules.ps1, PERF.rules.ps1, POR.rules.ps1, COST.rules.ps1
+  queries/       *.kql (Log Analytics), *.arg.kql (Resource Graph)
+  schemas/       *.schema.json (manifest, model files, findings)
+  template/      ApimActionPlan.xlsx
+  config/        sample.psd1, brother.psd1 (gitignored if it contains tenant IDs)
+  tests/         unit/, integration/, fixtures/ (synthetic, anonymized)
+  docs/          README.md, RUNBOOK.md, RULES.md (generated from rule files)
+  runs/          (gitignored) output
+```
+
+---
+
+## 5. Configuration
+
+`config/<customer>.psd1` (PowerShell data file):
+
+```powershell
+@{
+  Customer        = 'Brother'
+  Environments    = @(
+    @{
+      Name             = 'Prod'
+      SubscriptionId   = '<guid>'
+      ApimResourceGroup= 'rg-...-prod'
+      ApimName         = 'apim-...-prod'
+      NetworkResourceGroups = @('rg-...-prod')
+      AppGateways      = @(@{ ResourceGroup='rg-...-prod'; Name='agw-...-prod' })
+      LogAnalyticsWorkspaceIds = @('<workspace-guid>')   # APIM + App GW diagnostics
+      CostScopes       = @('/subscriptions/<guid>/resourceGroups/rg-...-prod')
+      LogicAppResourceGroups = @('rg-...-prod')
+      GitRepoPath      = 'C:\src\bic-apim'              # optional, local clone
+      GitPolicyRoot    = 'apim/policies'                # optional
+    }
+    # Dev, Test ...
+  )
+  Edge = @{
+    Provider             = 'Cloudflare'
+    Mode                 = 'AssumedReachable'            # AssumedReachable | Collected (future)
+    TrustedEdgeRanges    = @()                           # populated at run time from config file or manual list
+    TrustedEdgeRangesFile= 'config/cloudflare-ranges.txt'
+  }
+  Network = @{
+    AppGwSubnetCidrs     = @('10.x.x.x/27')             # auto-discovered; override here
+    InternalCidrs        = @('10.0.0.0/8','172.16.0.0/12','192.168.0.0/16')
+  }
+  Windows = @{ UsageDays = 90; SecurityLogDays = 30; CostMonths = 6; MetricDays = 90 }
+  Scoring = @{
+    Severity = @{ High=3; Medium=2; Low=1; Info=0.5 }
+    Exposure = @{ DirectPublic=2.5; ExternalInUse=2; ExternalUnintended=2; Restricted=1.5; Internal=1; Platform=1.5; Unknown=1.5 }
+    Usage    = @{ InUse=1.5; Unused=1; NotApplicable=1 }
+  }
+  Thresholds = @{ CertExpiryDays=60; BackendP95Ms=2000; Error5xxPct=1.0; UnusedDays=90; SubscriptionStaleDays=180; MaxWriteRolePrincipals=5 }
+  Privacy   = @{ StoreUserIdentities=$false; RedactPolicySecrets=$true }
+  Output    = @{ Root='runs' }
+}
+```
+
+Validation: `Get-Config` validates required keys and types and fails fast with a clear message.
+
+---
+
+## 6. Run folder and manifest
+
+```
+runs/<yyyy-MM-dd_HHmm>_<env>/
+  manifest.json
+  raw/ ...
+  model/ ...
+  findings.json
+  report/<Customer> APIM Assessment - <Env> - <yyyy-MM-dd>.xlsx
+  logs/run.log
+```
+
+`manifest.json`:
+
+```json
+{
+  "schemaVersion": "1.0",
+  "toolVersion": "0.1.0",
+  "customer": "Brother",
+  "environment": "Prod",
+  "runId": "2026-10-19_0930_Prod",
+  "startedUtc": "...", "completedUtc": "...",
+  "operator": "upn of signed-in account",
+  "tenantId": "...", "subscriptionId": "...",
+  "apim": { "resourceId": "...", "apiVersion": "2024-05-01" },
+  "windows": { "usageDays": 90, "securityLogDays": 30, "costMonths": 6 },
+  "edge": { "provider": "Cloudflare", "mode": "AssumedReachable" },
+  "stages": { "collect": "Completed", "analyze": "Completed", "report": "Completed" },
+  "collectors": [ { "name": "Policies", "status": "Completed|Partial|Failed|Skipped", "items": 612, "errors": 0, "durationSec": 41 } ],
+  "warnings": [ "..." ]
+}
+```
+
+Rules: a collector failure **never** aborts the run; it is recorded as `Failed/Partial` and dependent rules emit `Info` "Not evaluated" findings (see §10.5).
+
+---
+
+## 7. Stage 1 — Collection
+
+### 7.1 Core behaviours
+- **Paging**: follow `nextLink` until exhausted.
+- **Retry**: on 429/5xx, honour `Retry-After`; exponential backoff (2, 4, 8, 16, 32 s), max 6 attempts.
+- **Concurrency**: per-API/per-operation calls use `ForEach-Object -Parallel` with configurable `ThrottleLimit` (default 6).
+- **Output**: raw responses written unchanged (`ConvertTo-Json -Depth 50`), one file per call type; policies stored as `.xml` plus `policies/index.json`.
+- **Idempotent**: `-Resume` skips collectors whose output already exists and is valid.
+- **Logging**: structured log lines `{ts, level, collector, message, url?}`; no secret values ever logged.
+
+### 7.2 APIM configuration (ARM, base = `/subscriptions/{s}/resourceGroups/{rg}/providers/Microsoft.ApiManagement/service/{name}`)
+
+| Raw file | Endpoint(s) | Key fields consumed |
+|---|---|---|
+| `service.json` | `{base}` | `sku`, `zones`, `additionalLocations`, `platformVersion`, `virtualNetworkType`, `virtualNetworkConfiguration`, `publicNetworkAccess`, `publicIpAddresses`, `privateIPAddresses`, `hostnameConfigurations[]` (type, hostName, certificateSource, keyVaultId, certificate.expiry, negotiateClientCertificate), `customProperties` (TLS/cipher flags), `apiVersionConstraint.minApiVersion`, `developerPortalStatus`, `legacyPortalStatus`, `disableGateway`, `identity` |
+| `apis.json` | `{base}/apis?expandApiVersionSet=true` | `name`, `path`, `protocols`, `serviceUrl`, `subscriptionRequired`, `apiType`, `apiRevision`, `isCurrent`, `apiVersion`, `apiVersionSetId`, `description` |
+| `apiRevisions/<api>.json` | `{base}/apis/{api}/revisions` | revision list, `isOnline`, `isCurrent` |
+| `operations/<api>.json` | `{base}/apis/{api}/operations` | `method`, `urlTemplate`, `description`, `templateParameters` |
+| `apiTags/<api>.json` | `{base}/apis/{api}/tags` | tags |
+| `openapi/<api>.json` | `{base}/apis/{api}?export=true&format=openapi+json` (fallback `openapi+json-link` then download) | OpenAPI doc |
+| `products.json` | `{base}/products` | `state`, `subscriptionRequired`, `approvalRequired`, `subscriptionsLimit`, `description` |
+| `productApis/<product>.json` | `{base}/products/{p}/apis` | API membership |
+| `productGroups/<product>.json` | `{base}/products/{p}/groups` | visibility |
+| `subscriptions.json` | `{base}/subscriptions` | `scope`, `state`, `ownerId`, `createdDate`, `expirationDate`, `allowTracing`, `displayName` (**never** call `listSecrets`) |
+| `namedValues.json` | `{base}/namedValues` | `displayName`, `secret`, `keyVault.secretIdentifier`, `keyVault.lastStatus`, `tags`. Value is only returned for non-secret values — store it only for secret-pattern detection, then **drop it** (`RedactPolicySecrets`) |
+| `backends.json` | `{base}/backends` | `url`, `protocol`, `tls.validateCertificateChain`, `tls.validateCertificateName`, `credentials`, `circuitBreaker`, `type`, `pool` |
+| `certificates.json` | `{base}/certificates` | `expirationDate`, `keyVault` |
+| `identityProviders.json`, `authorizationServers.json`, `openidConnectProviders.json`, `authorizationProviders.json` | respective collections | auth configuration |
+| `loggers.json`, `diagnostics.json`, `apiDiagnostics/<api>.json` | `{base}/loggers`, `{base}/diagnostics`, `{base}/apis/{api}/diagnostics` | logger target, `sampling.percentage`, `verbosity`, `logClientIp`, `frontend/backend.request/response.headers[]` and `.body.bytes` |
+| `portal/*.json` | `{base}/portalsettings/signin`, `/signup`, `/delegation`, `{base}/portalconfigs`, `{base}/portalRevisions` | portal enablement and publication |
+| `groups.json`, `tags.json`, `apiVersionSets.json`, `gateways.json`, `workspaces.json`, `policyFragments.json` | respective collections | organization |
+| `users.summary.json` | `{base}/users` | **counts only** by `state` and `identities[].provider` unless `StoreUserIdentities=$true` |
+
+### 7.3 Policies
+
+| Scope | Endpoint (`?format=rawxml`) | File |
+|---|---|---|
+| Global | `{base}/policies/policy` | `policies/global.xml` |
+| Product | `{base}/products/{p}/policies/policy` | `policies/product.{p}.xml` |
+| API | `{base}/apis/{api}/policies/policy` | `policies/api.{api}.xml` |
+| Operation | `{base}/apis/{api}/operations/{op}/policies/policy` | `policies/op.{api}.{op}.xml` |
+| Fragment | `{base}/policyFragments/{f}?format=rawxml` | `policies/fragment.{f}.xml` |
+
+404 = "no policy at this scope" (not an error). `policies/index.json` lists every scope with `exists`, `sha256` (of normalized XML; see §8.4).
+
+### 7.4 Network
+
+| Raw file | Source | Notes |
+|---|---|---|
+| `network/appgw.<name>.json` | ARM GET App Gateway | `frontendIPConfigurations` (public vs private), `httpListeners` (hostName(s), frontend, protocol, sslCertificate), `requestRoutingRules` (ruleType Basic/PathBasedRouting, priority), `urlPathMaps`, `backendAddressPools`, `backendHttpSettingsCollection` (hostName override, pickHostNameFromBackendAddress, probe), `rewriteRuleSets`, `probes`, `sslPolicy`, `firewallPolicy` link, `webApplicationFirewallConfiguration` (legacy) |
+| `network/wafPolicy.<name>.json` | ARM GET WAF policy | `policySettings.state`, `policySettings.mode`, `managedRules`, `customRules` (IP match rules → edge allowlist) |
+| `network/apimSubnet.json`, `network/nsgs.json`, `network/publicIps.json`, `network/privateEndpoints.json`, `network/privateDnsZones.json`, `network/routeTables.json` | Resource Graph | APIM subnet NSG rules, App GW subnet, public IPs (detect any other path to APIM) |
+| `network/frontDoors.json` | Resource Graph | any Front Door / other App GW whose backend points at APIM hostnames or IPs |
+
+### 7.5 Security posture (Resource Graph)
+- `security/defender.json`: `securityresources | where type == "microsoft.security/assessments"` filtered to APIM + App GW resource IDs (`displayName`, `status.code`, `metadata.severity`), plus Defender for APIs sub-assessments where available.
+- `security/policyCompliance.json`: `policyresources | where type == "microsoft.policyinsights/policystates"` for APIM/App GW resources.
+- `security/roleAssignments.json`: `authorizationresources` role assignments at RG and resource scope (principalId, principalType, roleDefinitionId → resolved role name). Principal display names only if `StoreUserIdentities=$true`.
+
+### 7.6 Logs (Log Analytics)
+Detect schema first: if `ApiManagementGatewayLogs` has rows in the window use **resource-specific** queries, else fall back to `AzureDiagnostics` variants (`queries/*.azdiag.kql`). Record which in manifest. Also record workspace retention (`Get-AzOperationalInsightsWorkspace`), and cap windows to retention.
+
+| Raw file | Query (resource-specific form) |
+|---|---|
+| `logs/usageByApi.json` | Calls, 4xx, 5xx, 401/403, P50/P95 `TotalTime`, P95 `BackendTime`, `dcount(ApimSubscriptionId)`, `LastCall` by `ApiId, OperationId, ProductId` over `UsageDays` |
+| `logs/usageByRoute.json` | Same, adding `Route = iif(ipv4_is_in_any_range(CallerIpAddress, appGwCidrs), "ViaAppGw", "Internal")` |
+| `logs/usageMonthly.json` | Calls by `ApiId`, month |
+| `logs/tls.json` | Calls by `ClientTlsVersion`, `ApiId` over `SecurityLogDays` |
+| `logs/noSubscriptionCalls.json` | Calls with empty `ApimSubscriptionId` by `ApiId` |
+| `logs/appgwByListener.json` | `AGWAccessLogs`: requests by `ListenerName, RuleName, Host`, `dcount(ClientIp)` |
+| `logs/appgwNonEdge.json` | `AGWAccessLogs` where `ClientIp` not in `TrustedEdgeRanges` → by `ClientIp, Host` (only if edge ranges configured) |
+| `logs/directNonAppGw.json` | APIM calls whose `CallerIpAddress` is outside App GW subnets **and** outside `InternalCidrs` (should be empty for Internal VNet) |
+| `logs/headersLogged.json` | Detection of whether `X-Forwarded-For` / `CF-Connecting-IP` appear in logged headers (informational) |
+
+### 7.7 Metrics (Azure Monitor)
+`metrics/apim.json`: `Capacity` (avg, max; PT1H), `Requests` (total; P1D), `Duration`, `BackendDuration` (avg; PT1H) for `MetricDays`. `metrics/appgw.json`: `CapacityUnits`, `Throughput`, `UnhealthyHostCount`.
+
+### 7.8 Cost (Cost Management Query API)
+`cost/daily.json`: `type=ActualCost`, `timeframe=Custom` (last `CostMonths` full months + MTD), `granularity=Daily`, aggregation `PreTaxCost` (sum), grouping `ResourceId`, `MeterCategory`, `MeterSubCategory`. One query per `CostScopes` entry. Handle 429 with `x-ms-ratelimit-microsoft.costmanagement-*-retry-after`.
+
+`cost/logicApps.json` (cost-only): inventory of `Microsoft.Logic/workflows` and `Microsoft.Web/sites` (kind contains `workflowapp`) + App Service plan SKU/instance count; metrics `BillableActionExecutions`/`BillableTriggerExecutions` (Consumption) and plan `CpuPercentage`/instance count (Standard). **No workflow definitions are read.**
+
+`cost/laIngestion.json`: `Usage | where TimeGenerated > ago(90d) | summarize GB=sum(Quantity)/1024 by DataType, bin(TimeGenerated, 1d)` on the APIM workspace.
+
+### 7.9 Source control (optional)
+If `GitRepoPath` set: enumerate `*.xml` under `GitPolicyRoot`, map to scopes by file-name convention (configurable regex; default supports APIOps extractor layout `apis/<api>/policy.xml`, `apis/<api>/operations/<op>/policy.xml`, `products/<p>/policy.xml`, `policy.xml`). Write `git/policyHashes.json` with normalized hashes and commit SHA.
+
+---
+
+## 8. Stage 2a — Model
+
+All model files are arrays of flat-ish records validated against `schemas/*.schema.json`. Field names are camelCase. Arrays sorted by primary key.
+
+### 8.1 `model/apis.json` (one row per API, current revision)
+| Field | Type | Derivation |
+|---|---|---|
+| `apiId` | string | `apis[].name` |
+| `displayName`, `path`, `apiType`, `protocols[]` | | apis |
+| `backendHost` | string | host of `serviceUrl` or `set-backend-service` target / backend entity |
+| `products[]` | string[] | productApis |
+| `ownerTag`, `tags[]` | | apiTags; owner = tag matching `^(owner|team)[:=-]` (configurable) |
+| `versionSet`, `version`, `revisionCount`, `nonCurrentOnlineRevisions` | | revisions |
+| `operationCount` | int | |
+| `subscriptionRequired` | bool | api (or product) |
+| `callerAuth` | enum `Entra/JWT`, `mTLS`, `SubscriptionKeyOnly`, `None`, `Mixed` | from effective policy flags across operations |
+| `throttling`, `ipFilter`, `corsUnsafe`, `backendAuth`, `hardcodedSecret`, `baseMissing`, `mockOrTrace` | bool | from effective policy flags (any operation) |
+| `backendTlsValidation` | bool/null | backend entity tls flags; null if raw URL |
+| `bodyLogging`, `sensitiveHeadersLogged` | bool | diagnostics |
+| `reachability` | enum (§9) | exposure model |
+| `exposure` | enum (§9) | exposure model |
+| `calls90d`, `callsViaAppGw`, `callsInternal`, `lastCall`, `p95Ms`, `backendP95Ms`, `pct5xx` | | logs |
+| `openApiScore` | int 0–100 / null | Spectral (§8.6) |
+| `inGit` | bool/null | git |
+| `findingIds[]` | string[] | back-filled after rule evaluation |
+
+### 8.2 `model/operations.json`
+One row per operation: `apiId`, `operationId`, `method`, `fullPath` (`/{api.path}/{urlTemplate}` normalized), `hasDescription`, effective policy flags, `calls90d`.
+
+### 8.3 Effective policy merge (`Merge-ApimPolicy`)
+Effective policy for an operation in product P = `op ⊕ (api ⊕ (product P ⊕ global))`, where `child ⊕ parent` replaces `<base/>` in each section (`inbound`, `backend`, `outbound`, `on-error`) of the child with the parent's section children. Rules:
+- If a child section exists **without** `<base/>`, the parent section is dropped → record `baseMissing=true` with scope and section.
+- If the child has no policy, effective = parent.
+- If an API is in multiple products, compute per product; flags are OR-ed for "has risk" and AND-ed for "has control" (conservative). If in no product, product layer is empty.
+- Expand `<include-fragment fragment-id="x"/>` inline from fragment XML (max depth 5, cycle-safe).
+- Preserve original scope attribution on each node (`data-scope` attribute) for evidence.
+
+### 8.4 Policy flags (`Get-PolicyFlags`) — XPath on effective XML
+| Flag | Detection |
+|---|---|
+| `callerAuthJwt` | `//validate-jwt` or `//validate-azure-ad-token` |
+| `callerAuthMtls` | `//validate-client-certificate` or `choose` testing `context.Request.Certificate` |
+| `throttling` | `//rate-limit`, `//rate-limit-by-key`, `//quota`, `//quota-by-key`, `//llm-token-limit`, `//azure-openai-token-limit` |
+| `ipFilter` | `//ip-filter` (capture action + ranges) |
+| `hostRestriction` | `choose/when` conditions referencing `context.Request.OriginalUrl.Host` or `Host` header with `return-response` 403/404 |
+| `corsUnsafe` | `//cors[@allow-credentials='true']` with `allowed-origins/origin='*'` |
+| `backendAuth` | `//authentication-managed-identity`, `//authentication-certificate`, `//get-authorization-context`, or backend entity credentials |
+| `hardcodedSecret` | `set-header`/`set-query-parameter`/`authentication-basic` values not wrapped in `{{...}}` matching secret patterns (`(?i)(key|secret|password|pwd|token|bearer|sig=)`, base64 ≥ 24 chars, JWT shape). Record location only, **never the value**. |
+| `backendOverride` | `//set-backend-service` (capture base-url / backend-id; flag `http://`) |
+| `mockOrTrace` | `//mock-response`, `//trace` |
+| `returnsWithoutBackend` | `//return-response` in inbound not inside a `choose` |
+| `baseMissing` | from merge |
+
+Normalization for hashing: remove comments, collapse whitespace, sort attributes, LF line endings, then SHA-256.
+
+### 8.5 Other model files
+| File | Grain | Key fields |
+|---|---|---|
+| `policyMatrix.json` | API | `apiId` + one column per control: `callerAuth`, `rateLimit`, `ipFilter`, `corsSafe`, `backendAuth`, `noHardcodedSecret`, `basePresent`, `noMockTrace` with values `Pass`/`Fail`/`NA` |
+| `subscriptions.json` | subscription | `subscriptionId`, `displayName`, `scopeType` (`AllApis`/`Product`/`Api`), `scopeTarget`, `state`, `ownerType`, `createdDate`, `expirationDate`, `allowTracing`, `calls90d`, `lastUsed`, `isBuiltInMaster`, `flags[]` |
+| `exposure.json` | route × API | `listener`, `listenerHost`, `frontendType` (Public/Private), `ruleType`, `pattern`, `wafState`, `wafMode`, `edge` (`Cloudflare-Assumed`), `apiId`, `reachability`, `restriction`, `exposure`, `callsViaAppGw`, `callsInternal`, `confidence` |
+| `network.json` | single object | APIM VNet mode, public access, NSG evaluation result, other front doors, App GW TLS policy, WAF state |
+| `usage.json` | API × month | calls; plus top-N table |
+| `cost.json` | resource × month (and day) | `resourceId`, `resourceType`, `meterCategory`, `cost`, `currency`; derived `costPerMillionCalls` (APIM + App GW) |
+| `capacity.json` | day | `capacityAvg`, `capacityMax`, `capacityP95`, `units` |
+| `drift.json` | API (and scope) × env | `presentDev/Test/Prod/Git`, `hashDev/Test/Prod/Git`, `matches` (`All`, `ProdOnly`, `Differs`), `note` (requires prior runs for other envs or a multi-env run) |
+| `portal.json` | single object | portal status, published revision, sign-in/sign-up settings, identity providers, custom domain, products visible to which groups |
+| `openApiQuality.json` | API | Spectral error/warn counts, score |
+
+### 8.6 OpenAPI score (optional)
+If Spectral is available: run `spectral lint` with ruleset `spectral:oas` + `rulesets/apim-style.yaml` (naming, versioning, descriptions, error responses). Score = `max(0, 100 − 10×errors − 2×warnings)` (configurable). Otherwise `openApiScore=null` and a description-coverage metric from operations is used.
+
+---
+
+## 9. Exposure classification (critical logic)
+
+Inputs: `service.json`, App GW config, WAF policy, NSGs, other front doors, effective policy flags, `usageByRoute`.
+
+### 9.1 Step 1 — Direct reachability (service level)
+`DirectPublic = true` if **any**: `virtualNetworkType ∈ {None, External}`; `publicNetworkAccess == 'Enabled'` and VNet type ≠ Internal; any other front door/public IP routes to APIM; APIM subnet NSG allows inbound 443 from `Internet`/`*`. For Internal VNet with NSG restricted to App GW subnet + internal ranges (+ `ApiManagement` service tag on 3443), `DirectPublic = false`.
+
+### 9.2 Step 2 — Published hostnames
+For each App GW **public** listener → routing rule → backend pool targeting APIM (private IP or gateway hostname) → resolve the APIM hostname actually used (HTTP settings host override, else listener host, else pool FQDN).
+- Rule type `Basic` → pattern `/*` (**host-wide forwarding**).
+- Rule type `PathBasedRouting` → patterns from `urlPathMaps.pathRules[].paths` (+ default backend = `/*` if default pool is APIM). Apply rewrite rules that alter path before matching; if a rewrite is conditional or regex-based and cannot be resolved, mark `confidence=Low` and exposure `Unknown`.
+- Because APIM serves **all APIs on all gateway hostnames**, any published APIM hostname with `/*` makes **all APIs reachable**.
+
+### 9.3 Step 3 — Reachability per API
+`reachability = Reachable` if any public pattern matches the operation `fullPath` (prefix/wildcard match, case-insensitive), else `NotRoutable`. API is Reachable if any operation is Reachable. `DirectPublic` overrides to `Reachable` for all.
+
+### 9.4 Step 4 — Restrictions (effective policy)
+`restriction`:
+- `IpFilter` if an `ip-filter action="allow"` whose ranges exclude App GW subnet (i.e., blocks traffic arriving via App GW) or `action="forbid"` including App GW subnet.
+- `HostCheck` if `hostRestriction` blocks the published hostname.
+- `None` otherwise. JWT/mTLS do **not** change exposure (they change risk).
+- If the restriction exists only at a scope that a `baseMissing` drops for some operation → `restriction=None` for that operation and add `GOV-010` evidence.
+
+### 9.5 Step 5 — Observed route
+From `usageByRoute`: `callsViaAppGw`, `callsInternal`. If App GW also has **private** listeners targeting APIM, `ViaAppGw` is ambiguous → use `appgwByListener` to apportion by `ListenerName` frontend type; else record `confidence=Medium`.
+
+### 9.6 Final label
+| Condition | `exposure` |
+|---|---|
+| `DirectPublic` | `DirectPublic` |
+| Reachable, restriction None, `callsViaAppGw > 0` | `ExternalInUse` |
+| Reachable, restriction None, `callsViaAppGw == 0` | `ExternalUnintended` |
+| Reachable, restriction ≠ None | `Restricted` |
+| NotRoutable | `Internal` |
+| Unresolvable rewrites/overlaps | `Unknown` |
+
+Edge layer: with `Edge.Mode = AssumedReachable`, every public listener is treated as internet-reachable; `exposure.json.edge = "Cloudflare-Assumed"` and the report shows the assumption banner.
+
+**Expected Brother outcome:** host-wide forwarding ⇒ most/all APIs `ExternalInUse` or `ExternalUnintended`; `NET-004` fires.
+
+---
+
+## 10. Stage 2b — Rule engine
+
+### 10.1 Rule definition format (`rules/*.rules.ps1` returns an array of hashtables)
+```powershell
+@{
+  Id             = 'APIM-SEC-003'
+  Title          = 'Reachable API has no caller authentication beyond subscription key'
+  Pillar         = 'Security'                 # Security|Reliability|OperationalExcellence|CostOptimization|PerformanceEfficiency
+  Mcsb           = 'IM-1'                     # or 'n/a'
+  Severity       = 'High'                     # High|Medium|Low|Info
+  Scope          = 'Api'                      # Service|Api|Operation|Subscription|Backend|NamedValue|Certificate|Route|Portal|Cost|Network
+  Requires       = @('model/apis.json')       # model inputs; missing → Not evaluated
+  Applies        = { param($x, $ctx) $x.reachability -eq 'Reachable' }   # optional pre-filter
+  Test           = { param($x, $ctx) $x.callerAuth -in 'SubscriptionKeyOnly','None' }  # $true = finding
+  Evidence       = { param($x, $ctx) [ordered]@{ path=$x.path; callerAuth=$x.callerAuth; calls90d=$x.calls90d } }
+  EvidenceText   = { param($x, $ctx) "/$($x.path): $($x.callerAuth); $($x.calls90d) calls/90d" }
+  Recommendation = 'Validate Entra ID tokens (validate-azure-ad-token / validate-jwt) for external callers; keep subscription keys for metering only.'
+  Effort         = 'M'                        # S|M|L
+  References     = @()                        # Learn URLs added by maintainers; tool must not invent URLs
+  SourceFiles    = @('raw/apis.json','raw/policies/')
+  Enabled        = $true
+}
+```
+`$ctx` gives access to config thresholds, all model files, and the manifest.
+
+### 10.2 Findings schema (`findings.json`, one record per rule × target)
+```json
+{
+  "findingKey": "APIM-SEC-003|apim-bic-int-prod|api:lakehouse-orders-v1",
+  "ruleId": "APIM-SEC-003", "title": "...", "pillar": "Security", "mcsb": "IM-1",
+  "severity": "High", "scope": "api:lakehouse-orders-v1", "resource": "apim-bic-int-prod",
+  "exposure": "ExternalInUse", "usage": "InUse",
+  "priorityScore": 9.0,
+  "evidence": { }, "evidenceText": "...",
+  "recommendation": "...", "effort": "M",
+  "sourceFiles": ["raw/apis.json"],
+  "status": "Open", "evaluation": "Evaluated"
+}
+```
+- `findingKey` = `ruleId|resourceName|scope` — stable across runs (no timestamps, no GUIDs that change).
+- `evaluation` = `Evaluated` | `NotEvaluated` (missing input; severity forced to `Info`, evidence lists missing files).
+- `usage`: `InUse` if `calls90d > 0` for API-scoped; `NotApplicable` for service-level.
+- Sorted by `priorityScore` desc, then `ruleId`, then `scope`.
+
+### 10.3 Priority score
+`priorityScore = Severity[sev] × Exposure[exposure or 'Platform' for service-level] × Usage[usage]` (weights from config, defaults §5), rounded to 1 decimal.
+
+### 10.4 Action-plan aggregation
+For the report, findings are grouped by `ruleId` into **action items**: `affectedCount`, max priority, top 5 affected scopes, combined recommendation. Instance rows remain in "Finding Details".
+
+### 10.5 Not-evaluated handling
+If a rule's `Requires` input is missing/failed, emit one `NotEvaluated` finding per rule (not per target) so gaps are visible in the report.
+
+---
+
+## 11. Starter rule catalog (v1)
+
+Severity defaults; all thresholds configurable. "Data" = model inputs.
+
+### 11.1 Network & exposure (NET)
+| ID | Title | Sev | MCSB | Scope | Logic |
+|---|---|---|---|---|---|
+| APIM-NET-001 | App Gateway trusts edge IP ranges only; no origin authentication | High | NS-6 | Network | WAF/NSG custom rule allows only edge ranges AND no evidence of origin auth (mTLS client cert on listener / secret header check in rewrite or WAF custom rule / APIM `check-header`). Edge ranges are shared by all edge customers. |
+| APIM-NET-002 | WAF disabled or in Detection mode on App Gateway | High | NS-6 | Network | WAF policy `state != Enabled` or `mode == Detection`; evidence notes edge WAF assumed |
+| APIM-NET-003 | Traffic reached App Gateway from outside trusted edge ranges | Medium | NS-2 | Network | `appgwNonEdge` non-empty (requires `TrustedEdgeRanges`) |
+| APIM-NET-004 | Host-wide forwarding publishes entire APIM catalog | High | NS-2 | Route | Any public listener → APIM with pattern `/*`; evidence: count of `ExternalUnintended` APIs |
+| APIM-NET-005 | API reachable from internet but only used internally | Medium | NS-2 | Api | `exposure == ExternalUnintended` |
+| APIM-NET-006 | APIM gateway directly reachable (bypasses edge and App Gateway) | High | NS-2 | Service | `DirectPublic` |
+| APIM-NET-007 | APIM subnet NSG allows broader inbound than App Gateway + internal | Medium | NS-1 | Network | NSG evaluation |
+| APIM-NET-008 | Weak App Gateway TLS policy | Medium | DP-3 | Network | sslPolicy predefined older than `AppGwSslPolicy20220101` or min protocol < TLS1.2 |
+| APIM-NET-009 | Developer portal / management hostname published publicly without need | Low | NS-2 | Route | portal/management hostname behind public listener |
+
+### 11.2 Security (SEC)
+| ID | Title | Sev | MCSB | Scope | Logic |
+|---|---|---|---|---|---|
+| APIM-SEC-001 | Legacy TLS/ciphers enabled (gateway or backend side) | Medium | DP-3 | Service | `customProperties` TLS10/TLS11/SSL30/TripleDes168 true |
+| APIM-SEC-002 | Minimum management API version not enforced | Low | AM-1 | Service | `apiVersionConstraint.minApiVersion` null |
+| APIM-SEC-003 | Reachable API has no caller auth beyond subscription key | High | IM-1 | Api | Applies reachable; `callerAuth ∈ {SubscriptionKeyOnly}` |
+| APIM-SEC-004 | Reachable API requires no subscription and no auth | High | IM-1 | Api | reachable; `subscriptionRequired=false` and no JWT/mTLS |
+| APIM-SEC-005 | Subscriptions scoped to All APIs (incl. built-in master) active | High | PA-7 | Subscription | `scopeType=AllApis` and `state=active` |
+| APIM-SEC-006 | Stale or non-expiring active subscriptions | Low | PA-7 | Subscription | active, `lastUsed` > `SubscriptionStaleDays` or null, or no `expirationDate` on partner products |
+| APIM-SEC-007 | Hard-coded credentials in policy | High | DP-7 | Operation | `hardcodedSecret` |
+| APIM-SEC-008 | Secret-like named values stored as plain text | Medium | DP-7 | NamedValue | `secret=false` and name/value matches secret pattern |
+| APIM-SEC-009 | Secrets/certificates not Key Vault–backed or Key Vault sync failing | Medium | DP-7 | NamedValue/Certificate | `keyVault` null for secret values / `lastStatus.code != Success` |
+| APIM-SEC-010 | Backend TLS certificate validation disabled | Medium | DP-3 | Backend | `validateCertificateChain=false` or `validateCertificateName=false` |
+| APIM-SEC-011 | Backend over plain HTTP | Medium | DP-3 | Backend/Api | backend URL or `set-backend-service` base-url `http://` (non-internal service exception configurable) |
+| APIM-SEC-012 | Unsafe CORS (wildcard origin with credentials) | Medium | DP-3 | Api | `corsUnsafe` |
+| APIM-SEC-013 | No backend authentication (managed identity/cert) | Low | IM-3 | Api | `backendAuth=false` and backend not anonymous by design (configurable allowlist) |
+| APIM-SEC-014 | Bodies or sensitive headers logged | Medium | LT-3 | Api/Service | diagnostics `body.bytes > 0` or headers include `Authorization`, `Ocp-Apim-Subscription-Key`, `Cookie` |
+| APIM-SEC-015 | Tracing allowed on subscriptions | Medium | LT-3 | Subscription | `allowTracing=true` |
+| APIM-SEC-016 | Clients still using TLS < 1.2 | Low | DP-3 | Api | `logs/tls.json` |
+| APIM-SEC-017 | Defender for APIs not enabled / open Defender recommendations | Medium | LT-1 | Service | defender.json |
+| APIM-SEC-018 | Excess write-capable principals on APIM resource group | Medium | PA-1 | Service | count(Owner/Contributor/API Management Service Contributor) > `MaxWriteRolePrincipals` |
+| APIM-SEC-019 | No managed identity on APIM | Low | IM-3 | Service | `identity` null |
+| APIM-SEC-020 | Mock or trace policies in production | Medium | n/a | Operation | `mockOrTrace` (env = Prod) |
+
+### 11.3 Governance / Operational Excellence (GOV)
+| ID | Title | Sev | Logic |
+|---|---|---|---|
+| APIM-GOV-001 | APIs not in any product | Medium | `products` empty |
+| APIM-GOV-002 | APIs missing owner/team tag | Low | `ownerTag` null |
+| APIM-GOV-003 | Products without description/owner or with approval disabled for external products | Low | product fields |
+| APIM-GOV-004 | Unused APIs (no calls in window) | Medium | `calls90d == 0` (window capped by retention; evidence states effective window) |
+| APIM-GOV-005 | Non-current revisions still online | Low | `nonCurrentOnlineRevisions > 0` |
+| APIM-GOV-006 | Single-version version sets / unversioned APIs | Low | version set analysis |
+| APIM-GOV-007 | Production policy/API differs from source control | Medium | drift `Differs` or `ProdOnly` |
+| APIM-GOV-008 | Inconsistent path/versioning conventions | Low | path pattern clustering (`/v1/`, `/api/v1`, none) — service-level finding with distribution |
+| APIM-GOV-009 | Diagnostics/logging not configured or sampling < 100% on critical APIs | Medium | diagnostics |
+| APIM-GOV-010 | Policy missing `<base/>` drops inherited controls | Medium | `baseMissing` |
+| APIM-GOV-011 | Environment drift (Dev/Test/Prod) | Low | drift across envs |
+
+### 11.4 Reliability (REL) / Performance (PERF)
+| ID | Title | Sev | Logic |
+|---|---|---|---|
+| APIM-REL-001 | Production instance not zone-redundant | Medium | Premium and `zones` empty |
+| APIM-REL-002 | Single unit in production | Medium | `sku.capacity < 2` |
+| APIM-REL-003 | No circuit breaker / pool for critical backends | Low | backends without `circuitBreaker` (critical list configurable) |
+| APIM-REL-004 | App Gateway probe not aligned to APIM status endpoint | Low | probe path ≠ `/status-0123456789abcdef` |
+| APIM-REL-005 | Certificate expiring within threshold | Medium | hostname/backends/certs expiry < `CertExpiryDays` |
+| APIM-REL-006 | Platform version not stv2 | High | `platformVersion` ∉ {`stv2`, `stv2.1`} |
+| APIM-PERF-001 | High 5xx rate | Medium | `pct5xx > Error5xxPct` with calls > 1000 |
+| APIM-PERF-002 | Slow backends | Low | `backendP95Ms > BackendP95Ms` |
+| APIM-PERF-003 | Capacity pressure | Medium | capacity P95 > 70% or max > 85% |
+
+### 11.5 Developer portal (POR)
+| ID | Title | Sev | Logic |
+|---|---|---|---|
+| APIM-POR-001 | Developer portal not enabled/published | Medium | `developerPortalStatus != Enabled` or no published revision |
+| APIM-POR-002 | Username/password sign-in or open sign-up enabled | Medium | sign-up enabled / non-Entra identity paths (**build task: confirm exact property for basic identity**) |
+| APIM-POR-003 | Products not visible to intended groups / guests can see products | Low | productGroups includes `guests` for non-public products |
+| APIM-POR-004 | Weak API documentation | Low | operation description coverage < 80% or `openApiScore < 70` |
+| APIM-POR-005 | Legacy portal still enabled | Low | `legacyPortalStatus == Enabled` |
+
+### 11.6 Cost (COST)
+| ID | Title | Sev | Logic |
+|---|---|---|---|
+| APIM-COST-001 | Premium capacity utilization (informational right-sizing) | Info | capacity P95 and max vs units; recommendation respects zone/HA requirement |
+| APIM-COST-002 | Cost per million calls trend | Info | month-over-month |
+| APIM-COST-003 | Log Analytics ingestion growth from APIM/App GW | Medium | ingestion ×2 over window or body logging + top data types |
+| APIM-COST-004 | Logic Apps cost increase (cost-only) | Medium | month cost > 1.5× first month; evidence: change start date, plan SKU/instance changes; states "workflow review out of scope" |
+| APIM-COST-005 | Non-prod on Premium / over-provisioned non-prod | Low | env != Prod and sku Premium |
+
+> Maintainers add Microsoft Learn references to `References` manually. The tool must never generate URLs.
+
+---
+
+## 12. Stage 3 — Report
+
+### 12.1 Template-driven
+`template/ApimActionPlan.xlsx` holds all formatting: title rows, navy header band (`#1F3864`, white bold), banding, frozen panes, column widths, conditional formats (severity, Pass/Fail, exposure), **empty Excel tables** with fixed names, and Summary formulas/charts bound to those tables. The report script only writes data (`ImportExcel` `Export-Excel -TableName <name> -StartRow 3`), so charts and formulas grow automatically.
+
+### 12.2 Sheets
+| Sheet | Table name | Source |
+|---|---|---|
+| Summary | — (formulas) | KPIs via `COUNTIFS` on `tblFindings`/`tblApis`; pillar × severity matrix; chart; top 5 action items; **assumptions banner** (edge mode, data windows, not-evaluated collectors) |
+| Action Plan | `tblActions` | §10.4 aggregation + carried-forward tracking columns `Owner`, `Status` (dropdown: Open/In progress/Done/Accepted risk/Not applicable), `Target Date`, `Notes` |
+| Finding Details | `tblFindings` | findings.json |
+| API Inventory | `tblApis` | model/apis.json |
+| Effective Policy Matrix | `tblPolicy` | model/policyMatrix.json |
+| Subscriptions | `tblSubs` | model/subscriptions.json |
+| Exposure Map | `tblExposure` | model/exposure.json + network summary block |
+| Usage | `tblUsage` | model/usage.json + line chart |
+| Cost | `tblCost` | model/cost.json + stacked column chart + cost/M calls |
+| Environment Drift | `tblDrift` | model/drift.json |
+| Run Info | `tblRun` | manifest (collectors, statuses, windows, versions) |
+| Method & Rules | `tblRules`, `tblWeights` | rule catalog + scoring weights (editable cells drive a recalculated `Priority` column formula in Action Plan) |
+
+### 12.3 Carry-forward (`Merge-PriorTracking`)
+With `-PreviousReport <path>`: read `Action Plan` and `Finding Details` tracking columns, join on `ruleId` (actions) / `findingKey` (details), copy `Owner/Status/Target Date/Notes`. Unmatched prior rows are listed in a `Resolved Since Last Run` section with their tracking values.
+
+### 12.4 File naming
+`<Customer> APIM Assessment - <Env> - <yyyy-MM-dd>.xlsx`. Never overwrite; append `-2`, `-3` if exists.
+
+---
+
+## 13. Run comparison (`Compare-ApimRun`)
+Input two run folders. Output `diff.json` and a `Run Comparison` sheet: `New`, `Resolved`, `Persisting` (with severity change), counts by pillar; KPI deltas (reachable APIs, unused APIs, all-API subscriptions, monthly cost).
+
+---
+
+## 14. CLI
+
+```powershell
+# Full run, one environment
+./Invoke-ApimAssessment.ps1 -Config config/brother.psd1 -Environment Prod [-PreviousReport <xlsx>] [-SkipCost] [-SkipLogs] [-SkipGit] [-Resume <runFolder>]
+
+# Individual stages
+./Invoke-ApimCollect.ps1 -Config ... -Environment Prod            # → runs/<id>/raw + manifest
+./Invoke-ApimAnalyze.ps1 -RunFolder runs/<id> [-RulesPath rules/] [-OnlyRules APIM-SEC-*]
+./Invoke-ApimReport.ps1  -RunFolder runs/<id> [-PreviousReport <xlsx>]
+./Compare-ApimRun.ps1    -Baseline runs/<a> -Current runs/<b>
+
+# Multi-env drift
+./Invoke-ApimAnalyze.ps1 -RunFolder runs/<prod> -CompareRuns runs/<dev>,runs/<test>
+```
+Exit codes: 0 success; 1 config error; 2 auth error; 3 completed with collector failures; 4 analysis/report failure.
+
+---
+
+## 15. Non-functional requirements
+
+| Area | Requirement |
+|---|---|
+| Security | Read-only (§3.1). No secret values persisted or logged. `RedactPolicySecrets` strips detected secret literals from stored policy XML (replace with `***REDACTED***`) **after** flagging. |
+| Privacy | User identities not stored by default; principals reported as counts/types unless enabled. |
+| Data handling | Runs are written locally; README states runs must be stored in a customer-approved location and deleted after readout. `runs/` is gitignored. |
+| Performance | ~60 APIs / ~600 operations: collection < 15 min (excl. Cost throttling); analysis < 2 min; report < 1 min. |
+| Reliability | Collector isolation; retries; `-Resume`. |
+| Determinism | Stable sort, stable keys; analysis on the same raw folder yields byte-identical `findings.json` (excluding `generatedUtc`). |
+| Observability | `logs/run.log` + console progress; summary table at end of each stage. |
+| Quality | PSScriptAnalyzer clean (default rules, no `Write-Host` except progress helper); Pester coverage ≥ 80% for `src/Model` and `src/Rules`. |
+| Portability | No hard-coded paths; works on Windows and Linux PowerShell 7. |
+
+---
+
+## 16. Testing
+
+| Level | Content |
+|---|---|
+| Unit | `Invoke-ApimArm` (method allowlist, URL denylist, paging, 429 retry with mocked responses); `Merge-ApimPolicy` (base present/missing, fragments, multi-product); `Get-PolicyFlags` (each flag positive/negative); exposure classifier (Internal VNet + Basic rule, path-based, rewrite unknown, DirectPublic, private listener ambiguity); each rule ≥ 1 pass + 1 fail fixture; priority scoring; findingKey stability. |
+| Fixtures | `tests/fixtures/brother-like/` — synthetic raw folder mirroring §2 topology (60 APIs, Internal VNet, Basic rule, WAF disabled, edge allowlist, 4 all-API subs, 11 unused APIs, 3 missing `<base/>`, 2 hard-coded secrets, etc.). **No real customer data.** |
+| Integration | Offline: fixtures → analyze → report; assert findings count by rule, workbook tables populated, Summary formulas evaluate (open with ImportExcel and check computed values or validate formula strings). |
+| Live smoke | Against a Microsoft-owned test APIM (Developer tier) before first customer run. |
+| Schema | Every model file and findings.json validated with `Test-Json -SchemaFile`. |
+
+---
+
+## 17. Acceptance criteria (v1)
+
+1. Full run against Brother Prod completes with Reader access only; manifest shows all collectors `Completed` or explicitly `Skipped`.
+2. No non-GET calls other than the allowlist appear in the run log; denylist unit tests pass.
+3. No secret values in any output file (scripted grep for subscription key format, named-value secrets, JWTs returns nothing).
+4. Exposure map correctly reports host-wide forwarding (`NET-004`) and classifies each API as `ExternalInUse`/`ExternalUnintended`/`Restricted` per §9.
+5. Every finding has `evidence`, `sourceFiles`, and stable `findingKey`; re-running analysis produces identical findings.
+6. Workbook generated from template with all sheets populated; Summary KPIs match `findings.json` counts; charts render.
+7. Re-run with `-PreviousReport` preserves Owner/Status/Target Date/Notes.
+8. `Compare-ApimRun` correctly reports New/Resolved/Persisting on fixture variants.
+9. Dev and Test runs complete with the same config file; drift sheet populated.
+10. README + RUNBOOK allow a second CSA to run the tool without assistance.
+
+---
+
+## 18. Open items / decisions for the build
+
+| # | Item | Default if unresolved |
+|---|---|---|
+| 1 | Exact ARM property/mechanism to detect username/password identity on the developer portal | Detect via sign-up setting + identity providers; mark POR-002 evidence "heuristic" |
+| 2 | Cloudflare origin-auth evidence (Authenticated Origin Pulls / secret header) not visible in Azure if done only via listener mTLS | Check listener SSL profile client-auth + WAF custom rules + APIM `check-header`; else finding with "Confirm with customer" note |
+| 3 | Git repo layout | Support APIOps extractor layout; configurable regex |
+| 4 | Whether App GW has any private listeners to APIM | Auto-detect; confidence downgrade if present |
+| 5 | Log Analytics retention < 90 days | Cap window and state effective window in evidence |
+| 6 | Readout deck automation | Out of v1; v1.1 fills deck placeholders from findings/model |
+| 7 | AI gateway instance assessment | Same toolkit should run unchanged against it later; add AI rules (token limits, semantic cache, content safety) in v1.1 |
