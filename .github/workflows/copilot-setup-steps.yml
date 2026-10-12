@@ -1,0 +1,32 @@
+name: Copilot setup steps
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+      - scripts/Install-DevDependencies.ps1
+      - scripts/DevDependencies.psd1
+  pull_request:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+      - scripts/Install-DevDependencies.ps1
+      - scripts/DevDependencies.psd1
+
+permissions:
+  contents: read
+
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Install development modules without Azure authentication
+        shell: pwsh
+        run: ./scripts/Install-DevDependencies.ps1

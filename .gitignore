@@ -1,0 +1,20 @@
+# Assessment data and customer configuration never belong in source control.
+/runs/
+/config/*
+!/config/sample.psd1
+!/config/README.md
+
+# Local validation and release output.
+/artifacts/
+/dist/
+/coverage/
+*.log
+
+# Local tooling and editor state.
+/.tools/
+/.vscode/
+/.idea/
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp

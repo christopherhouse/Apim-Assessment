@@ -18,13 +18,13 @@
 
 | Phase | Milestone | Target | Tasks | Done | Status |
 |---|---|---|---|---|---|
-| P0 Setup | M0 | Oct 13 | 6 | 0 | Not started |
+| P0 Setup | M0 | Oct 13 | 6 | 1 | In progress |
 | P1 Core + APIM collection | M1 | Oct 15 | 14 | 0 | Not started |
 | P2 Model + exposure | M2 | Oct 17 | 13 | 0 | Not started |
 | P3 Rules + report MVP | M3 | Oct 21 | 16 | 0 | Not started |
 | P4 Telemetry + cost | M4 | Oct 23 | 13 | 0 | Not started |
 | P5 Portal, drift, lifecycle | M5 | Oct 28 | 11 | 0 | Not started |
-| P6 Hardening + acceptance | M6 | Oct 30 | 10 | 0 | Not started |
+| P6 Hardening + acceptance | M6 | Oct 30 | 10 | 0 | In progress |
 | Engagement runs | — | Oct 21 → Nov 6 | 8 | 0 | Not started |
 
 ---
@@ -33,12 +33,12 @@
 
 | ID | Task | Spec § | Depends | Owner | Status | % | Acceptance check | Notes |
 |---|---|---|---|---|---|---|---|---|
-| T-001 | Create repo + layout per spec; `.gitignore` (`runs/`, `config/*.psd1` except `sample.psd1`) | §4 | — | AGENT | Not started | 0 | Tree matches §4; `runs/` ignored | |
-| T-002 | Module manifest/loader (`ApimAssessment.psd1/.psm1`), dot-source `src/**` | §4 | T-001 | AGENT | Not started | 0 | `Import-Module` succeeds on PS 7.4 (Win + Linux) | |
-| T-003 | `Get-Config` + `config/sample.psd1` with validation | §5 | T-002 | AGENT | Not started | 0 | Missing/invalid keys fail with clear message (Pester) | |
+| T-001 | Create repo + layout per spec; `.gitignore` (`runs/`, `config/*.psd1` except `sample.psd1`) | §4 | — | AGENT | In progress | 85 | Tree matches §4; `runs/` ignored | Initial folder structure and ignore rules validated; stage entry scripts and generated artifacts intentionally await their implementation tasks (D-07). |
+| T-002 | Module manifest/loader (`ApimAssessment.psd1/.psm1`), dot-source `src/**` | §4 | T-001 | AGENT | In review | 90 | `Import-Module` succeeds on PS 7.4 (Win + Linux) | Imports and stable/private source loading pass locally on Windows PS 7.6.6; Windows/Linux CI configured, remote/minimum-version acceptance still pending. |
+| T-003 | `Get-Config` + `config/sample.psd1` with validation | §5 | T-002 | AGENT | Not started | 0 | Missing/invalid keys fail with clear message (Pester) | Synthetic sample supplied by bootstrap; loader and validation are not implemented. |
 | T-004 | Logging helper (`logs/run.log`, structured lines, progress) | §7.1, §15 | T-002 | AGENT | Not started | 0 | Log lines JSON-parsable; no secret patterns in tests | |
-| T-005 | CI: PSScriptAnalyzer + Pester on PR | §15, §16 | T-002 | AGENT | Not started | 0 | Pipeline green on skeleton | |
-| T-006 | Fixture scaffold `tests/fixtures/brother-like/` (empty structure + README on synthetic-only rule) | §16 | T-001 | AGENT | Not started | 0 | Folder + README committed | |
+| T-005 | CI: PSScriptAnalyzer + Pester on PR | §15, §16 | T-002 | AGENT | In review | 90 | Pipeline green on skeleton | Pinned tooling, branch-policy check, Windows/Linux jobs, and Copilot setup added; local lint/Pester and actionlint pass. First GitHub CI run awaits push/PR. |
+| T-006 | Fixture scaffold `tests/fixtures/brother-like/` (empty structure + README on synthetic-only rule) | §16 | T-001 | AGENT | Done | 100 | Folder + README committed | Synthetic-only README and raw policy/network/security/log/metric/cost/git folders included in bootstrap commit; fixture data remains T-201. |
 
 ## P1 — Core + APIM collection (M1)
 
@@ -140,8 +140,8 @@
 | T-602 | Determinism test (analyze twice → identical findings) | §15, §17 | T-302 | AGENT | Not started | 0 | Test green | |
 | T-603 | Performance check on fixture scaled to 60 APIs / 600 ops | §15 | all | AGENT | Not started | 0 | Analyze < 2 min, report < 1 min | |
 | T-604 | Live smoke on Microsoft-owned test APIM | §16 | T-114 | AGENT/CH | Not started | 0 | Full run exit 0 | |
-| T-605 | `README.md` (prereqs, permissions, data handling) | §15, §17 | all | AGENT | Not started | 0 | Second CSA can install from README | |
-| T-606 | `RUNBOOK.md` (step-by-step run, troubleshooting, exit codes) | §14, §17 | all | AGENT | Not started | 0 | Dry-run by JH without help | |
+| T-605 | `README.md` (prereqs, permissions, data handling) | §15, §17 | all | AGENT | In progress | 20 | Second CSA can install from README | Bootstrap README covers current availability, developer setup, planned permissions, privacy, layout and releases; same-change maintenance required. Full operator acceptance remains pending. |
+| T-606 | `RUNBOOK.md` (step-by-step run, troubleshooting, exit codes) | §14, §17 | all | AGENT | In progress | 10 | Dry-run by JH without help | Bootstrap runbook explicitly marks assessment stages unavailable; runnable stage instructions and operator dry-run remain pending. |
 | T-607 | `RULES.md` generated from rule files (ID, title, pillar, MCSB, severity, logic) | §11 | all rules | AGENT | Not started | 0 | Generation script + output committed | |
 | T-608 | Maintainers add Microsoft Learn references to rules | §10.1 | T-607 | CH | Not started | 0 | References populated for High/Medium rules | Tool must not invent URLs |
 | T-609 | Acceptance review vs spec §17 (all 10 criteria) | §17 | all | CH/JH | Not started | 0 | All criteria checked off below | **Gate G4** |
@@ -188,6 +188,9 @@
 | D-03 | 2026-10-12 | Topology: APIM Internal VNet behind App GW; host-wide forwarding; Cloudflare treated as assumed reachable | CH | §2, §9 |
 | D-04 | 2026-10-12 | Logic Apps: cost data only; no workflow review | CH | §1.2, §7.8 |
 | D-05 | 2026-10-12 | Scope order: Prod first, then Dev/Test | CUST | Plan §5 |
+| D-06 | 2026-10-12 | Use module `ModuleVersion` as the single three-part SemVer source; reviewed chore release PR, then manual main-only workflow with validation, tag, ZIP/checksum and generated notes. No version-bump commits on main. | AGENT | Release mechanics for T-610; no assessment contract change |
+| D-07 | 2026-10-12 | Bootstrap importable module and folders without success-shaped assessment stubs; add the five entry scripts, schemas, catalogs and workbook only with their implementation tasks. README distinguishes available and planned features. | AGENT | §4 scaffold sequencing; no CLI contract change |
+| D-08 | 2026-10-12 | Development uses feature/chore/bugfix branches and PRs to main; Copilot instructions, local guard, and PR CI enforce branch naming. Host-side main protection remains a maintainer setting. | AGENT | Contributor workflow; requested repository bootstrap |
 
 ## Issues / risks log
 
@@ -202,4 +205,4 @@
 
 | Date | Session summary | Tasks moved | Blockers |
 |---|---|---|---|
-| | | | |
+| 2026-10-12 | Bootstrapped on `feature/bootstrap-repository`: module/fixture scaffold, sample config, Copilot guidance with two agents/two skills, maintained README/runbook, PR CI, and guarded SemVer release/package automation. Local Windows PSScriptAnalyzer, 25 offline Pester tests, package import/checksum/private-data exclusion, manifest/ignore checks and actionlint pass. No Azure calls, remote push, tag or release. | T-001 in progress; T-002/T-005 in review; T-006 done in bootstrap commit; T-605/T-606 started. | GitHub CI and minimum PS 7.4 validation await later acceptance; assessment runtime stages remain unimplemented. |
