@@ -43,5 +43,13 @@
         UnusedDays = 90; SubscriptionStaleDays = 180; MaxWriteRolePrincipals = 5
     }
     Privacy = @{ StoreUserIdentities = $false; RedactPolicySecrets = $true }
-    Output  = @{ Root = 'runs' }
+    AnalysisPackage = @{
+        UsageMode   = 'Bucketed'
+        CostMode    = 'RelativeOnly'
+        UsageBuckets = @(0, 1, 1000, 10000, 100000, 1000000)
+    }
+    Output = @{
+        Root          = '<absolute-external-restricted-path>'
+        ModelSafeRoot = '<absolute-external-analysis-path>'
+    }
 }

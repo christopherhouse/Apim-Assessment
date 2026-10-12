@@ -4,7 +4,7 @@ BeforeAll {
     New-Item -ItemType Directory -Path $moduleRoot | Out-Null
     Copy-Item -LiteralPath (Join-Path $repoRoot 'ApimAssessment.psd1') -Destination $moduleRoot
     Copy-Item -LiteralPath (Join-Path $repoRoot 'ApimAssessment.psm1') -Destination $moduleRoot
-    foreach ($area in @('Core', 'Collect', 'Model', 'Rules', 'Report')) {
+    foreach ($area in @('Core', 'Collect', 'Model', 'Rules', 'Package', 'Report')) {
         New-Item -ItemType Directory -Path (Join-Path $moduleRoot "src/$area") | Out-Null
     }
     $script:loaderManifestPath = Join-Path $moduleRoot 'ApimAssessment.psd1'
@@ -15,7 +15,7 @@ AfterAll {
 }
 
 Describe 'Module source loading' {
-    It 'imports the empty scaffold from outside the repository without Azure modules' {
+    It 'imports the module from outside the repository without Azure modules' {
         Push-Location $TestDrive
         try {
             { Import-Module -Name $script:loaderManifestPath -Force -ErrorAction Stop } | Should -Not -Throw
@@ -32,14 +32,14 @@ Describe 'Module source loading' {
 $script:LoadOrder = @("Core/a")
 function Get-SyntheticHelper { "synthetic" }
 '@
-        foreach ($area in @('Collect', 'Model', 'Rules', 'Report')) {
+        foreach ($area in @('Collect', 'Model', 'Rules', 'Package', 'Report')) {
             Set-Content -LiteralPath (Join-Path $moduleRoot "src/$area/area.ps1") `
                 -Value ('$script:LoadOrder += "' + $area + '"')
         }
 
         $module = Import-Module -Name $script:loaderManifestPath -Force -PassThru -ErrorAction Stop
         $order = & $module { $script:LoadOrder }
-        ($order -join ',') | Should -Be 'Core/a,Core/z,Collect,Model,Rules,Report'
+        ($order -join ',') | Should -Be 'Core/a,Core/z,Collect,Model,Rules,Package,Report'
         (& $module { Get-SyntheticHelper }) | Should -Be 'synthetic'
         Get-Command -Name Get-SyntheticHelper -ErrorAction SilentlyContinue |
             Should -BeNullOrEmpty

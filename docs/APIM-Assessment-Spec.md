@@ -85,6 +85,9 @@ Implication encoded in the spec: with Internal VNet + host-wide forwarding, **ev
   - Log Analytics query API (via `Invoke-AzOperationalInsightsQuery`)
   - Resource Graph (via `Search-AzGraph`)
 - The wrapper must refuse any URL containing `listSecrets`, `listValue`, `listKeys`, `/secrets`, `regenerate`, `token` (denylist; unit-tested).
+- Relative URLs must begin with `/`. Absolute URLs must use HTTPS and a known
+  Azure Resource Manager host for public, US Government, China, or German clouds;
+  every decoded `nextLink` is revalidated before use.
 
 ### 3.2 Model-data boundary
 
@@ -193,7 +196,14 @@ tool/path isolation.
 }
 ```
 
-Validation: `Get-Config` validates required keys and types and fails fast with a clear message. Agent-assisted analysis additionally requires non-overlapping, explicitly resolved external collection and analysis roots, rejects symlink/junction traversal between them, and verifies that the collection root is outside all Copilot trusted/allowed directories.
+Validation: `Get-Config` validates required keys and nested types, GUIDs, enums,
+positive numeric settings, strictly ascending usage buckets, and absolute
+non-overlapping output roots, then returns normalized paths without creating
+them. Existing symbolic links/junctions in either root are rejected.
+`-AgentAssisted` additionally requires at least one `-CopilotVisiblePath`, rejects
+a restricted root that overlaps any supplied visible path, and fails closed if
+the broker cannot supply the complete visible-path set. T-319 adds the
+promotion-time link/traversal and time-of-check/time-of-use defenses.
 
 ---
 
@@ -252,7 +262,9 @@ Rules: a collector failure **never** aborts the run; it is recorded as `Failed/P
 - **Concurrency**: per-API/per-operation calls use `ForEach-Object -Parallel` with configurable `ThrottleLimit` (default 6).
 - **Output**: raw responses written unchanged (`ConvertTo-Json -Depth 50`), one file per call type; policies stored as `.xml` plus `policies/index.json`.
 - **Idempotent**: `-Resume` skips collectors whose output already exists and is valid.
-- **Logging**: structured log lines `{ts, level, collector, message, url?}`; no secret values ever logged.
+- **Logging**: structured log lines `{ts, level, collector, message, url?}`; known
+  credential patterns are redacted and URL query/fragment values are removed;
+  callers must never submit raw secret-bearing payloads.
 
 ### 7.2 APIM configuration (ARM, base = `/subscriptions/{s}/resourceGroups/{rg}/providers/Microsoft.ApiManagement/service/{name}`)
 
