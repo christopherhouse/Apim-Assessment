@@ -9,18 +9,20 @@ HTML executive presentation, and run comparisons.
 
 ## Current status
 
-**Core foundation only; not yet an operational assessment tool.** The module
-imports and now contains private configuration validation, structured logging,
-and a guarded ARM transport, but exports no assessment commands. Collectors,
-models, rules, run persistence, the model-data airlock, Copilot operator workflow,
-CLI entry points, and report templates are not implemented yet.
+**Core collection foundation only; not yet an operational assessment tool.** The
+module imports and contains private configuration validation, structured logging,
+a guarded ARM transport, schema-validated run persistence, and the first internal
+APIM service collector, but exports no assessment commands. Remaining collectors,
+models, rules, the model-data airlock, Copilot operator workflow, CLI entry points,
+and report templates are not implemented yet.
 
 | Available | Planned |
 |---|---|
-| Module manifest and deterministic source loader | Run persistence and collectors |
+| Module manifest and deterministic source loader | Remaining run orchestration and collectors |
 | Strict private configuration validation | Public assessment entry points |
 | Structured JSON-lines logging and progress | Policy merge, exposure model, and rule engine |
 | Guarded ARM transport with paging/retry | Excel report, carry-forward, and run comparison |
+| Versioned run manifest lifecycle and APIM service collector | Remaining APIM, network, telemetry, and cost collectors |
 | Synthetic-fixture scaffold | Populated fixtures and offline integration pipeline |
 | Windows/Linux lint and test CI | Model-data airlock and local Copilot broker |
 | Copilot development instructions, agents, and skills | Assessment analyst agents and operator skills |
@@ -60,10 +62,12 @@ This repository setup does not change GitHub repository settings.
 
 ## Intended runtime and permissions
 
-When collection is implemented, the runtime modules will be `Az.Accounts`,
+The full collection runtime will use `Az.Accounts`,
 `Az.ResourceGraph`, `Az.OperationalInsights`, `Az.Monitor`, and `ImportExcel`.
 Optional OpenAPI linting will use Node.js and Spectral. They are not needed to
-import or validate the current core module.
+import or validate the current core module. The implemented service collector
+calls the guarded ARM transport, but no public command invokes it yet and all
+automated tests mock Azure responses.
 
 The optional operator experience will use GitHub Copilot CLI repository agents
 and skills through a narrow local broker. The deterministic collection, analysis,
@@ -82,11 +86,13 @@ entry points are **not available**.
 ## Data handling
 
 Use **synthetic fixtures only** for development and automated tests. Never commit
-customer configurations, tenant/subscription/workspace identifiers from real
-environments, assessment outputs, credentials, subscription keys, or secret values.
+customer or engagement names, real-person names, customer configurations,
+tenant/subscription/workspace identifiers from real environments, assessment
+outputs, credentials, subscription keys, or secret values.
 Only `config/sample.psd1` and `config/README.md` are tracked under `config`.
-The conventional local `runs` and `model-safe` directories are ignored; the
-runtime will create configured output paths when persistence is implemented.
+The conventional local `runs` and `model-safe` directories are ignored; future
+public orchestration will create run folders under the configured external roots
+through the implemented persistence helpers.
 
 Real runs must remain local in a customer-approved storage location and be
 deleted after the readout according to the agreed retention policy. Do not
@@ -109,21 +115,21 @@ zone, Azure credentials, collection output, or arbitrary paths.
 ```text
 ApimAssessment.psd1 / .psm1  Module metadata and source loader
 src/
-  Core/                     Config, ARM guard, persistence, logging, retries
-  Collect/                  Isolated read-only collectors
+  Core/                     Config, ARM guard, manifest persistence, logging, retries
+  Collect/                  Isolated read-only collectors (service implemented)
   Model/                    Normalization, policy merge, exposure and drift
   Rules/                    Rule engine and priority scoring
   Package/                  Model-safe package construction, validation and promotion (planned)
   Report/                   Excel/HTML export and tracking carry-forward
 rules/                      Rule catalogs (planned)
 queries/                    Log Analytics and Resource Graph KQL (planned)
-schemas/                    Versioned JSON contracts (planned)
+schemas/                    Versioned JSON contracts (manifest implemented)
 template/                   Excel and HTML presentation templates (planned)
 config/                     Tracked sample; ignored local configurations
 tests/
   unit/                     Offline Pester tests
   integration/              Offline pipeline tests (planned)
-  fixtures/brother-like/    Synthetic reference-topology fixture scaffold
+  fixtures/synthetic-reference/  Synthetic reference-topology fixture scaffold
 scripts/                    Branch guard, validation and release packaging
 docs/                       Specification, plan, register and operating guides
 .github/

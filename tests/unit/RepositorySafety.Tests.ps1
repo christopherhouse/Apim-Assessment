@@ -30,4 +30,24 @@ Describe 'Repository data exclusions' {
             Pop-Location
         }
     }
+
+    It 'uses customer-neutral names for tracked fixture roots' {
+        Push-Location $script:repoRoot
+        try {
+            $paths = @(& git ls-files -- 'tests/fixtures/*')
+            $LASTEXITCODE | Should -Be 0
+            $fixtureRoots = @(
+                $paths |
+                    ForEach-Object { ($_ -split '/')[2] } |
+                    Sort-Object -Unique
+            )
+            $fixtureRoots.Count | Should -BeGreaterThan 0
+            foreach ($fixtureRoot in $fixtureRoots) {
+                $fixtureRoot | Should -Match '^synthetic-[a-z0-9-]+$'
+            }
+        }
+        finally {
+            Pop-Location
+        }
+    }
 }

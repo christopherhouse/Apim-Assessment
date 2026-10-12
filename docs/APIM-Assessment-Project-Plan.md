@@ -4,7 +4,7 @@
 |---|---|
 | **Version** | 1.1 (draft) |
 | **Date** | 2026-10-12 |
-| **Owners** | Chris House, JohnHenry Hain (product owners / reviewers) |
+| **Owners** | Product owners / reviewers |
 | **Builder** | Coding agent |
 | **Spec** | `APIM-Assessment-Spec.md` |
 | **Tracking** | `APIM-Assessment-Task-Register.md` |
@@ -12,16 +12,20 @@
 ---
 
 ## 1. Objective
-Deliver a read-only, reusable APIM assessment system in which deterministic PowerShell performs **Collect → Analyze → Render** and a constrained GitHub Copilot workflow performs **Review → Synthesize** over an independently validated, model-safe package. Use it to deliver Brother's integration APIM audit — Prod first, then Dev/Test — with a WARA-style Excel action plan and engaging self-contained HTML executive presentation.
+Deliver a read-only, reusable APIM assessment system in which deterministic PowerShell performs **Collect → Analyze → Render** and a constrained GitHub Copilot workflow performs **Review → Synthesize** over an independently validated, model-safe package. Support an initial customer integration APIM audit — Prod first, then Dev/Test — with a WARA-style Excel action plan and engaging self-contained HTML executive presentation.
 
 ## 2. Context and drivers
-- Brother asked for (1) a full audit of the existing integration APIM (~60 APIs, growing external use), security of external calls, API organization, developer portal enablement, and cost visibility (including a reported Logic Apps cost increase), and (2) advisory input on a separate AI gateway APIM instance.
-- Customer reports senior-management visibility and urgency.
-- Access: Reader on integration resource groups is in place; Chris and/or JohnHenry run the tool.
-- Known topology: APIM Internal VNet behind App Gateway, host-wide forwarding, Cloudflare in front (assumed reachable).
+- The initial validation profile covers an integration APIM of roughly 60 APIs,
+  growing external use, caller security, API organization, developer portal
+  enablement, and cost visibility. Separate AI gateway advisory work is out of
+  scope for the toolkit.
+- The engagement has senior-management visibility and urgency.
+- Authorized maintainers run the tool with Reader access on target resource groups.
+- The synthetic reference topology is APIM Internal VNet behind App Gateway with
+  host-wide forwarding and an assumed-reachable external edge.
 
 ## 3. Scope
-**In scope (v1):** everything in the spec §1–§17: collectors, model, exposure classification, ~60 rules, fail-closed model-data airlock, local Copilot broker, architecture/security/executive agents, orchestration/deliverable skills, Excel template + report, HTML executive presentation, carry-forward, run diff, tests, docs, Brother Prod/Dev/Test runs.
+**In scope (v1):** everything in the spec §1–§17: collectors, model, exposure classification, ~60 rules, fail-closed model-data airlock, local Copilot broker, architecture/security/executive agents, orchestration/deliverable skills, Excel template + report, HTML executive presentation, carry-forward, run diff, tests, docs, and authorized customer Prod/Dev/Test runs.
 
 **Out of scope (v1):** remediation, Cloudflare API collection, Logic Apps workflow review, PowerPoint generation, AI gateway–specific rules, model access to raw/model/restricted customer data, and AI-generated rule results or direct report mutation.
 
@@ -31,11 +35,12 @@ Build in vertical slices so a trustworthy report exists early:
 1. **Slice 1 (trusted engine):** config/logging + read-only ARM wrapper + APIM config/policy collection + manifest.
 2. **Slice 2 (assessment authority):** normalized model + policy merge/flags + network/exposure + deterministic Security/Network/Governance rules.
 3. **Slice 3 (model-safe review):** allowlist-only package builder + independent validator/scanner + physical promotion gate + local Copilot broker + architecture/security/executive agents.
-4. **Slice 4 (MVP deliverables):** deterministic Excel action plan + self-contained HTML executive presentation with local alias resolution → first Brother Prod draft.
+4. **Slice 4 (MVP deliverables):** deterministic Excel action plan + self-contained HTML executive presentation with local alias resolution → first authorized Prod draft.
 5. **Slice 5:** logs, metrics, cost, portal, Git drift, multi-env, carry-forward, run diff, Spectral.
 6. **Hardening:** canary/mutation/airlock tests, coverage target, docs, live smoke, visual/accessibility review, acceptance.
 
-The coding agent builds and tests against **synthetic fixtures** only; Chris/JohnHenry run live against Brother.
+The coding agent builds and tests against **synthetic fixtures** only; authorized
+maintainers perform live runs in a customer-approved environment.
 
 ### 4.1 Trust model
 
@@ -47,21 +52,21 @@ The coding agent builds and tests against **synthetic fixtures** only; Chris/Joh
 
 ## 5. Phases, milestones and timeline
 
-Target start Tue 2026-10-13. Durations assume a dedicated coding agent with daily review by Chris/JohnHenry.
+Target start Tue 2026-10-13. Durations assume a dedicated coding agent with daily product-owner review.
 
 | Phase | Dates (target) | Content | Exit criteria / milestone |
 |---|---|---|---|
 | **P0 Setup** | Oct 13 | Repo, module skeleton, config loader, CI lint/test, fixture scaffold | **M0** – repo builds, Pester + ScriptAnalyzer run in CI |
 | **P1 Core + APIM collection** | Oct 13–15 | ARM wrapper (read-only guard, paging, retry), service/API/product/subscription/named value/backend/cert/diagnostic/policy collectors, manifest | **M1** – raw folder produced against test APIM; guard tests pass |
 | **P2 Model + exposure** | Oct 15–17 | Policy merge + flags, API/operation/policy matrix/subscription models, network collection, exposure classifier | **M2** – fixture yields correct exposure labels incl. host-wide forwarding |
-| **P3 Rules + model-safe report MVP** | Oct 19–23 | Rule engine/scoring, SEC/NET/GOV/REL rules, model-data airlock, broker, specialist agents/skills, Excel and HTML renderers | **M3 – MVP** – canary/mutation gate green; first Brother **Prod** run + draft action plan and executive presentation reviewed by Chris/JH |
+| **P3 Rules + model-safe report MVP** | Oct 19–23 | Rule engine/scoring, SEC/NET/GOV/REL rules, model-data airlock, broker, specialist agents/skills, Excel and HTML renderers | **M3 – MVP** – canary/mutation gate green; first authorized **Prod** run + draft action plan and executive presentation reviewed by product owners |
 | **P4 Telemetry + cost** | Oct 23–27 | Log Analytics (schema detect, queries), metrics, cost + Logic Apps cost-only, LA ingestion; usage/cost rules; Usage/Cost sheets | **M4** – Prod run with usage-based exposure (ExternalInUse vs Unintended) and cost views |
 | **P5 Portal, drift, lifecycle** | Oct 27–30 | Portal collection/rules, Git hashing + drift, multi-env compare, carry-forward, run diff, Spectral (optional) | **M5** – Dev/Test runs; drift sheet; carry-forward verified |
 | **P6 Hardening + acceptance** | Oct 30–Nov 3 | Coverage ≥ 80%, docs (README, RUNBOOK, RULES), live smoke, secret/airlock scans, visual/accessibility review, acceptance criteria §17 | **M6 – v1.0** tagged |
 | **Delivery (engagement)** | Oct 24 → Nov 10 | Working sessions using M3/M4 outputs; Excel action plan and HTML executive presentation support the final readout | Readout delivered |
 
 Engagement alignment:
-- **Working session 1 (security & exposure, with Kirit):** after M3/M4 — exposure map, NET/SEC findings, Cloudflare origin-auth questions.
+- **Working session 1 (security & exposure):** after M3/M4 — exposure map, NET/SEC findings, edge-origin authentication questions.
 - **Working session 2 (API organization & portal):** after M5 — products/tags/hostname split model, portal plan, drift.
 - **Working session 3 (cost & monitoring):** after M4 — cost sheet, Logic Apps cost observation, dashboard approach.
 - **Readout:** final v1.0 run on Prod + summary of Dev/Test drift.
@@ -70,13 +75,13 @@ Engagement alignment:
 
 | Role | Who | Responsibilities |
 |---|---|---|
-| Product owner / reviewer | Chris House | Spec decisions, rule severity/recommendations, report review, live runs, customer readout |
-| Product owner / reviewer | JohnHenry Hain | Live runs, AI landing zone alignment, customer coordination, access follow-ups |
+| Product owner / reviewer | Designated maintainer | Spec decisions, rule severity/recommendations, report review, live runs, customer readout |
+| Product owner / reviewer | Designated maintainer | Live runs, AI landing zone alignment, customer coordination, access follow-ups |
 | Builder | Coding agent | Deterministic engine, local broker, validation, renderers, tests, fixtures, docs per spec; daily status in task register |
 | Architecture/exposure analyst | Copilot custom agent | Review only the validated package; emit schema-valid, cited observations |
 | Security analyst | Copilot custom agent | Review only the validated package; emit schema-valid, cited security observations |
 | Executive synthesizer | Copilot custom agent | Reconcile validated findings/observations into a schema-valid executive narrative and priorities |
-| Customer contacts | Kiran Asokan, Kirit Nayee (Brother) | Access (incl. GitHub), Cloudflare confirmation, working sessions |
+| Customer stakeholders | Designated contacts kept outside the repository | Access, edge confirmation, working sessions |
 
 **Review cadence:** daily async review of the task register; PR review per phase; go/no-go at M3 before first customer run.
 
@@ -94,7 +99,7 @@ Engagement alignment:
 ## 8. Dependencies
 | Dependency | Needed by | Status |
 |---|---|---|
-| Reader on Brother integration RGs (Dev/Test/Prod) | M3 | In place |
+| Reader on target integration RGs (Dev/Test/Prod) | M3 | In place |
 | Log Analytics Reader on APIM/App GW workspace(s) | M4 | Confirm |
 | Cost data access | M4 | Customer stated cost access granted — confirm scope |
 | GitHub repo access (APIM/IaC) | M5 | In progress (customer) |
@@ -126,17 +131,17 @@ Engagement alignment:
 |---|---|---|
 | G1 Read-only | M1 | Guard tests pass; code review of all collectors |
 | G2 Exposure correctness | M2 | All exposure fixture scenarios pass |
-| G3 MVP go/no-go | M3 | Fixture end-to-end green; raw/model zone inaccessible to agents; canary/mutation and attestation gates green; agent outputs traceable; Chris/JH review sample workbook and HTML presentation; no secrets or prohibited identifiers in model-safe outputs |
+| G3 MVP go/no-go | M3 | Fixture end-to-end green; raw/model zone inaccessible to agents; canary/mutation and attestation gates green; agent outputs traceable; product owners review sample workbook and HTML presentation; no secrets or prohibited identifiers in model-safe outputs |
 | G4 v1.0 | M6 | Spec §17 acceptance criteria all met |
 
 ## 11. Communication
 - Task register is the single source of status (owners review daily).
-- Decisions and issues logged in the register; customer-facing questions batched for JohnHenry to send.
+- Decisions and issues logged in the register; customer-facing questions are batched for an authorized maintainer to send.
 - Milestone demos: M3 (MVP workbook + HTML executive presentation), M5 (multi-env + carry-forward), M6 (v1.0).
 
 ## 12. Deliverables
 1. `ApimAssessment` deterministic engine (code, rules, queries, schemas, templates, tests, docs).
 2. Local Copilot broker, model-data airlock, specialist agent profiles, and orchestration/reporting skills.
-3. Brother Prod action plan workbook and self-contained HTML executive presentation (draft at M3/M4, final at readout).
-4. Brother Dev/Test runs + drift view.
+3. Customer Prod action plan workbook and self-contained HTML executive presentation (draft at M3/M4, final at readout).
+4. Customer Dev/Test runs + drift view.
 5. Validated, cited readout inputs (top findings, KPIs, exposure map, priorities and next actions).

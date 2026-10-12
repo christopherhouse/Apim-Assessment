@@ -1,0 +1,245 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.invalid/apim-assessment/schemas/manifest.schema.json",
+  "title": "APIM Assessment Run Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "toolVersion",
+    "customer",
+    "environment",
+    "runId",
+    "startedUtc",
+    "completedUtc",
+    "operator",
+    "tenantId",
+    "subscriptionId",
+    "apim",
+    "windows",
+    "edge",
+    "stages",
+    "collectors",
+    "modelSafe",
+    "warnings"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "toolVersion": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "customer": {
+      "type": "string",
+      "minLength": 1
+    },
+    "environment": {
+      "type": "string",
+      "minLength": 1
+    },
+    "runId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+    },
+    "startedUtc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completedUtc": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "operator": {
+      "type": "string",
+      "minLength": 1
+    },
+    "tenantId": {
+      "type": "string",
+      "pattern": "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$"
+    },
+    "subscriptionId": {
+      "type": "string",
+      "pattern": "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$"
+    },
+    "apim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "resourceId",
+        "apiVersion"
+      ],
+      "properties": {
+        "resourceId": {
+          "type": "string",
+          "pattern": "^/subscriptions/[^/]+/resourceGroups/[^/]+/providers/Microsoft\\.ApiManagement/service/[^/]+$"
+        },
+        "apiVersion": {
+          "const": "2024-05-01"
+        }
+      }
+    },
+    "windows": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "usageDays",
+        "securityLogDays",
+        "costMonths"
+      ],
+      "properties": {
+        "usageDays": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "securityLogDays": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "costMonths": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider",
+        "mode"
+      ],
+      "properties": {
+        "provider": {
+          "type": "string",
+          "minLength": 1
+        },
+        "mode": {
+          "enum": [
+            "AssumedReachable",
+            "Collected"
+          ]
+        }
+      }
+    },
+    "stages": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "collect",
+        "analyze",
+        "report"
+      ],
+      "properties": {
+        "collect": {
+          "$ref": "#/definitions/stageStatus"
+        },
+        "analyze": {
+          "$ref": "#/definitions/stageStatus"
+        },
+        "report": {
+          "$ref": "#/definitions/stageStatus"
+        }
+      }
+    },
+    "collectors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "status",
+          "items",
+          "errors",
+          "durationSec"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "$ref": "#/definitions/stageStatus"
+          },
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "errors": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "durationSec": {
+            "type": "number",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "modelSafe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "build",
+        "validation",
+        "promotion",
+        "packageSha256"
+      ],
+      "properties": {
+        "build": {
+          "$ref": "#/definitions/modelSafeStatus"
+        },
+        "validation": {
+          "enum": [
+            "NotRun",
+            "Passed",
+            "Failed",
+            "Skipped"
+          ]
+        },
+        "promotion": {
+          "$ref": "#/definitions/modelSafeStatus"
+        },
+        "packageSha256": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "definitions": {
+    "stageStatus": {
+      "enum": [
+        "NotStarted",
+        "InProgress",
+        "Completed",
+        "Partial",
+        "Failed",
+        "Skipped"
+      ]
+    },
+    "modelSafeStatus": {
+      "enum": [
+        "NotStarted",
+        "Completed",
+        "Failed",
+        "Skipped"
+      ]
+    }
+  }
+}

@@ -5,8 +5,8 @@
 | **Document** | Build specification for a coding agent |
 | **Version** | 1.1 (draft) |
 | **Date** | 2026-10-12 |
-| **Product owners** | Chris House (Principal Cloud Solution Architect, Microsoft), JohnHenry Hain |
-| **First customer** | Brother (BIC USA) — integration APIM, Prod first, then Dev/Test |
+| **Product owners** | Designated maintainers |
+| **Validation profile** | Customer-neutral integration APIM, Prod first, then Dev/Test |
 | **Companion docs** | `APIM-Assessment-Project-Plan.md`, `APIM-Assessment-Task-Register.md` |
 
 ---
@@ -46,21 +46,23 @@ The toolkit is **customer-neutral**. All customer specifics live in a config fil
 
 ---
 
-## 2. Reference environment (Brother)
+## 2. Synthetic reference environment
 
-The defaults and the exposure algorithm must handle this topology correctly; it is the acceptance environment.
+The defaults and exposure algorithm must handle this wholly synthetic topology
+correctly. Customer, engagement, and real-person identifiers remain outside the
+repository.
 
 | Item | Value |
 |---|---|
 | APIM tier | Premium (classic) in Prod, Developer in non-prod |
 | Network | APIM **Internal VNet** mode, behind **Application Gateway (WAF v2)** |
 | App Gateway routing | **Host-wide forwarding** (basic rule; no path-based allowlist) to APIM gateway hostname |
-| Edge | **Cloudflare** in front of App Gateway; App Gateway allows Cloudflare IP ranges; WAF reportedly disabled in favour of Cloudflare. Cloudflare config is **not** collected — treated as "assumed reachable". |
-| Scale | ~60 APIs, external partners/vendors (e.g., Salesforce), Lakehouse-backed APIs |
+| Edge | External edge proxy in front of App Gateway; App Gateway allows trusted edge IP ranges; WAF is disabled in the synthetic scenario. Edge config is **not** collected — treated as "assumed reachable". |
+| Scale | ~60 APIs, external partner/vendor integrations, data-platform-backed APIs |
 | Environments | Dev, Test, Prod (separate resource groups for the integration platform) |
 | Access | Reader on integration RGs (granted); Cost data access available |
 | Source control | GitHub repos (APIM/IaC) — access in progress |
-| Also in RG | Logic Apps (cost spike reported) — cost-only scope |
+| Also in RG | Logic Apps cost-visibility scenario — cost-only scope |
 
 Implication encoded in the spec: with Internal VNet + host-wide forwarding, **every API on a published hostname is internet-reachable unless a policy blocks it** (APIM does not scope APIs to hostnames).
 
@@ -128,7 +130,7 @@ ApimAssessment/
   queries/       *.kql (Log Analytics), *.arg.kql (Resource Graph)
   schemas/       *.schema.json (manifest, models, findings, model-safe and agent contracts)
   template/      ApimActionPlan.xlsx, executive-summary/
-  config/        sample.psd1, brother.psd1 (gitignored if it contains tenant IDs)
+  config/        sample.psd1, customer.psd1 (gitignored if it contains tenant IDs)
   tests/         unit/, integration/, fixtures/ (synthetic, anonymized)
   docs/          README.md, RUNBOOK.md, RULES.md (generated from rule files)
   .github/
@@ -149,7 +151,7 @@ tool/path isolation.
 
 ```powershell
 @{
-  Customer        = 'Brother'
+  Customer        = 'Example'
   Environments    = @(
     @{
       Name             = 'Prod'
@@ -161,7 +163,7 @@ tool/path isolation.
       LogAnalyticsWorkspaceIds = @('<workspace-guid>')   # APIM + App GW diagnostics
       CostScopes       = @('/subscriptions/<guid>/resourceGroups/rg-...-prod')
       LogicAppResourceGroups = @('rg-...-prod')
-      GitRepoPath      = 'C:\src\bic-apim'              # optional, local clone
+      GitRepoPath      = 'C:\src\example-apim'          # optional, local clone
       GitPolicyRoot    = 'apim/policies'                # optional
     }
     # Dev, Test ...
@@ -234,7 +236,7 @@ promotion-time link/traversal and time-of-check/time-of-use defenses.
 {
   "schemaVersion": "1.0",
   "toolVersion": "0.1.0",
-  "customer": "Brother",
+  "customer": "Example",
   "environment": "Prod",
   "runId": "2026-10-19_0930_Prod",
   "startedUtc": "...", "completedUtc": "...",
@@ -457,7 +459,7 @@ From `usageByRoute`: `callsViaAppGw`, `callsInternal`. If App GW also has **priv
 
 Edge layer: with `Edge.Mode = AssumedReachable`, every public listener is treated as internet-reachable; `exposure.json.edge = "Cloudflare-Assumed"` and the report shows the assumption banner.
 
-**Expected Brother outcome:** host-wide forwarding ⇒ most/all APIs `ExternalInUse` or `ExternalUnintended`; `NET-004` fires.
+**Expected synthetic outcome:** host-wide forwarding ⇒ most/all APIs `ExternalInUse` or `ExternalUnintended`; `NET-004` fires.
 
 ---
 
@@ -489,9 +491,9 @@ Edge layer: with `Edge.Mode = AssumedReachable`, every public listener is treate
 ### 10.2 Findings schema (`findings.json`, one record per rule × target)
 ```json
 {
-  "findingKey": "APIM-SEC-003|apim-bic-int-prod|api:lakehouse-orders-v1",
+  "findingKey": "APIM-SEC-003|apim-synthetic-prod|api:orders-v1",
   "ruleId": "APIM-SEC-003", "title": "...", "pillar": "Security", "mcsb": "IM-1",
-  "severity": "High", "scope": "api:lakehouse-orders-v1", "resource": "apim-bic-int-prod",
+  "severity": "High", "scope": "api:orders-v1", "resource": "apim-synthetic-prod",
   "exposure": "ExternalInUse", "usage": "InUse",
   "priorityScore": 9.0,
   "evidence": { }, "evidenceText": "...",
@@ -680,7 +682,7 @@ Input two run folders. Output `diff.json` and a `Run Comparison` sheet: `New`, `
 
 ```powershell
 # Full run, one environment
-./Invoke-ApimAssessment.ps1 -Config config/brother.psd1 -Environment Prod [-PreviousReport <xlsx>] [-SkipCost] [-SkipLogs] [-SkipGit] [-Resume <runFolder>]
+./Invoke-ApimAssessment.ps1 -Config config/customer.psd1 -Environment Prod [-PreviousReport <xlsx>] [-SkipCost] [-SkipLogs] [-SkipGit] [-Resume <runFolder>]
 
 # Individual stages
 ./Invoke-ApimCollect.ps1 -Config ... -Environment Prod            # → runs/<id>/raw + manifest
@@ -740,7 +742,7 @@ Collection, deterministic analysis, Excel, and HTML rendering remain runnable wi
 | Level | Content |
 |---|---|
 | Unit | `Invoke-ApimArm` (method allowlist, URL denylist, paging, 429 retry with mocked responses); `Merge-ApimPolicy` (base present/missing, fragments, multi-product); `Get-PolicyFlags` (each flag positive/negative); exposure classifier (Internal VNet + Basic rule, path-based, rewrite unknown, DirectPublic, private listener ambiguity); each rule ≥ 1 pass + 1 fail fixture; priority scoring; findingKey stability. |
-| Fixtures | `tests/fixtures/brother-like/` — synthetic raw folder mirroring §2 topology (60 APIs, Internal VNet, Basic rule, WAF disabled, edge allowlist, 4 all-API subs, 11 unused APIs, 3 missing `<base/>`, 2 hard-coded secrets, etc.). **No real customer data.** |
+| Fixtures | `tests/fixtures/synthetic-reference/` — synthetic raw folder mirroring §2 topology (60 APIs, Internal VNet, Basic rule, WAF disabled, edge allowlist, 4 all-API subs, 11 unused APIs, 3 missing `<base/>`, 2 hard-coded secrets, etc.). **No real customer data or identifiers.** |
 | Integration | Offline: fixtures → analyze → report; assert findings count by rule, workbook tables populated, Summary formulas evaluate (open with ImportExcel and check computed values or validate formula strings). |
 | Model-data airlock | Plant synthetic canaries in every source field and encoded/nested variants; assert none occur in package content, fragments, hashes, logs, validation errors, or promoted artifacts. Mutate source schemas to prove unknown fields cannot flow through. |
 | Package validation | Closed-schema, forbidden-key/value, entropy, Unicode/encoding, path-overlap, hash/attestation, time-of-check/time-of-use, and fail-closed promotion tests. |
@@ -753,7 +755,7 @@ Collection, deterministic analysis, Excel, and HTML rendering remain runnable wi
 
 ## 17. Acceptance criteria (v1)
 
-1. Full run against Brother Prod completes with Reader access only; manifest shows all collectors `Completed` or explicitly `Skipped`.
+1. Full run against an authorized customer Prod environment completes with Reader access only; manifest shows all collectors `Completed` or explicitly `Skipped`.
 2. No non-GET calls other than the allowlist appear in the run log; denylist unit tests pass.
 3. No secret values in any output file (scripted grep for subscription key format, named-value secrets, JWTs returns nothing).
 4. Raw/model/restricted data are inaccessible to Copilot agents; the broker exposes no generic shell, path, stdout/stderr, credential, or raw-data operation.
