@@ -1,15 +1,18 @@
 # APIM Assessment Toolkit
 
-A customer-neutral, **read-only** PowerShell toolkit for Azure API Management and
-its network front door: **Collect -> Analyze -> Report**. The planned output is
-versioned JSON evidence, deterministic findings, an Excel action plan, and run
-comparisons.
+A customer-neutral, **read-only** Azure API Management assessment system:
+deterministic PowerShell performs **Collect -> Analyze -> Render**, while a
+constrained GitHub Copilot workflow performs **Review -> Synthesize** over an
+independently validated, model-safe package. Planned outputs include versioned
+JSON evidence, deterministic findings, an Excel action plan, a self-contained
+HTML executive presentation, and run comparisons.
 
 ## Current status
 
 **Bootstrap only; not yet an operational assessment tool.** The module imports,
 but exports no assessment commands. Collectors, configuration validation, models,
-rules, CLI entry points, and the Excel template are not implemented yet.
+rules, the model-data airlock, Copilot operator workflow, CLI entry points, and
+report templates are not implemented yet.
 
 | Available | Planned |
 |---|---|
@@ -17,8 +20,10 @@ rules, CLI entry points, and the Excel template are not implemented yet.
 | Customer-neutral sample configuration | Validated configuration and structured logging |
 | Synthetic-fixture scaffold | Policy merge, exposure model, and rule engine |
 | Windows/Linux lint and test CI | Excel report, carry-forward, and run comparison |
-| Copilot instructions, agents, and skills | Live validation by authorized maintainers |
+| Copilot development instructions, agents, and skills | Fail-closed model-data airlock and narrow local Copilot broker |
 | Guarded SemVer tag/release workflow | v1.0 acceptance against the technical specification |
+|  | Architecture/exposure, security, and executive synthesis agents |
+|  | Self-contained HTML executive presentation |
 
 The authoritative scope and progress are in
 [the specification](docs/APIM-Assessment-Spec.md),
@@ -57,6 +62,10 @@ When collection is implemented, the runtime modules will be `Az.Accounts`,
 Optional OpenAPI linting will use Node.js and Spectral. They are not needed to
 import or validate this initial skeleton.
 
+The optional operator experience will use GitHub Copilot CLI repository agents
+and skills through a narrow local broker. The deterministic collection, analysis,
+Excel, and HTML paths will remain runnable without Copilot.
+
 Operators will supply an existing `Connect-AzAccount` context. Intended access is
 Reader on the APIM and network resource groups, Log Analytics Reader on the
 workspaces, and Cost Management Reader on configured cost scopes. The toolkit
@@ -79,6 +88,17 @@ Real runs must remain local in a customer-approved storage location and be
 deleted after the readout according to the agreed retention policy. Do not
 upload run folders or generated customer workbooks to CI artifacts or releases.
 Git ignores are an accident-prevention measure, not permission to store secrets.
+For agent-assisted runs, the restricted collection root must be an explicitly
+resolved external path outside every Copilot trusted/allowed directory; a
+gitignored directory inside the repository is not a security boundary.
+
+Raw responses, normalized models, findings, restricted alias maps, logs, exact
+metrics, and customer-facing reports must never enter model context. Model-assisted
+review is allowed only from a separately stored `analysis-package.json` that was
+built from an explicit allowlist, validated against a closed schema and recursive
+prohibited-value scanner, hash-attested, and promoted by a fail-closed local gate.
+Copilot agents must not have shell/filesystem access to the restricted collection
+zone, Azure credentials, collection output, or arbitrary paths.
 
 ## Repository layout
 
@@ -89,11 +109,12 @@ src/
   Collect/                  Isolated read-only collectors
   Model/                    Normalization, policy merge, exposure and drift
   Rules/                    Rule engine and priority scoring
-  Report/                   Workbook export and tracking carry-forward
+  Package/                  Model-safe package construction, validation and promotion (planned)
+  Report/                   Excel/HTML export and tracking carry-forward
 rules/                      Rule catalogs (planned)
 queries/                    Log Analytics and Resource Graph KQL (planned)
 schemas/                    Versioned JSON contracts (planned)
-template/                   Excel action-plan template (planned)
+template/                   Excel and HTML presentation templates (planned)
 config/                     Tracked sample; ignored local configurations
 tests/
   unit/                     Offline Pester tests
@@ -102,8 +123,8 @@ tests/
 scripts/                    Branch guard, validation and release packaging
 docs/                       Specification, plan, register and operating guides
 .github/
-  agents/                   Implementation and read-only review profiles
-  skills/                   Task lifecycle and assessment-rule authoring
+  agents/                   Development plus planned assessment specialist profiles
+  skills/                   Task/rule authoring plus planned operator workflows
   workflows/                CI, Copilot setup, and SemVer release
 ```
 
@@ -116,7 +137,12 @@ their stages are implemented, rather than exposing nonfunctional commands now.
 boundary, branch policy, architecture, tests, and documentation requirements.
 The `apim-implementer` agent handles bounded implementation tasks; the
 `assessment-reviewer` agent provides read-only contract and correctness reviews.
-Project skills cover task lifecycle and rule authoring. See
+Those profiles review repository changes; they are not the planned customer
+assessment analysts. Planned operator profiles separately cover APIM
+architecture/exposure, security, and executive synthesis and will receive only a
+validated model-safe package. Project skills currently cover task lifecycle and
+rule authoring; planned skills will orchestrate assessment, package analysis,
+deliverable generation, and validation. See
 [contribution guidance](CONTRIBUTING.md) for the exact workflow.
 
 **Keep this README current in the same change as every task that changes

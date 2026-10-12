@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Document** | Build specification for a coding agent |
-| **Version** | 1.0 (draft) |
+| **Version** | 1.1 (draft) |
 | **Date** | 2026-10-12 |
 | **Product owners** | Chris House (Principal Cloud Solution Architect, Microsoft), JohnHenry Hain |
 | **First customer** | Brother (BIC USA) — integration APIM, Prod first, then Dev/Test |
@@ -13,15 +13,17 @@
 
 ## 1. Purpose
 
-Build a reusable, **read-only** PowerShell toolkit that assesses an Azure API Management (APIM) deployment and its network front door, in the style of Microsoft's WARA (Well-Architected Reliability Assessment): **Collect → Analyze → Report**.
+Build a reusable, **read-only** PowerShell assessment engine, operated through a constrained GitHub Copilot workflow, that assesses an Azure API Management (APIM) deployment and its network front door in the style of Microsoft's WARA (Well-Architected Reliability Assessment): **Collect → Analyze → Review → Report**.
 
 The toolkit must:
 
 1. Collect APIM configuration, policies, network path, security posture, usage telemetry and cost into versioned JSON.
 2. Normalize the raw data into a stable **model** (one file per report sheet).
 3. Evaluate a **rule catalog** aligned to the Azure Well-Architected Framework (WAF) pillars and Microsoft Cloud Security Benchmark (MCSB) controls, producing `findings.json`.
-4. Generate an Excel **action plan** from a pre-formatted template, carrying forward human-entered tracking fields between runs.
-5. Diff two runs (new / resolved / persisting findings).
+4. Build and independently validate a model-safe analysis package that contains only allowlisted, pseudonymized facts; raw and normalized customer data never enter model context.
+5. Use specialized Copilot agents to review the validated package for architecture/exposure and security, then synthesize traceable executive observations.
+6. Generate an Excel **action plan** and a self-contained HTML executive presentation from deterministic local templates, carrying forward human-entered tracking fields between runs.
+7. Diff two runs (new / resolved / persisting findings).
 
 The toolkit is **customer-neutral**. All customer specifics live in a config file.
 
@@ -30,6 +32,8 @@ The toolkit is **customer-neutral**. All customer specifics live in a config fil
 - Every finding is traceable to evidence and to the raw source file(s) it came from.
 - Analysis and reporting can be re-run offline from a saved run folder.
 - Deterministic output: same inputs → same `findings.json` (stable ordering, stable keys).
+- No customer-identifying, infrastructure-identifying, raw policy, exact usage/cost, secret-like, or unrestricted free-text values are exposed to an AI model.
+- AI-generated observations cite stable findings or model-safe fact IDs and cannot override deterministic findings, evidence, or severity.
 
 ### 1.2 Non-goals
 - No write/remediation actions against Azure. Ever.
@@ -37,6 +41,8 @@ The toolkit is **customer-neutral**. All customer specifics live in a config fil
 - No assessment of Logic Apps workflow design (cost data only).
 - No Cloudflare API integration in v1 (Cloudflare is configured as "assumed reachable").
 - AI gateway design is out of scope for the tool (separate advisory workstream).
+- No unrestricted Copilot shell/filesystem access to the collection zone or raw/model run folders.
+- No model-based collection, redaction, safety validation, rule evaluation, or direct workbook/HTML mutation.
 
 ---
 
@@ -67,6 +73,7 @@ Implication encoded in the spec: with Internal VNet + host-wide forwarding, **ev
 | Runtime | PowerShell **7.4+** (cross-platform; Windows primary) |
 | Modules | `Az.Accounts`, `Az.ResourceGraph`, `Az.OperationalInsights`, `Az.Monitor`, `ImportExcel`; tests: `Pester` 5.x, `PSScriptAnalyzer` |
 | Optional | Node.js + `@stoplight/spectral-cli` for OpenAPI linting; `git` CLI for repo comparison |
+| Copilot | GitHub Copilot CLI with repository agents/skills and a narrowly allowlisted local tool broker; the deterministic engine remains usable without Copilot |
 | Auth | Existing `Connect-AzAccount` context (interactive or device code). Toolkit never stores tokens. |
 | ARM API version | APIM `2024-05-01` (configurable); Cost Management query `2023-11-01` (configurable) |
 | Permissions | Reader (APIM + network RGs), Log Analytics Reader (workspaces), Cost Management Reader (subscription or RG) |
@@ -78,6 +85,20 @@ Implication encoded in the spec: with Internal VNet + host-wide forwarding, **ev
   - Log Analytics query API (via `Invoke-AzOperationalInsightsQuery`)
   - Resource Graph (via `Search-AzGraph`)
 - The wrapper must refuse any URL containing `listSecrets`, `listValue`, `listKeys`, `/secrets`, `regenerate`, `token` (denylist; unit-tested).
+
+### 3.2 Model-data boundary
+
+The AI boundary is fail-closed and enforced by local code, filesystem/tool isolation, and validation rather than prompt instructions:
+
+1. The **collection zone** contains configuration, raw responses, normalized models, findings, logs, the restricted alias map, and customer-facing reports. For agent-assisted runs it is outside every Copilot trusted/allowed directory; Copilot agents cannot read this zone.
+2. `New-AnalysisPackage` constructs a new object from an explicit field allowlist. It must never clone a raw/model object and remove fields afterward.
+3. `Test-AnalysisPackage` independently validates the candidate against a closed JSON Schema (`additionalProperties: false` at every object), field-specific value constraints, forbidden-key rules, and recursive prohibited-value scans.
+4. Prohibited values include GUIDs, ARM IDs, tenant/subscription/resource/principal identifiers, UPNs/emails, hostnames/FQDNs, URLs, IP addresses/CIDRs, local paths, policy XML, exact costs/usage, JWTs, SAS signatures, connection strings, certificates, long base64/hex strings, high-entropy values, and unrestricted source free text.
+5. Unknown fields, unknown types, validator/scanner errors, or ambiguous content reject the package. Validation never repairs and promotes in one step.
+6. Only a passing package is copied to a physically separate **analysis zone** that contains no link or traversal path back to the collection zone. The package hash, builder version, validator version, schema version, and validation results are recorded in a local attestation.
+7. Specialist agents can access only the analysis zone and narrow read-only tools. They cannot access Azure credentials, raw/model folders, the restricted alias map, collection stdout/stderr, or arbitrary shell/filesystem tools.
+
+The local Copilot broker may start collection using the operator's existing Azure context, but it captures all output and returns only an opaque run ID, coarse stage status, and sanitized error codes. It exposes a validated package only after promotion succeeds. A manual operator-run collection path remains supported.
 
 ---
 
@@ -98,16 +119,24 @@ ApimAssessment/
     Model/       Build-ApiModel.ps1, Merge-ApimPolicy.ps1, Get-PolicyFlags.ps1, Build-ExposureModel.ps1,
                  Build-SubscriptionModel.ps1, Build-UsageModel.ps1, Build-CostModel.ps1, Build-DriftModel.ps1
     Rules/       Invoke-RuleEngine.ps1, Get-PriorityScore.ps1
-    Report/      Export-ActionPlan.ps1, Merge-PriorTracking.ps1
+    Package/     New-AnalysisPackage.ps1, Test-AnalysisPackage.ps1, Publish-AnalysisPackage.ps1
+    Report/      Export-ActionPlan.ps1, Export-ExecutiveSummary.ps1, Merge-PriorTracking.ps1
   rules/         SEC.rules.ps1, NET.rules.ps1, GOV.rules.ps1, REL.rules.ps1, PERF.rules.ps1, POR.rules.ps1, COST.rules.ps1
   queries/       *.kql (Log Analytics), *.arg.kql (Resource Graph)
-  schemas/       *.schema.json (manifest, model files, findings)
-  template/      ApimActionPlan.xlsx
+  schemas/       *.schema.json (manifest, models, findings, model-safe and agent contracts)
+  template/      ApimActionPlan.xlsx, executive-summary/
   config/        sample.psd1, brother.psd1 (gitignored if it contains tenant IDs)
   tests/         unit/, integration/, fixtures/ (synthetic, anonymized)
   docs/          README.md, RUNBOOK.md, RULES.md (generated from rule files)
-  runs/          (gitignored) output
+  .github/
+    agents/      APIM architecture/exposure, security, and executive synthesis profiles
+    skills/      Assessment orchestration, package analysis, deliverable generation and validation
 ```
+
+Restricted and model-safe run roots are local runtime data, not repository
+directories. They are ignored if a maintainer uses the manual development
+defaults, but agent-assisted runs require explicitly resolved external roots and
+tool/path isolation.
 
 ---
 
@@ -152,24 +181,41 @@ ApimAssessment/
   }
   Thresholds = @{ CertExpiryDays=60; BackendP95Ms=2000; Error5xxPct=1.0; UnusedDays=90; SubscriptionStaleDays=180; MaxWriteRolePrincipals=5 }
   Privacy   = @{ StoreUserIdentities=$false; RedactPolicySecrets=$true }
-  Output    = @{ Root='runs' }
+  AnalysisPackage = @{
+    UsageMode='Bucketed'                  # exact values prohibited
+    CostMode='RelativeOnly'               # trend/ratio only; exact values prohibited
+    UsageBuckets=@(0,1,1000,10000,100000,1000000)
+  }
+  Output    = @{
+    Root='<external-restricted-path>'     # outside every Copilot-visible path
+    ModelSafeRoot='<external-analysis-path>' # no overlap/link/traversal to Root
+  }
 }
 ```
 
-Validation: `Get-Config` validates required keys and types and fails fast with a clear message.
+Validation: `Get-Config` validates required keys and types and fails fast with a clear message. Agent-assisted analysis additionally requires non-overlapping, explicitly resolved external collection and analysis roots, rejects symlink/junction traversal between them, and verifies that the collection root is outside all Copilot trusted/allowed directories.
 
 ---
 
 ## 6. Run folder and manifest
 
 ```
-runs/<yyyy-MM-dd_HHmm>_<env>/
+<RestrictedRoot>/<yyyy-MM-dd_HHmm>_<env>/
   manifest.json
   raw/ ...
   model/ ...
   findings.json
+  restricted/alias-map.json
   report/<Customer> APIM Assessment - <Env> - <yyyy-MM-dd>.xlsx
+  report/<Customer> APIM Executive Summary - <Env> - <yyyy-MM-dd>.html
   logs/run.log
+
+<ModelSafeRoot>/<opaque-run-id>/
+  analysis-package.json
+  validation-attestation.json
+  expert-observations.architecture.json
+  expert-observations.security.json
+  executive-summary.json
 ```
 
 `manifest.json`:
@@ -189,6 +235,7 @@ runs/<yyyy-MM-dd_HHmm>_<env>/
   "edge": { "provider": "Cloudflare", "mode": "AssumedReachable" },
   "stages": { "collect": "Completed", "analyze": "Completed", "report": "Completed" },
   "collectors": [ { "name": "Policies", "status": "Completed|Partial|Failed|Skipped", "items": 612, "errors": 0, "durationSec": 41 } ],
+  "modelSafe": { "build": "Completed", "validation": "Passed", "promotion": "Completed", "packageSha256": "..." },
   "warnings": [ "..." ]
 }
 ```
@@ -402,7 +449,7 @@ Edge layer: with `Edge.Mode = AssumedReachable`, every public listener is treate
 
 ---
 
-## 10. Stage 2b — Rule engine
+## 10. Stage 2b — Rules and model-safe review boundary
 
 ### 10.1 Rule definition format (`rules/*.rules.ps1` returns an array of hashtables)
 ```powershell
@@ -454,6 +501,27 @@ For the report, findings are grouped by `ruleId` into **action items**: `affecte
 
 ### 10.5 Not-evaluated handling
 If a rule's `Requires` input is missing/failed, emit one `NotEvaluated` finding per rule (not per target) so gaps are visible in the report.
+
+### 10.6 Model-safe analysis package
+
+`analysis-package.json` is a closed, versioned contract produced only from normalized model/findings data. It contains:
+
+- Opaque aliases matching strict patterns such as `service-001`, `api-017`, `route-003`, and `backend-004`.
+- Fixed enums, booleans, bounded counts, configured usage buckets, relative cost trends, confidence, assumptions, and data-gap codes.
+- Deterministic findings reduced to model-safe evidence and referenced by stable model-safe finding IDs.
+- Topology facts required for assessment reasoning, such as `Internal`, `HostWide`, `WafDisabled`, or `CloudflareAssumed`, without names, addresses, URLs, or raw configuration.
+
+It contains no unrestricted source text. The restricted `alias-map.json` remains in the collection zone and maps aliases to customer-facing labels for local rendering only. `Publish-AnalysisPackage` writes the package into a temporary restricted location, validates it, and atomically promotes it to `ModelSafeRoot` only on success. Rejected candidates are never placed in the analysis zone.
+
+### 10.7 Specialist Copilot analysis
+
+Three repository agent profiles are used:
+
+1. **Architecture and exposure analyst** — reviews topology, policy inheritance/control flags, reachability, reliability, and governance.
+2. **Security analyst** — reviews authentication, subscription scope, secrets/control flags, TLS, diagnostics, identity, and confidence-qualified threats.
+3. **Executive synthesizer** — reconciles validated findings and specialist observations into audience-appropriate priorities, themes, decisions, and next actions.
+
+Specialist outputs are validated against closed schemas. Every observation includes an observation ID, category, confidence, model-safe finding/fact references, rationale, and bounded recommendation code/text selected from an approved vocabulary. Agents cannot introduce new evidence, replace rule severity, or mark deterministic findings resolved. Unsupported claims fail validation and are excluded from reporting.
 
 ---
 
@@ -551,7 +619,9 @@ Severity defaults; all thresholds configurable. "Data" = model inputs.
 ## 12. Stage 3 — Report
 
 ### 12.1 Template-driven
-`template/ApimActionPlan.xlsx` holds all formatting: title rows, navy header band (`#1F3864`, white bold), banding, frozen panes, column widths, conditional formats (severity, Pass/Fail, exposure), **empty Excel tables** with fixed names, and Summary formulas/charts bound to those tables. The report script only writes data (`ImportExcel` `Export-Excel -TableName <name> -StartRow 3`), so charts and formulas grow automatically.
+`template/ApimActionPlan.xlsx` holds all workbook formatting: title rows, navy header band (`#1F3864`, white bold), banding, frozen panes, column widths, conditional formats (severity, Pass/Fail, exposure), **empty Excel tables** with fixed names, and Summary formulas/charts bound to those tables. The report script only writes data (`ImportExcel` `Export-Excel -TableName <name> -StartRow 3`), so charts and formulas grow automatically.
+
+`template/executive-summary/` holds local HTML/CSS/SVG templates. The renderer, not an AI model, combines the validated executive summary with restricted local facts and resolves approved aliases through `alias-map.json`.
 
 ### 12.2 Sheets
 | Sheet | Table name | Source |
@@ -575,6 +645,18 @@ With `-PreviousReport <path>`: read `Action Plan` and `Finding Details` tracking
 ### 12.4 File naming
 `<Customer> APIM Assessment - <Env> - <yyyy-MM-dd>.xlsx`. Never overwrite; append `-2`, `-3` if exists.
 
+### 12.5 HTML executive presentation
+
+Generate one self-contained `.html` file with no CDN, remote font, analytics, remote image, or runtime network dependency. It must include:
+
+- Branded title and assessment scope, executive posture, KPI cards, top risks, priority actions, assumptions, confidence/data gaps, and next-step roadmap.
+- Accessible color contrast, semantic headings, keyboard navigation, print styles, and reduced-motion support.
+- Tasteful use of color, typography, emojis/icons, inline SVG diagrams, risk heatmaps, timelines, and charts.
+- A deterministic network/exposure diagram and chart data generated locally from restricted models.
+- No active content that transmits data. Any script/CSS/image/font dependency is embedded and release-reviewed.
+
+AI-authored narrative uses only model-safe aliases. During local rendering, aliases may be deterministically replaced with approved customer-facing labels; unresolved aliases fail rendering. Exact customer metrics may be inserted locally into predefined chart/table slots but are never sent back to a model.
+
 ---
 
 ## 13. Run comparison (`Compare-ApimRun`)
@@ -594,10 +676,31 @@ Input two run folders. Output `diff.json` and a `Run Comparison` sheet: `New`, `
 ./Invoke-ApimReport.ps1  -RunFolder runs/<id> [-PreviousReport <xlsx>]
 ./Compare-ApimRun.ps1    -Baseline runs/<a> -Current runs/<b>
 
+# Local model-data airlock (normally invoked by the broker)
+./New-ApimAnalysisPackage.ps1 -RunFolder runs/<id> -CandidatePath <restricted-temp>
+./Test-ApimAnalysisPackage.ps1 -CandidatePath <restricted-temp>/analysis-package.json
+./Publish-ApimAnalysisPackage.ps1 -CandidatePath <restricted-temp> -Destination <ModelSafeRoot>
+
 # Multi-env drift
 ./Invoke-ApimAnalyze.ps1 -RunFolder runs/<prod> -CompareRuns runs/<dev>,runs/<test>
 ```
 Exit codes: 0 success; 1 config error; 2 auth error; 3 completed with collector failures; 4 analysis/report failure.
+
+### 14.1 Copilot orchestration
+
+The operator may select the repository assessment-orchestrator agent/skill. Copilot calls a narrow local broker rather than arbitrary PowerShell:
+
+- `run_assessment(configAlias, environment, options)` → opaque run ID and coarse stage status only.
+- `get_assessment_status(runId)` → fixed stage/status/error-code enums only.
+- `promote_analysis_package(runId)` → validation/promotion status and package hash only.
+- `read_validated_analysis_package(runId)` → package only when attestation is valid and the package hash still matches.
+- `render_reports(runId, validatedAgentOutputs)` → output status and local paths represented as opaque artifact IDs to the model.
+
+The broker allowlists operations and arguments, resolves local paths internally, captures/sanitizes stdout and stderr, never returns Azure exceptions verbatim, and has no generic command-execution method.
+
+### 14.2 Manual and degraded operation
+
+Collection, deterministic analysis, Excel, and HTML rendering remain runnable without Copilot. If Copilot, a specialist agent, or model-safe validation is unavailable, the toolkit produces deterministic findings and reports without AI observations. It must never substitute unvalidated model output or silently broaden model access.
 
 ---
 
@@ -606,14 +709,17 @@ Exit codes: 0 success; 1 config error; 2 auth error; 3 completed with collector 
 | Area | Requirement |
 |---|---|
 | Security | Read-only (§3.1). No secret values persisted or logged. `RedactPolicySecrets` strips detected secret literals from stored policy XML (replace with `***REDACTED***`) **after** flagging. |
+| AI data boundary | Raw/model/restricted data never enter model context. Package construction is allowlist-only; validation and physical promotion are fail-closed (§3.2, §10.6). |
 | Privacy | User identities not stored by default; principals reported as counts/types unless enabled. |
-| Data handling | Runs are written locally; README states runs must be stored in a customer-approved location and deleted after readout. `runs/` is gitignored. |
+| Data handling | Runs are written locally; README states runs must be stored in a customer-approved location and deleted after readout. Agent-assisted restricted roots are outside every Copilot-visible path; repository-local manual defaults remain gitignored. |
 | Performance | ~60 APIs / ~600 operations: collection < 15 min (excl. Cost throttling); analysis < 2 min; report < 1 min. |
 | Reliability | Collector isolation; retries; `-Resume`. |
 | Determinism | Stable sort, stable keys; analysis on the same raw folder yields byte-identical `findings.json` (excluding `generatedUtc`). |
+| Traceability | Every AI observation cites model-safe findings/facts; deterministic evidence and severity remain authoritative. |
 | Observability | `logs/run.log` + console progress; summary table at end of each stage. |
 | Quality | PSScriptAnalyzer clean (default rules, no `Write-Host` except progress helper); Pester coverage ≥ 80% for `src/Model` and `src/Rules`. |
 | Portability | No hard-coded paths; works on Windows and Linux PowerShell 7. |
+| Presentation | Excel and self-contained HTML render locally, contain no remote dependencies, and meet basic accessibility/print requirements. |
 
 ---
 
@@ -624,6 +730,10 @@ Exit codes: 0 success; 1 config error; 2 auth error; 3 completed with collector 
 | Unit | `Invoke-ApimArm` (method allowlist, URL denylist, paging, 429 retry with mocked responses); `Merge-ApimPolicy` (base present/missing, fragments, multi-product); `Get-PolicyFlags` (each flag positive/negative); exposure classifier (Internal VNet + Basic rule, path-based, rewrite unknown, DirectPublic, private listener ambiguity); each rule ≥ 1 pass + 1 fail fixture; priority scoring; findingKey stability. |
 | Fixtures | `tests/fixtures/brother-like/` — synthetic raw folder mirroring §2 topology (60 APIs, Internal VNet, Basic rule, WAF disabled, edge allowlist, 4 all-API subs, 11 unused APIs, 3 missing `<base/>`, 2 hard-coded secrets, etc.). **No real customer data.** |
 | Integration | Offline: fixtures → analyze → report; assert findings count by rule, workbook tables populated, Summary formulas evaluate (open with ImportExcel and check computed values or validate formula strings). |
+| Model-data airlock | Plant synthetic canaries in every source field and encoded/nested variants; assert none occur in package content, fragments, hashes, logs, validation errors, or promoted artifacts. Mutate source schemas to prove unknown fields cannot flow through. |
+| Package validation | Closed-schema, forbidden-key/value, entropy, Unicode/encoding, path-overlap, hash/attestation, time-of-check/time-of-use, and fail-closed promotion tests. |
+| Agent contracts | Validate architecture/security observations and executive summary; reject unsupported references, invented evidence, unapproved text, and deterministic severity overrides. |
+| HTML report | Assert self-contained output, no network URLs/dependencies, all aliases resolved, required sections present, accessible structure/contrast tokens, and print CSS. |
 | Live smoke | Against a Microsoft-owned test APIM (Developer tier) before first customer run. |
 | Schema | Every model file and findings.json validated with `Test-Json -SchemaFile`. |
 
@@ -634,13 +744,17 @@ Exit codes: 0 success; 1 config error; 2 auth error; 3 completed with collector 
 1. Full run against Brother Prod completes with Reader access only; manifest shows all collectors `Completed` or explicitly `Skipped`.
 2. No non-GET calls other than the allowlist appear in the run log; denylist unit tests pass.
 3. No secret values in any output file (scripted grep for subscription key format, named-value secrets, JWTs returns nothing).
-4. Exposure map correctly reports host-wide forwarding (`NET-004`) and classifies each API as `ExternalInUse`/`ExternalUnintended`/`Restricted` per §9.
-5. Every finding has `evidence`, `sourceFiles`, and stable `findingKey`; re-running analysis produces identical findings.
-6. Workbook generated from template with all sheets populated; Summary KPIs match `findings.json` counts; charts render.
-7. Re-run with `-PreviousReport` preserves Owner/Status/Target Date/Notes.
-8. `Compare-ApimRun` correctly reports New/Resolved/Persisting on fixture variants.
-9. Dev and Test runs complete with the same config file; drift sheet populated.
-10. README + RUNBOOK allow a second CSA to run the tool without assistance.
+4. Raw/model/restricted data are inaccessible to Copilot agents; the broker exposes no generic shell, path, stdout/stderr, credential, or raw-data operation.
+5. Canary and mutation suites prove prohibited customer/infrastructure values and unknown fields cannot enter or be promoted in `analysis-package.json`; attestation/hash checks pass.
+6. Exposure map correctly reports host-wide forwarding (`NET-004`) and classifies each API as `ExternalInUse`/`ExternalUnintended`/`Restricted` per §9.
+7. Every finding has `evidence`, `sourceFiles`, and stable `findingKey`; re-running analysis produces identical findings.
+8. Every specialist/executive observation validates, cites model-safe finding/fact IDs, and leaves deterministic evidence/severity unchanged.
+9. Workbook is generated locally from the template with all sheets populated; Summary KPIs match `findings.json`; charts render.
+10. HTML executive presentation is self-contained, visually reviewed, accessible/printable, contains no remote dependency, and resolves every approved alias locally.
+11. Re-run with `-PreviousReport` preserves Owner/Status/Target Date/Notes.
+12. `Compare-ApimRun` correctly reports New/Resolved/Persisting on fixture variants.
+13. Dev and Test runs complete with the same config file; drift sheet populated.
+14. README + RUNBOOK allow a second CSA to run the deterministic and Copilot-assisted paths without assistance.
 
 ---
 
@@ -653,5 +767,7 @@ Exit codes: 0 success; 1 config error; 2 auth error; 3 completed with collector 
 | 3 | Git repo layout | Support APIOps extractor layout; configurable regex |
 | 4 | Whether App GW has any private listeners to APIM | Auto-detect; confidence downgrade if present |
 | 5 | Log Analytics retention < 90 days | Cap window and state effective window in evidence |
-| 6 | Readout deck automation | Out of v1; v1.1 fills deck placeholders from findings/model |
+| 6 | PowerPoint/readout deck automation | Out of v1; v1 produces a self-contained HTML executive presentation and keeps PowerPoint manual |
 | 7 | AI gateway instance assessment | Same toolkit should run unchanged against it later; add AI rules (token limits, semantic cache, content safety) in v1.1 |
+| 8 | Customer/organization approval for model-safe derived assessment facts | Copilot analysis remains disabled; deterministic collection, findings, Excel, and HTML still run locally |
+| 9 | Local Copilot broker implementation | Prefer a local stdio MCP tool surface with exact tool/argument allowlists; manual path remains mandatory |

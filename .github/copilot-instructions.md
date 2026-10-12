@@ -22,12 +22,13 @@
 - Runtime is PowerShell **7.4+**, cross-platform with Windows as the primary
   workstation. Keep metadata in `ApimAssessment.psd1` and load implementation
   files through `ApimAssessment.psm1` in deterministic order.
-- Separate `src/Core`, `Collect`, `Model`, `Rules`, and `Report`. Rule definitions,
-  KQL, JSON schemas, and workbook formatting belong in `rules`, `queries`,
-  `schemas`, and `template`, respectively.
-- Keep the pipeline **Collect -> Analyze -> Report**. Analysis/reporting must
-  work offline from a saved run. Customer-specific values live only in ignored
-  local config, never implementation code.
+- Separate `src/Core`, `Collect`, `Model`, `Rules`, `Package`, and `Report`. Rule
+  definitions, KQL, JSON schemas, and report formatting belong in `rules`,
+  `queries`, `schemas`, and `template`, respectively.
+- Keep the deterministic pipeline **Collect -> Analyze -> Render** and the
+  constrained Copilot flow **Review -> Synthesize**. Analysis/reporting must work
+  offline from a saved run. Customer-specific values live only in ignored local
+  config, never implementation code.
 - Use camelCase JSON fields, explicit schema versions, stable keys, and stable
   sorting. `findingKey` is `ruleId|resourceName|scope`; never include timestamps.
   Sort findings by priority descending, then rule ID and scope.
@@ -56,10 +57,22 @@
 - **Use synthetic fixtures only.** Do not request or access real customer data
   or run against customer Azure resources. Agents and CI must not need Azure
   credentials. Authorized maintainers own live validation.
-- Keep `runs`, private configuration, generated customer workbooks, and secrets
-  out of Git, CI artifacts, and release packages. Logic Apps scope is cost-only;
-  never inspect workflow definitions. Cloudflare API collection and AI-gateway
-  design are out of v1 scope.
+- Never expose raw responses, normalized models, findings, alias maps, logs,
+  exact metrics, customer-facing reports, Azure output, or customer/infrastructure
+  identifiers to a model. Build a new model-safe package from an explicit
+  allowlist; independently validate it against a closed schema and prohibited-value
+  scanner; promote it to a physically separate analysis zone only on success.
+  For agent-assisted runs, the restricted root must be outside every Copilot
+  trusted/allowed directory; gitignore is not a security boundary.
+- Copilot assessment agents receive only promoted packages through narrow,
+  read-only tools. Do not grant them generic shell/filesystem access, arbitrary
+  paths, collection stdout/stderr, Azure credentials, the restricted run root,
+  or the alias map. Unknown fields, types, values, or validator failures must
+  fail closed.
+- Keep `runs`, `model-safe`, private configuration, generated customer reports,
+  and secrets out of Git, CI artifacts, and release packages. Logic Apps scope
+  is cost-only; never inspect workflow definitions. Cloudflare API collection
+  and AI-gateway design are out of v1 scope.
 - Rule `References` remain empty until maintainers provide verified references.
   Do not invent URLs or generate them into findings.
 
