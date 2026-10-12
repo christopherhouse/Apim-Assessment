@@ -1,5 +1,6 @@
 $repoRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
-$fixturePath = Join-Path $repoRoot 'tests/fixtures/brother-like/raw/service.json'
+$fixturePath = Join-Path $repoRoot `
+    'tests/fixtures/synthetic-reference/raw/service.json'
 Import-Module (Join-Path $repoRoot 'ApimAssessment.psd1') -Force
 
 AfterAll {

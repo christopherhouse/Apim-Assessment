@@ -86,8 +86,9 @@ entry points are **not available**.
 ## Data handling
 
 Use **synthetic fixtures only** for development and automated tests. Never commit
-customer configurations, tenant/subscription/workspace identifiers from real
-environments, assessment outputs, credentials, subscription keys, or secret values.
+customer or engagement names, real-person names, customer configurations,
+tenant/subscription/workspace identifiers from real environments, assessment
+outputs, credentials, subscription keys, or secret values.
 Only `config/sample.psd1` and `config/README.md` are tracked under `config`.
 The conventional local `runs` and `model-safe` directories are ignored; future
 public orchestration will create run folders under the configured external roots
@@ -128,7 +129,7 @@ config/                     Tracked sample; ignored local configurations
 tests/
   unit/                     Offline Pester tests
   integration/              Offline pipeline tests (planned)
-  fixtures/brother-like/    Synthetic reference-topology fixture scaffold
+  fixtures/synthetic-reference/  Synthetic reference-topology fixture scaffold
 scripts/                    Branch guard, validation and release packaging
 docs/                       Specification, plan, register and operating guides
 .github/

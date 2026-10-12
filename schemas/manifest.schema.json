@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://github.com/christopherhouse/apim-assessment/schemas/manifest.schema.json",
+  "$id": "https://example.invalid/apim-assessment/schemas/manifest.schema.json",
   "title": "APIM Assessment Run Manifest",
   "type": "object",
   "additionalProperties": false,

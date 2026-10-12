@@ -10,7 +10,7 @@
 **How to use (coding agent):** update `Status`, `%`, and `Notes` at the end of every work session. A task is **Done** only when its **Acceptance check** passes and tests are committed. Log any spec deviation in §Decisions before implementing it.
 
 **Status values:** `Not started` · `In progress` · `Blocked` · `In review` · `Done` · `Deferred`
-**Owner codes:** `AGENT` = coding agent · `CH` = Chris House · `JH` = JohnHenry Hain · `CUST` = Brother
+**Owner codes:** `AGENT` = coding agent · `PO` = product owner/reviewer · `CUST` = designated customer stakeholder
 
 ---
 
@@ -38,7 +38,7 @@
 | T-003 | `Get-Config` + `config/sample.psd1` with validation | §5 | T-002 | AGENT | Done | 100 | Missing/invalid keys fail with clear message (Pester) | Strict nested validation, finite numeric constraints, normalized absolute roots, overlap/link rejection, and fail-closed agent-assisted Copilot-visible path checks pass synthetic tests and PR #3 CI. |
 | T-004 | Logging helper (`logs/run.log`, structured lines, progress) | §7.1, §15 | T-002 | AGENT | Done | 100 | Log lines JSON-parsable; no planted secret patterns in tests | JSON-lines logging, explicit levels, query/fragment removal, credential-pattern redaction, append behavior, and `Write-Progress` pass planted-secret tests and PR #3 CI. |
 | T-005 | CI: PSScriptAnalyzer + Pester on PR | §15, §16 | T-002 | AGENT | Done | 100 | Pipeline green on skeleton | Bootstrap PR and post-merge `main` CI passed on Windows and Linux. |
-| T-006 | Fixture scaffold `tests/fixtures/brother-like/` (empty structure + README on synthetic-only rule) | §16 | T-001 | AGENT | Done | 100 | Folder + README committed | Synthetic-only README and raw policy/network/security/log/metric/cost/git folders included in bootstrap commit; fixture data remains T-201. |
+| T-006 | Fixture scaffold `tests/fixtures/synthetic-reference/` (empty structure + README on synthetic-only rule) | §16 | T-001 | AGENT | Done | 100 | Folder + README committed | Customer-neutral synthetic README and raw policy/network/security/log/metric/cost/git folders included; fixture data remains T-201. |
 | T-007 | Rebaseline specification, plan, register, and README for Copilot-orchestrated assessment with a fail-closed model-data airlock | §1, §3.2, §10.6–§10.7, §12, §14.1–§14.2 | T-001 | AGENT | Done | 100 | Governing documents agree on trust boundaries, artifacts, agent roles, deterministic rendering, dependencies, and acceptance gates | D-09/D-10 logged; spec/plan/register/README/instructions/runbook aligned; branch guard, PSScriptAnalyzer, and 25 Pester tests pass. |
 
 ## P1 — Core + APIM collection (M1)
@@ -58,13 +58,13 @@
 | T-111 | Collector: groups, tags, version sets, gateways, workspaces, policy fragments, users summary (counts only) | §7.2 | T-101 | AGENT | Not started | 0 | `users.summary.json` contains no UPNs/emails by default | |
 | T-112 | Collector: policies at global/product/API/operation/fragment scope + `index.json` | §7.3 | T-104, T-106 | AGENT | Not started | 0 | 404 treated as "none"; index hashes present | |
 | T-113 | `-Resume` support and collector isolation (failure ≠ abort) | §6, §7.1 | T-102 | AGENT | Not started | 0 | Simulated failure → status `Failed`, run continues, exit code 3 | |
-| T-114 | Provision Microsoft-owned test APIM (Developer) + App GW for smoke tests | Plan §8 | — | CH/JH | Not started | 0 | Resource IDs stored only in restricted local config; agent receives no identifiers | |
+| T-114 | Provision Microsoft-owned test APIM (Developer) + App GW for smoke tests | Plan §8 | — | PO | Not started | 0 | Resource IDs stored only in restricted local config; agent receives no identifiers | |
 
 ## P2 — Model + exposure (M2)
 
 | ID | Task | Spec § | Depends | Owner | Status | % | Acceptance check | Notes |
 |---|---|---|---|---|---|---|---|---|
-| T-201 | Populate brother-like fixtures: 60 APIs, Internal VNet, Basic App GW rule, WAF disabled, edge allowlist, 4 all-API subs, 11 unused, 14 no product, 7 key-only external, 3 missing `<base/>`, 2 hard-coded secrets | §2, §16 | T-006 | AGENT | Not started | 0 | Fixtures load; counts documented in fixture README | Synthetic only |
+| T-201 | Populate synthetic reference fixtures: 60 APIs, Internal VNet, Basic App GW rule, WAF disabled, edge allowlist, 4 all-API subs, 11 unused, 14 no product, 7 key-only external, 3 missing `<base/>`, 2 hard-coded secrets | §2, §16 | T-006 | AGENT | Not started | 0 | Fixtures load; counts documented in fixture README | Synthetic only; no customer, engagement, or real-person identifiers |
 | T-202 | `Merge-ApimPolicy` (base handling, fragments, multi-product, scope attribution) | §8.3 | T-112 | AGENT | Not started | 0 | Unit tests: base present/missing, fragment cycle, multi-product AND/OR | |
 | T-203 | Policy normalization + SHA-256 hashing | §8.4 | T-202 | AGENT | Not started | 0 | Whitespace/attr-order changes → same hash | |
 | T-204 | `Get-PolicyFlags` (all flags in §8.4; secret detection records location only) | §8.4 | T-202 | AGENT | Not started | 0 | Positive + negative test per flag | |
@@ -103,10 +103,10 @@
 | T-323 | Executive synthesizer agent + reconciliation contract | §10.7 | T-322 | AGENT | Not started | 0 | Summary validates, cites findings/facts, retains assumptions/data gaps, and introduces no unsupported evidence | |
 | T-324 | Copilot orchestration, analysis, deliverable, and validation skills | §14.1, §14.2 | T-321–T-323, T-309 | AGENT | Not started | 0 | A clean Copilot session completes the synthetic workflow through narrow tools only; deterministic fallback works without Copilot | |
 | T-325 | Self-contained HTML executive presentation renderer and template with local alias resolution, inline diagrams/charts, accessibility and print support | §12.1, §12.5 | T-323 | AGENT | Not started | 0 | Fixture renders polished offline HTML; no network dependencies; all aliases resolve; required sections and accessibility checks pass | Model never mutates report |
-| T-313 | Fill `config/brother.psd1` (Prod) with discovered names/IDs | §5 | T-311 | CH/JH | Not started | 0 | Config validates | Kept out of repo |
-| T-314 | **Gate G3** review: fixture end-to-end, airlock/broker isolation, agent traceability, sample workbook and HTML presentation | Plan §10 | T-309–T-312, T-317–T-325 | CH/JH | Not started | 0 | Canary/mutation and hash-attestation gates green; agent access boundary demonstrated; workbook/HTML visually reviewed; go/no-go recorded in Decisions | |
-| T-315 | First live Brother **Prod** run (config + policy + network) | §17 | T-313, T-314 | CH/JH | Not started | 0 | Manifest collectors Completed/Skipped; secret scan clean; validated package promoted with no prohibited data | |
-| T-316 | Triage MVP findings and cited agent observations; tune deterministic severities/recommendations; log false positives | §10.7, §11 | T-315 | CH/JH + AGENT | Not started | 0 | Rule tweaks merged; agent claims remain traceable; FP list in Issues | **M3** |
+| T-313 | Fill ignored `config/customer.psd1` (Prod) with discovered names/IDs | §5 | T-311 | PO | Not started | 0 | Config validates | Kept out of repo |
+| T-314 | **Gate G3** review: fixture end-to-end, airlock/broker isolation, agent traceability, sample workbook and HTML presentation | Plan §10 | T-309–T-312, T-317–T-325 | PO | Not started | 0 | Canary/mutation and hash-attestation gates green; agent access boundary demonstrated; workbook/HTML visually reviewed; go/no-go recorded in Decisions | |
+| T-315 | First authorized customer **Prod** run (config + policy + network) | §17 | T-313, T-314 | PO | Not started | 0 | Manifest collectors Completed/Skipped; secret scan clean; validated package promoted with no prohibited data | |
+| T-316 | Triage MVP findings and cited agent observations; tune deterministic severities/recommendations; log false positives | §10.7, §11 | T-315 | PO + AGENT | Not started | 0 | Rule tweaks merged; agent claims remain traceable; FP list in Issues | **M3** |
 
 ## P4 — Telemetry + cost (M4)
 
@@ -123,8 +123,8 @@
 | T-409 | Rules: NET-003, NET-005, SEC-016, GOV-004, GOV-009, PERF-001–003 | §11 | T-407, T-408 | AGENT | Not started | 0 | Pass/fail fixture per rule | |
 | T-410 | Rules: COST-001–005 | §11.6 | T-407 | AGENT | Not started | 0 | Pass/fail fixture per rule | |
 | T-411 | Usage + Cost sheets (charts bound to tables) | §12.2 | T-407 | AGENT | Not started | 0 | Charts render with fixture data | |
-| T-412 | Confirm Log Analytics Reader + cost scope on Brother | Plan §8 | — | JH | Not started | 0 | Access confirmed | |
-| T-413 | Brother Prod run #2 with telemetry + cost; prep working sessions 1 & 3 | §17 | T-409–T-412 | CH/JH | Not started | 0 | Workbook and HTML executive presentation reviewed | **M4** |
+| T-412 | Confirm Log Analytics Reader + cost scope on the target customer environment | Plan §8 | — | PO | Not started | 0 | Access confirmed | |
+| T-413 | Customer Prod run #2 with telemetry + cost; prep working sessions 1 & 3 | §17 | T-409–T-412 | PO | Not started | 0 | Workbook and HTML executive presentation reviewed | **M4** |
 
 ## P5 — Portal, drift, lifecycle (M5)
 
@@ -139,8 +139,8 @@
 | T-507 | `Merge-PriorTracking` carry-forward (actions by ruleId, details by findingKey; resolved section) | §12.3 | T-309 | AGENT | Not started | 0 | Owner/Status/Target/Notes preserved across runs | |
 | T-508 | `Compare-ApimRun` + Run Comparison sheet | §13 | T-302 | AGENT | Not started | 0 | New/Resolved/Persisting correct on fixtures | |
 | T-509 | Environment Drift sheet | §12.2 | T-506 | AGENT | Not started | 0 | Populated from fixtures | |
-| T-510 | GitHub access for JH/CH (customer) | Plan §8 | — | CUST/JH | Not started | 0 | Repo cloned locally | Requested on scoping call |
-| T-511 | Brother Dev + Test runs; drift review; prep working session 2 | §17 | T-506, T-510 | CH/JH | Not started | 0 | Drift sheet reviewed | **M5** |
+| T-510 | GitHub access for authorized maintainers and customer stakeholders | Plan §8 | — | CUST/PO | Not started | 0 | Repo cloned locally | Requested on scoping call |
+| T-511 | Customer Dev + Test runs; drift review; prep working session 2 | §17 | T-506, T-510 | PO | Not started | 0 | Drift sheet reviewed | **M5** |
 
 ## P6 — Hardening + acceptance (M6)
 
@@ -149,26 +149,26 @@
 | T-601 | Pester coverage ≥ 80% for `src/Model`, `src/Rules` | §15 | all | AGENT | Not started | 0 | Coverage report attached | |
 | T-602 | Determinism test (analyze twice → identical findings) | §15, §17 | T-302 | AGENT | Not started | 0 | Test green | |
 | T-603 | Performance check on fixture scaled to 60 APIs / 600 ops | §15 | all | AGENT | Not started | 0 | Analyze < 2 min; Excel and HTML rendering each < 1 min | |
-| T-604 | Live smoke on Microsoft-owned test APIM | §16 | T-114 | AGENT/CH | Not started | 0 | Full run exit 0 | |
+| T-604 | Live smoke on Microsoft-owned test APIM | §16 | T-114 | AGENT/PO | Not started | 0 | Full run exit 0 | |
 | T-605 | `README.md` (prereqs, permissions, data handling) | §15, §17 | all | AGENT | In progress | 20 | Second CSA can install from README | Bootstrap README covers current availability, developer setup, planned permissions, privacy, layout and releases; same-change maintenance required. Full operator acceptance remains pending. |
-| T-606 | `RUNBOOK.md` (step-by-step run, troubleshooting, exit codes) | §14, §17 | all | AGENT | In progress | 10 | Dry-run by JH without help | Bootstrap runbook explicitly marks assessment stages unavailable; runnable stage instructions and operator dry-run remain pending. |
+| T-606 | `RUNBOOK.md` (step-by-step run, troubleshooting, exit codes) | §14, §17 | all | AGENT | In progress | 10 | Dry-run by a product owner without help | Bootstrap runbook explicitly marks assessment stages unavailable; runnable stage instructions and operator dry-run remain pending. |
 | T-607 | `RULES.md` generated from rule files (ID, title, pillar, MCSB, severity, logic) | §11 | all rules | AGENT | Not started | 0 | Generation script + output committed | |
-| T-608 | Maintainers add Microsoft Learn references to rules | §10.1 | T-607 | CH | Not started | 0 | References populated for High/Medium rules | Tool must not invent URLs |
-| T-609 | Acceptance review vs spec §17 (all 14 criteria) | §17 | all | CH/JH | Not started | 0 | All criteria checked off below | **Gate G4** |
+| T-608 | Maintainers add Microsoft Learn references to rules | §10.1 | T-607 | PO | Not started | 0 | References populated for High/Medium rules | Tool must not invent URLs |
+| T-609 | Acceptance review vs spec §17 (all 14 criteria) | §17 | all | PO | Not started | 0 | All criteria checked off below | **Gate G4** |
 | T-610 | Tag v1.0 + release notes | — | T-609 | AGENT | Not started | 0 | Tag exists | **M6** |
 
 ## Engagement runs and delivery
 
 | ID | Task | Depends | Owner | Status | Target | Notes |
 |---|---|---|---|---|---|---|
-| E-01 | Send engagement agenda/plan to Brother | — | CH/JH | Not started | Oct 14 | Committed on scoping call |
-| E-02 | Ask Kirit to confirm Cloudflare origin authentication approach (or accept "assumed") | — | JH | Not started | Oct 16 | Feeds NET-001 |
-| E-03 | Working session 1 — security & exposure | T-413 | CH/JH/CUST | Not started | ~Oct 27 | Workbook and HTML executive presentation |
-| E-04 | Working session 3 — cost & monitoring (incl. Logic Apps cost observation) | T-413 | CH/JH/CUST | Not started | ~Oct 29 | |
-| E-05 | Working session 2 — API organization, hostname split, developer portal | T-511 | CH/JH/CUST | Not started | ~Nov 2 | |
-| E-06 | Final Prod run on v1.0 + carry-forward | T-610 | CH/JH | Not started | ~Nov 5 | |
-| E-07 | Finalize readout narrative from validated findings and executive summary | E-06 | CH | Not started | ~Nov 8 | HTML is the generated executive artifact; PowerPoint remains manual/out of scope |
-| E-08 | Readout delivered; delete run data per data-handling agreement | E-07 | CH/JH | Not started | ~Nov 10 | |
+| E-01 | Send engagement agenda/plan to designated customer stakeholders | — | PO | Not started | Oct 14 | Committed on scoping call |
+| E-02 | Ask the designated customer contact to confirm edge-origin authentication approach (or accept "assumed") | — | PO | Not started | Oct 16 | Feeds NET-001 |
+| E-03 | Working session 1 — security & exposure | T-413 | PO/CUST | Not started | ~Oct 27 | Workbook and HTML executive presentation |
+| E-04 | Working session 3 — cost & monitoring (incl. Logic Apps cost observation) | T-413 | PO/CUST | Not started | ~Oct 29 | |
+| E-05 | Working session 2 — API organization, hostname split, developer portal | T-511 | PO/CUST | Not started | ~Nov 2 | |
+| E-06 | Final Prod run on v1.0 + carry-forward | T-610 | PO | Not started | ~Nov 5 | |
+| E-07 | Finalize readout narrative from validated findings and executive summary | E-06 | PO | Not started | ~Nov 8 | HTML is the generated executive artifact; PowerPoint remains manual/out of scope |
+| E-08 | Readout delivered; delete run data per data-handling agreement | E-07 | PO | Not started | ~Nov 10 | |
 
 ---
 
@@ -197,29 +197,31 @@
 
 | ID | Date | Decision | By | Spec impact |
 |---|---|---|---|---|
-| D-01 | 2026-10-12 | Output format: JSON at every stage (raw → model → findings); report from template workbook | CH | §6–§12 |
-| D-02 | 2026-10-12 | Tool run by Chris and/or JohnHenry with existing Reader access | CH | §3 |
-| D-03 | 2026-10-12 | Topology: APIM Internal VNet behind App GW; host-wide forwarding; Cloudflare treated as assumed reachable | CH | §2, §9 |
-| D-04 | 2026-10-12 | Logic Apps: cost data only; no workflow review | CH | §1.2, §7.8 |
+| D-01 | 2026-10-12 | Output format: JSON at every stage (raw → model → findings); report from template workbook | PO | §6–§12 |
+| D-02 | 2026-10-12 | Authorized maintainers run the tool with existing Reader access | PO | §3 |
+| D-03 | 2026-10-12 | Topology: APIM Internal VNet behind App GW; host-wide forwarding; external edge treated as assumed reachable | PO | §2, §9 |
+| D-04 | 2026-10-12 | Logic Apps: cost data only; no workflow review | PO | §1.2, §7.8 |
 | D-05 | 2026-10-12 | Scope order: Prod first, then Dev/Test | CUST | Plan §5 |
 | D-06 | 2026-10-12 | Use module `ModuleVersion` as the single three-part SemVer source; reviewed chore release PR, then manual main-only workflow with validation, tag, ZIP/checksum and generated notes. No version-bump commits on main. | AGENT | Release mechanics for T-610; no assessment contract change |
 | D-07 | 2026-10-12 | Bootstrap importable module and folders without success-shaped assessment stubs; add the five entry scripts, schemas, catalogs and workbook only with their implementation tasks. README distinguishes available and planned features. | AGENT | §4 scaffold sequencing; no CLI contract change |
 | D-08 | 2026-10-12 | Development uses feature/chore/bugfix branches and PRs to main; Copilot instructions, local guard, and PR CI enforce branch naming. Host-side main protection remains a maintainer setting. | AGENT | Contributor workflow; requested repository bootstrap |
-| D-09 | 2026-10-12 | Use a hybrid architecture: deterministic PowerShell remains authoritative for collection, normalization, rules, evidence, and local rendering; Copilot orchestrates only through narrow local tools and specialist agents analyze only independently validated, allowlisted, pseudonymized packages. Raw/model customer data and unrestricted collection output must never enter model context. | CH/AGENT | Adds the model-data airlock, specialist analysis, local Copilot broker, and HTML executive summary requirements throughout the spec and plan. |
-| D-10 | 2026-10-12 | Generate Excel and self-contained HTML locally from fixed templates. AI narrative uses model-safe aliases; a restricted local alias map and exact metrics may be reintroduced only by deterministic renderers after model work completes. | CH/AGENT | §12 reporting contract; HTML replaces automated readout-deck generation in v1. |
+| D-09 | 2026-10-12 | Use a hybrid architecture: deterministic PowerShell remains authoritative for collection, normalization, rules, evidence, and local rendering; Copilot orchestrates only through narrow local tools and specialist agents analyze only independently validated, allowlisted, pseudonymized packages. Raw/model customer data and unrestricted collection output must never enter model context. | PO/AGENT | Adds the model-data airlock, specialist analysis, local Copilot broker, and HTML executive summary requirements throughout the spec and plan. |
+| D-10 | 2026-10-12 | Generate Excel and self-contained HTML locally from fixed templates. AI narrative uses model-safe aliases; a restricted local alias map and exact metrics may be reintroduced only by deterministic renderers after model work completes. | PO/AGENT | §12 reporting contract; HTML replaces automated readout-deck generation in v1. |
 | D-11 | 2026-10-12 | ARM transport accepts relative paths beginning `/` and absolute HTTPS URLs only on known Azure Resource Manager cloud hosts; every decoded `nextLink` is revalidated. | AGENT | Tightens §3.1/T-101 against off-host authenticated requests without changing the documented Azure scope. |
 | D-12 | 2026-10-12 | `Get-Config -AgentAssisted` requires the broker to supply at least one complete Copilot-visible path and rejects any overlap with the restricted root; promotion-time traversal/TOCTOU checks remain T-319. | AGENT | Implements the §3.2/§5 config-time boundary without claiming the later promotion gate is complete. |
+| D-13 | 2026-10-12 | Tracked repository content must remain customer-neutral: customer/engagement names and real-person names stay outside files, paths, examples, branches, commits, and pull-request text. | PO | Tightens repository data handling without changing runtime behavior. |
 
 ## Issues / risks log
 
 | ID | Date | Issue | Severity | Owner | Status | Resolution |
 |---|---|---|---|---|---|---|
-| I-01 | 2026-10-12 | Cloudflare origin-auth not visible from Azure | Med | JH | Open | E-02 |
+| I-01 | 2026-10-12 | External edge origin-auth not visible from Azure | Med | PO | Open | E-02 |
 | I-02 | 2026-10-12 | Portal basic-auth detection mechanism unconfirmed | Low | AGENT | Open | T-502 |
 | I-03 | 2026-10-12 | GitHub access pending | Med | CUST | Open | T-510 |
-| I-04 | 2026-10-12 | LA retention / diagnostics coverage unknown | Med | CH | Open | T-401 on first run |
-| I-05 | 2026-10-12 | GitHub Copilot organization policy/customer approval for model-safe derived assessment facts must be confirmed | High | CH/JH | Open | Keep specialist analysis disabled until confirmed; deterministic reports remain available |
-| I-06 | 2026-10-12 | Approved non-overlapping local paths for restricted collection and model-safe analysis zones are not yet selected | High | CH/JH | Open | Required by T-319/T-321 before agent-assisted live runs |
+| I-04 | 2026-10-12 | LA retention / diagnostics coverage unknown | Med | PO | Open | T-401 on first run |
+| I-05 | 2026-10-12 | GitHub Copilot organization policy/customer approval for model-safe derived assessment facts must be confirmed | High | PO | Open | Keep specialist analysis disabled until confirmed; deterministic reports remain available |
+| I-06 | 2026-10-12 | Approved non-overlapping local paths for restricted collection and model-safe analysis zones are not yet selected | High | PO | Open | Required by T-319/T-321 before agent-assisted live runs |
+| I-07 | 2026-10-12 | Prior commits contain customer or real-person identifiers in Git history | High | PO | Open | Current tracked tree is purged; permanent historical removal requires an explicitly approved, coordinated history rewrite and remote cleanup |
 
 ## Session log (agent appends)
 
@@ -229,3 +231,4 @@
 | 2026-10-12 | Rebaselined the governing specification, project plan, task register, README, repository instructions, config guidance, and runbook on `feature/copilot-assessment-orchestration` for a hybrid deterministic PowerShell/Copilot architecture. Added a fail-closed model-data airlock, external restricted root, narrow local broker, specialist agent contracts, deterministic alias rehydration, Excel action plan, and self-contained HTML executive presentation. Documentation-only; no Azure/customer data accessed. PSScriptAnalyzer and 25 offline Pester tests pass after installing pinned development modules. | T-005 moved Done after successful bootstrap PR/main CI; T-007 moved Done at 100%; P3 and acceptance gate expanded with T-317–T-325. | Copilot organization/customer approval and approved non-overlapping external collection/analysis paths remain open (I-05/I-06). |
 | 2026-10-12 | Implemented the core foundation on `feature/core-foundation`: completed Package-aware deterministic loading and release packaging, explicit PowerShell 7.4+ CI import evidence, strict private config validation, JSON-lines secret-safe logging/progress, and the GET-only/Cost-POST ARM wrapper with approved-host validation, decoded denylist, paging, retry headers, exponential fallback, and sanitized failures. Added and tested `/model-safe/` defense-in-depth ignore. All work used synthetic config and mocked ARM responses; no Azure/customer access. PSScriptAnalyzer and 72 offline Pester tests pass locally; PR #3 branch policy and Ubuntu/Windows validation passed. | T-001/T-002/T-003/T-004/T-101 moved Done; P0 completed and Gate G1 passed. | No current implementation blocker; future I-05/I-06 approvals remain required before agent-assisted live runs. |
 | 2026-10-12 | Implemented run persistence and the first APIM collector on `feature/run-persistence-service`: added atomic path-contained run-file writes, schema-validated manifest lifecycle, required run directories, collector/stage/warning tracking, a synthetic APIM service fixture, and mocked service collection through the guarded ARM wrapper. Updated release packaging assertions and current-status documentation. No Azure/customer data accessed. PSScriptAnalyzer and 82 offline Pester tests pass locally. | T-102/T-103 moved Done at 100%; P1 now has three completed tasks. | Public collection orchestration, resume/isolation, and remaining collectors are still pending; T-114 remains an owner-side smoke-test dependency. |
+| 2026-10-12 | Purged customer, engagement, and real-person names from the tracked tree; renamed the fixture root to `tests/fixtures/synthetic-reference`; neutralized examples and engagement documentation; and added an explicit customer-neutral repository rule plus a tracked-fixture naming test. PSScriptAnalyzer and 83 offline Pester tests pass locally. | No task status changes; D-13 and I-07 added. | Current tree is clean, but prior Git history still requires explicit coordinated rewrite approval for permanent historical removal. |

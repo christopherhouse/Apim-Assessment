@@ -91,8 +91,10 @@
   and external calls. Prefer targeted development runs; run the full existing
   lint/test gate before handoff. Do not weaken tests or lint settings to hide
   defects. The eventual Model/Rules coverage target is at least 80%.
-- Use synthetic `tests/fixtures/brother-like` for the reference topology; document
-  fixture counts and expected outcomes rather than importing a customer run.
+- Use synthetic `tests/fixtures/synthetic-reference` for the reference topology;
+  document fixture counts and expected outcomes rather than importing a customer
+  run. Never put customer/engagement names or real-person names in tracked files,
+  paths, examples, branches, commits, or pull-request text.
 
 ## Documentation and handoff: required for every task
 

@@ -2,7 +2,8 @@
 
 This scaffold mirrors the *shape* of the reference environment, never a customer
 export. All identifiers, IPs, policies, telemetry, and costs must be generated.
-Do not copy customer data, even with a promise to anonymize it afterward.
+Do not include customer or engagement names, real-person names, or copied
+customer data, even with a promise to anonymize it afterward.
 
 The `raw/service.json` fixture is implemented for T-103 and describes a wholly
 synthetic Internal VNet APIM service. Other raw subdirectories remain empty until
