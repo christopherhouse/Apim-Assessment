@@ -1,0 +1,36 @@
+{
+  "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-synthetic-prod/providers/Microsoft.ApiManagement/service/apim-synthetic-prod",
+  "name": "apim-synthetic-prod",
+  "type": "Microsoft.ApiManagement/service",
+  "location": "eastus2",
+  "sku": {
+    "name": "Premium",
+    "capacity": 2
+  },
+  "identity": {
+    "type": "SystemAssigned"
+  },
+  "properties": {
+    "platformVersion": "stv2",
+    "virtualNetworkType": "Internal",
+    "publicNetworkAccess": "Enabled",
+    "disableGateway": false,
+    "developerPortalStatus": "Enabled",
+    "legacyPortalStatus": "Disabled",
+    "hostnameConfigurations": [
+      {
+        "type": "Proxy",
+        "hostName": "api.synthetic.invalid",
+        "certificateSource": "KeyVault",
+        "negotiateClientCertificate": false
+      }
+    ],
+    "customProperties": {
+      "Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Protocols.Tls10": "False",
+      "Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Protocols.Tls11": "False"
+    },
+    "apiVersionConstraint": {
+      "minApiVersion": "2021-08-01"
+    }
+  }
+}
