@@ -3,13 +3,20 @@
 Planned catalogs: `SEC`, `GOV`, `REL`, `PERF`, `POR`, and `COST.rules.ps1`.
 Use the hashtable contract in specification section 10 and stable catalog IDs in
 section 11. The private rule engine, closed `findings.json` schema, and restricted writer
-are implemented. `NET.rules.ps1` contains NET-002/004/006/007/008; NET-001 and
-NET-009 remain unimplemented until their origin/portal evidence is modeled.
+are implemented. `NET.rules.ps1` contains NET-001/002/004/006/007/008/009.
+NET-001 and NET-009 evaluate only explicitly operator-attested evidence in
+the closed network model; absent/unknown attestations remain NotEvaluated.
 Synthetic definitions in unit tests exercise the contract. The current
 engine supports Service, Api, Operation, Subscription, Route, and Network
 targets backed by the implemented models. A rule must list its target model
 in `Requires` and every additional model it reads; rule callbacks receive the
 target and a context with `Config`, `Models`, and `Manifest`.
+NET-009's Route target is the allowlisted `network.auxiliaryRoutes` field,
+not an API route in `exposure.json`.
+The current synthetic NET fixture has two API route records and one App
+Gateway. Focused tests add one attested edge/origin assessment and one
+attested public portal route: NET-001 and NET-009 each yield one evaluated
+finding; the unchanged fixture yields one NotEvaluated finding per rule.
 
 Each rule needs positive, negative, and missing-input tests against synthetic
 models. Missing/failed required files produce one Info/NotEvaluated finding

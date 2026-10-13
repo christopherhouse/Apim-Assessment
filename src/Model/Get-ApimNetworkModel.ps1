@@ -514,7 +514,10 @@ function Get-ApimNetworkModel {
         [object] $PublicIpPayload,
 
         [AllowNull()]
-        [object] $FrontDoorPayload
+        [object] $FrontDoorPayload,
+
+        [AllowNull()]
+        [System.Collections.IDictionary] $OperatorEvidence
     )
 
     $missingInputs = [System.Collections.Generic.HashSet[string]]::new(
@@ -671,6 +674,71 @@ function Get-ApimNetworkModel {
         $null = $missingInputs.Add('directPublicEvidence')
     }
 
+    $edgeOriginAssessment = $null
+    $auxiliaryRoutes = $null
+    if ($null -ne $OperatorEvidence) {
+        $expectedKeys = @('edgeRangesOnly', 'originAuthentication', 'auxiliaryRoutes')
+        if ($OperatorEvidence.Count -ne $expectedKeys.Count -or
+            @($OperatorEvidence.Keys | Where-Object {
+                    $_ -isnot [string] -or $_ -cnotin $expectedKeys
+                }).Count -gt 0) {
+            throw 'Network operator evidence has an invalid contract.'
+        }
+        $edgeRangesOnly = $OperatorEvidence['edgeRangesOnly']
+        $originAuthentication = $OperatorEvidence['originAuthentication']
+        if (($null -ne $edgeRangesOnly -and $edgeRangesOnly -isnot [bool]) -or
+            $originAuthentication -cnotin @('Present', 'Absent', 'Unknown')) {
+            throw 'Network edge/origin evidence has an invalid contract.'
+        }
+        if ($edgeRangesOnly -eq $true -and $null -ne $outputAppGateways -and
+            $outputAppGateways.Count -eq 0) {
+            throw 'Edge-only ingress cannot be attested without an Application Gateway.'
+        }
+        $edgeOriginAssessment = [pscustomobject] [ordered]@{
+            edgeRangesOnly = $edgeRangesOnly
+            originAuthentication = $originAuthentication
+            source = 'OperatorAttestation'
+        }
+
+        if ($null -ne $OperatorEvidence['auxiliaryRoutes']) {
+            if ($OperatorEvidence['auxiliaryRoutes'] -isnot [array]) {
+                throw 'Network auxiliary route evidence must be an array.'
+            }
+            $routes = [System.Collections.Generic.SortedDictionary[string, object]]::new(
+                [System.StringComparer]::Ordinal
+            )
+            foreach ($route in $OperatorEvidence['auxiliaryRoutes']) {
+                if ($route -isnot [System.Collections.IDictionary] -or
+                    $route.Count -ne 4 -or
+                    @($route.Keys | Where-Object {
+                            $_ -isnot [string] -or
+                            $_ -cnotin @('routeKey', 'endpointType',
+                                'publicListener', 'ownerNeed')
+                        }).Count -gt 0 -or
+                    $route['routeKey'] -isnot [string] -or
+                    [string]::IsNullOrWhiteSpace($route['routeKey']) -or
+                    $route['endpointType'] -cnotin @('Portal', 'Management') -or
+                    $route['publicListener'] -isnot [bool] -or
+                    $route['ownerNeed'] -cnotin @(
+                        'Needed', 'NotNeeded', 'Unknown'
+                    )) {
+                    throw 'Network auxiliary route evidence has an invalid contract.'
+                }
+                if ($routes.ContainsKey($route['routeKey'])) {
+                    throw 'Network auxiliary route evidence has duplicate route keys.'
+                }
+                $routes.Add($route['routeKey'], [pscustomobject] [ordered]@{
+                        routeKey = $route['routeKey']
+                        endpointType = $route['endpointType']
+                        publicListener = $route['publicListener']
+                        ownerNeed = $route['ownerNeed']
+                        source = 'OperatorAttestation'
+                    })
+            }
+            $auxiliaryRoutes = @($routes.Values)
+        }
+    }
+
     [string[]] $sortedMissingInputs = @($missingInputs)
     [System.Array]::Sort(
         $sortedMissingInputs,
@@ -691,6 +759,8 @@ function Get-ApimNetworkModel {
         wafMode = $wafAssessment.mode
         otherFrontDoors = $outputOtherFrontDoors
         otherPublicIpRoutes = $outputOtherPublicIpRoutes
+        edgeOriginAssessment = $edgeOriginAssessment
+        auxiliaryRoutes = $auxiliaryRoutes
         modelStatus = $(if ($sortedMissingInputs.Count -eq 0) {
                 'Complete'
             }

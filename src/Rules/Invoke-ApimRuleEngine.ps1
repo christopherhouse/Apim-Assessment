@@ -52,6 +52,9 @@ function Assert-ApimRule {
             $Rule.Applies -isnot [scriptblock]) -or
         ($Rule.Contains('DataGaps') -and $null -ne $Rule.DataGaps -and
             $Rule.DataGaps -isnot [scriptblock]) -or
+        ($Rule.Contains('TargetField') -and
+            ($Rule.Scope -cne 'Route' -or
+                $Rule.TargetField -cne 'auxiliaryRoutes')) -or
         $Rule.Enabled -isnot [bool] -or
         $Rule.Requires -isnot [array] -or
         $Rule.SourceFiles -isnot [array] -or
@@ -132,9 +135,17 @@ function Get-ApimRuleTarget {
     if ($Rule.Scope -eq 'Service') {
         return $Manifest.apim
     }
-    $name = $script:ApimRuleScopes[$Rule.Scope]
+    $name = if ($Rule.Contains('TargetField')) {
+        'network'
+    }
+    else {
+        $script:ApimRuleScopes[$Rule.Scope]
+    }
     if (-not $Models.Contains($name) -or $null -eq $Models[$name]) {
         throw "Rule target model '$name' was unavailable."
+    }
+    if ($Rule.Contains('TargetField')) {
+        return $Models[$name].auxiliaryRoutes
     }
     return $Models[$name]
 }
@@ -310,7 +321,12 @@ function Invoke-ApimRuleEngine {
                 Test-ApimModelJson -Name $name -Json $json
             }
         }
-        $targetModel = $script:ApimRuleScopes[$rule.Scope]
+        $targetModel = if ($rule.Contains('TargetField')) {
+            'network'
+        }
+        else {
+            $script:ApimRuleScopes[$rule.Scope]
+        }
         if ($null -ne $targetModel) {
             $targetPath = "model/$targetModel.json"
             if ($targetPath -cnotin $rule.Requires) {

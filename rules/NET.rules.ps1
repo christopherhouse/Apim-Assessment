@@ -4,6 +4,65 @@ Set-StrictMode -Version Latest
 
 @(
     @{
+        Id = 'APIM-NET-001'
+        Title = 'Edge-only Application Gateway ingress lacks origin authentication'
+        Pillar = 'Security'
+        Mcsb = 'NS-6'
+        Severity = 'High'
+        Scope = 'Network'
+        Requires = @('model/network.json')
+        DataGaps = {
+            param($ctx)
+            $network = $ctx.Models.network
+            if ($null -eq $network.appGateways) {
+                'model/network.json#appGateways'
+            }
+            elseif ($network.appGateways.Count -gt 0) {
+                if ($null -eq $network.edgeOriginAssessment -or
+                    $null -eq $network.edgeOriginAssessment.edgeRangesOnly) {
+                    'model/network.json#edgeOriginAssessment'
+                }
+                elseif ($network.edgeOriginAssessment.edgeRangesOnly -and
+                    $network.edgeOriginAssessment.originAuthentication -eq
+                    'Unknown') {
+                    'model/network.json#edgeOriginAssessment'
+                }
+            }
+        }
+        Applies = {
+            param($x, $ctx)
+            $null = $ctx
+            $null -ne $x.appGateways -and $x.appGateways.Count -gt 0 -and
+                $null -ne $x.edgeOriginAssessment -and
+                $x.edgeOriginAssessment.edgeRangesOnly -eq $true
+        }
+        Test = {
+            param($x, $ctx)
+            $null = $ctx
+            $x.edgeOriginAssessment.originAuthentication -eq 'Absent'
+        }
+        Evidence = {
+            param($x, $ctx)
+            $null = $ctx
+            [ordered]@{
+                edgeRangesOnly = $x.edgeOriginAssessment.edgeRangesOnly
+                originAuthentication = $x.edgeOriginAssessment.originAuthentication
+                source = $x.edgeOriginAssessment.source
+            }
+        }
+        EvidenceText = {
+            param($x, $ctx)
+            $null = $x
+            $null = $ctx
+            'Operator-attested edge-only ingress has no confirmed origin authentication; shared edge ranges alone do not authenticate the origin.'
+        }
+        Recommendation = 'Verify effective ingress restrictions and confirm origin authentication at the listener, WAF, or APIM policy before relying on edge ranges.'
+        Effort = 'M'
+        References = @()
+        SourceFiles = @('model/network.json')
+        Enabled = $true
+    }
+    @{
         Id = 'APIM-NET-002'
         Title = 'WAF disabled or in Detection mode on Application Gateway'
         Pillar = 'Security'
@@ -268,6 +327,65 @@ Set-StrictMode -Version Latest
         Effort = 'M'
         References = @()
         SourceFiles = @('raw/network/', 'model/network.json')
+        Enabled = $true
+    }
+    @{
+        Id = 'APIM-NET-009'
+        Title = 'Unneeded portal or management hostname on a public listener'
+        Pillar = 'Security'
+        Mcsb = 'NS-2'
+        Severity = 'Low'
+        Scope = 'Route'
+        TargetField = 'auxiliaryRoutes'
+        Requires = @('model/network.json')
+        DataGaps = {
+            param($ctx)
+            $routes = $ctx.Models.network.auxiliaryRoutes
+            if ($null -eq $routes -or
+                (@($routes | Where-Object {
+                            $_.publicListener -and $_.ownerNeed -eq 'Unknown'
+                        }).Count -gt 0 -and
+                    @($routes | Where-Object {
+                            $_.publicListener -and $_.ownerNeed -eq 'NotNeeded'
+                        }).Count -eq 0)) {
+                'model/network.json#auxiliaryRoutes'
+            }
+        }
+        Applies = {
+            param($x, $ctx)
+            $null = $ctx
+            $x.publicListener
+        }
+        Test = {
+            param($x, $ctx)
+            $null = $ctx
+            $x.ownerNeed -eq 'NotNeeded'
+        }
+        Evidence = {
+            param($x, $ctx)
+            $null = $ctx
+            [ordered]@{
+                routeKey = $x.routeKey
+                endpointType = $x.endpointType
+                publicListener = $x.publicListener
+                ownerNeed = $x.ownerNeed
+                source = $x.source
+                otherPublicRoutesWithUnknownNeed = @(
+                    $ctx.Models.network.auxiliaryRoutes | Where-Object {
+                        $_.publicListener -and $_.ownerNeed -eq 'Unknown'
+                    }
+                ).Count
+            }
+        }
+        EvidenceText = {
+            param($x, $ctx)
+            $null = $ctx
+            "Operator-attested $($x.endpointType) route is public and not needed."
+        }
+        Recommendation = 'Confirm the endpoint owner need and restrict unnecessary public portal or management publication.'
+        Effort = 'S'
+        References = @()
+        SourceFiles = @('model/network.json')
         Enabled = $true
     }
 )

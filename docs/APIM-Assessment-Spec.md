@@ -466,7 +466,7 @@ the deterministic `data-scope` and unresolved-fragment status attributes.
 | `policyMatrix.json` | API | `apiId` + one column per control: `callerAuth`, `rateLimit`, `ipFilter`, `corsSafe`, `backendAuth`, `noHardcodedSecret`, `basePresent`, `noMockTrace` with values `Pass`/`Fail`/`NA` |
 | `subscriptions.json` | subscription | `subscriptionId`, `displayName`, `scopeType` (`AllApis`/`Product`/`Api`), `scopeTarget`, `state`, `ownerType`, `createdDate`, `expirationDate`, `allowTracing`, `calls90d`, `lastUsed`, `isBuiltInMaster`, `flags[]` |
 | `exposure.json` | route × API | stable `routeKey`, `gateway`, `listener`, `listenerHost`, `backendHost`, `frontendType` (Public/Private), `ruleType`, `pattern`, `wafState`, `wafMode`, `edge` (`Cloudflare-Assumed`), `apiId`, `reachability`, `restriction`, `exposure`, `callsViaAppGw`, `callsInternal`, `confidence`, `baseMissingBypass`, `restrictedOperations[]`, completeness metadata |
-| `network.json` | single object | APIM VNet mode, public access, NSG evaluation result, other front doors, App GW TLS policy, WAF state |
+| `network.json` | single object | APIM VNet mode, public access, NSG evaluation result, other front doors, App GW TLS policy, WAF state, optional operator-attested edge/origin and auxiliary endpoint facts |
 | `usage.json` | API × month | calls; plus top-N table |
 | `cost.json` | resource × month (and day) | `resourceId`, `resourceType`, `meterCategory`, `cost`, `currency`; derived `costPerMillionCalls` (APIM + App GW) |
 | `capacity.json` | day | `capacityAvg`, `capacityMax`, `capacityP95`, `units` |
@@ -496,6 +496,18 @@ conservatively: any weak TLS policy, disabled WAF, or Detection mode wins.
 Missing subnet, NSG, front-door, or public-IP routing evidence produces
 `directPublic=null` unless another positive condition proves direct reachability;
 it never becomes a false/safe default.
+Optional `edgeOriginAssessment` is null or a closed object of
+`edgeRangesOnly` (Boolean or null), `originAuthentication`
+(`Present`/`Absent`/`Unknown`), and `source=OperatorAttestation`. Optional
+`auxiliaryRoutes` is null or a complete, sorted, unique-key array with
+`routeKey`, `endpointType` (`Portal`/`Management`), `publicListener` Boolean,
+`ownerNeed` (`Needed`/`NotNeeded`/`Unknown`), and the same source label.
+These facts come only from explicit, operator-corroborated in-memory input;
+the network collector does not establish absence of effective origin
+authentication or whether a portal/management endpoint is needed. No
+attestation means null, not false or an empty inventory; unknown required
+facts yield one Info/NotEvaluated finding per dependent rule (D-31). The
+private builder rejects additional or malformed attestation fields.
 
 ### 8.6 OpenAPI score (optional)
 If Spectral is available: run `spectral lint` with ruleset `spectral:oas` + `rulesets/apim-style.yaml` (naming, versioning, descriptions, error responses). Score = `max(0, 100 − 10×errors − 2×warnings)` (configurable). Otherwise `openApiScore=null` and a description-coverage metric from operations is used.
@@ -663,11 +675,12 @@ Severity defaults; all thresholds configurable. "Data" = model inputs.
 | APIM-NET-008 | Weak App Gateway TLS policy | Medium | DP-3 | Network | sslPolicy predefined older than `AppGwSslPolicy20220101` or min protocol < TLS1.2 |
 | APIM-NET-009 | Developer portal / management hostname published publicly without need | Low | NS-2 | Route | portal/management hostname behind public listener |
 
-NET-002/004/006/007/008 have model-backed private catalog entries. NET-001
-requires edge-restriction and effective origin-authentication evidence not
-yet modeled; NET-009 requires portal/management publication and owner-confirmed
-need, which the route-by-API model does not establish. Both remain pending
-instead of being inferred from absent evidence (D-30).
+All seven T-303 rules have model-backed private catalog entries. NET-001
+evaluates only attested edge-only ingress and effective origin authentication;
+NET-009 targets attested portal/management routes in the network model
+(not API rows in `exposure.json`) and requires owner-confirmed lack of need.
+Neither treats missing evidence as absent authentication or unnecessary
+publication; both remain NotEvaluated without corroboration (D-30/D-31).
 
 ### 11.2 Security (SEC)
 | ID | Title | Sev | MCSB | Scope | Logic |

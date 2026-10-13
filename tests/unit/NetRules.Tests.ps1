@@ -54,15 +54,150 @@ Describe 'Evidence-backed NET catalog' {
             }
         }
 
-        It 'loads exactly the five evidence-backed rules with empty references' {
+        It 'loads exactly the seven evidence-backed rules with empty references' {
             @($script:netRules.Id) | Should -Be @(
-                'APIM-NET-002', 'APIM-NET-004', 'APIM-NET-006',
-                'APIM-NET-007', 'APIM-NET-008'
+                'APIM-NET-001', 'APIM-NET-002', 'APIM-NET-004',
+                'APIM-NET-006', 'APIM-NET-007', 'APIM-NET-008',
+                'APIM-NET-009'
             )
             foreach ($rule in $script:netRules) {
                 $rule.References.Count | Should -Be 0
                 $rule.Enabled | Should -BeTrue
             }
+        }
+
+        It 'flags attested edge-only ingress without origin authentication' {
+            $models = Get-SyntheticNetModelSet
+            $models.network.edgeOriginAssessment = [pscustomobject]@{
+                edgeRangesOnly = $true
+                originAuthentication = 'Absent'
+                source = 'OperatorAttestation'
+            }
+            $found = @(Get-SyntheticNetFinding -RuleId 'APIM-NET-001' `
+                    -Models $models)
+            $found.Count | Should -Be 1
+            $found[0].evaluation | Should -Be 'Evaluated'
+            $found[0].evidence.originAuthentication | Should -Be 'Absent'
+            $found[0].evidence.source | Should -Be 'OperatorAttestation'
+            $found[0].sourceFiles | Should -Contain 'model/network.json'
+
+            $models.network.edgeOriginAssessment.originAuthentication = 'Present'
+            @(Get-SyntheticNetFinding -RuleId 'APIM-NET-001' `
+                    -Models $models).Count | Should -Be 0
+            $models.network.edgeOriginAssessment.edgeRangesOnly = $false
+            $models.network.edgeOriginAssessment.originAuthentication = 'Absent'
+            @(Get-SyntheticNetFinding -RuleId 'APIM-NET-001' `
+                    -Models $models).Count | Should -Be 0
+        }
+
+        It 'does not infer absent origin authentication from missing evidence' {
+            $models = Get-SyntheticNetModelSet
+            $found = @(Get-SyntheticNetFinding -RuleId 'APIM-NET-001' `
+                    -Models $models)
+            $found.Count | Should -Be 1
+            $found[0].evaluation | Should -Be 'NotEvaluated'
+            $found[0].evidence.missingInputs |
+                Should -Contain 'model/network.json#edgeOriginAssessment'
+
+            $models.network.edgeOriginAssessment = [pscustomobject]@{
+                edgeRangesOnly = $true
+                originAuthentication = 'Unknown'
+                source = 'OperatorAttestation'
+            }
+            @(Get-SyntheticNetFinding -RuleId 'APIM-NET-001' `
+                    -Models $models)[0].evaluation | Should -Be 'NotEvaluated'
+        }
+
+        It 'flags only owner-attested unnecessary public auxiliary routes' {
+            $models = Get-SyntheticNetModelSet
+            $models.network.auxiliaryRoutes = @(
+                [pscustomobject]@{
+                    routeKey = 'aux-portal'
+                    endpointType = 'Portal'
+                    publicListener = $true
+                    ownerNeed = 'NotNeeded'
+                    source = 'OperatorAttestation'
+                }
+                [pscustomobject]@{
+                    routeKey = 'aux-management'
+                    endpointType = 'Management'
+                    publicListener = $false
+                    ownerNeed = 'NotNeeded'
+                    source = 'OperatorAttestation'
+                }
+            )
+            $found = @(Get-SyntheticNetFinding -RuleId 'APIM-NET-009' `
+                    -Models $models)
+            $found.Count | Should -Be 1
+            $found[0].scope | Should -Be 'route:aux-portal'
+            $found[0].evidence.endpointType | Should -Be 'Portal'
+            $found[0].evidence.source | Should -Be 'OperatorAttestation'
+            $found[0].sourceFiles | Should -Contain 'model/network.json'
+            $again = @(Get-SyntheticNetFinding -RuleId 'APIM-NET-009' `
+                    -Models (Get-SyntheticNetModelSet))
+            $again[0].evaluation | Should -Be 'NotEvaluated'
+
+            $models.network.auxiliaryRoutes[0].ownerNeed = 'Needed'
+            @(Get-SyntheticNetFinding -RuleId 'APIM-NET-009' `
+                    -Models $models).Count | Should -Be 0
+        }
+
+        It 'retains a known unnecessary route when another need is unknown' {
+            $models = Get-SyntheticNetModelSet
+            $models.network.auxiliaryRoutes = @(
+                [pscustomobject]@{
+                    routeKey = 'aux-portal'
+                    endpointType = 'Portal'
+                    publicListener = $true
+                    ownerNeed = 'NotNeeded'
+                    source = 'OperatorAttestation'
+                }
+                [pscustomobject]@{
+                    routeKey = 'aux-management'
+                    endpointType = 'Management'
+                    publicListener = $true
+                    ownerNeed = 'Unknown'
+                    source = 'OperatorAttestation'
+                }
+            )
+            $found = @(Get-SyntheticNetFinding -RuleId 'APIM-NET-009' `
+                    -Models $models)
+            $found.Count | Should -Be 1
+            $found[0].scope | Should -Be 'route:aux-portal'
+            $found[0].evidence.otherPublicRoutesWithUnknownNeed |
+                Should -Be 1
+        }
+
+        It 'holds NET-009 when publication or owner need remains unknown' {
+            $models = Get-SyntheticNetModelSet
+            $found = @(Get-SyntheticNetFinding -RuleId 'APIM-NET-009' `
+                    -Models $models)
+            $found.Count | Should -Be 1
+            $found[0].evaluation | Should -Be 'NotEvaluated'
+            $found[0].evidence.missingInputs |
+                Should -Contain 'model/network.json#auxiliaryRoutes'
+
+            $models.network.auxiliaryRoutes = @(
+                [pscustomobject]@{
+                    routeKey = 'aux-portal'
+                    endpointType = 'Portal'
+                    publicListener = $true
+                    ownerNeed = 'Unknown'
+                    source = 'OperatorAttestation'
+                }
+            )
+            @(Get-SyntheticNetFinding -RuleId 'APIM-NET-009' `
+                    -Models $models)[0].evaluation | Should -Be 'NotEvaluated'
+            $models.network.auxiliaryRoutes = @()
+            @(Get-SyntheticNetFinding -RuleId 'APIM-NET-009' `
+                    -Models $models).Count | Should -Be 0
+        }
+
+        It 'rejects a route rule targeting an undeclared model field' {
+            $invalid = @($script:netRules |
+                Where-Object Id -EQ 'APIM-NET-009')[0].Clone()
+            $invalid.TargetField = 'secret'
+            { Assert-ApimRule -Rule $invalid } | Should -Throw
         }
 
         It 'flags the synthetic host-wide public Basic route even before telemetry exists' {
@@ -152,11 +287,13 @@ Describe 'Evidence-backed NET catalog' {
 
         It 'marks each rule NotEvaluated once if its required model is unavailable' `
             -TestCases @(
+                @{ Id = 'APIM-NET-001' }
                 @{ Id = 'APIM-NET-002' }
                 @{ Id = 'APIM-NET-004' }
                 @{ Id = 'APIM-NET-006' }
                 @{ Id = 'APIM-NET-007' }
                 @{ Id = 'APIM-NET-008' }
+                @{ Id = 'APIM-NET-009' }
             ) {
             param($Id)
 
@@ -272,6 +409,40 @@ Describe 'Evidence-backed NET catalog' {
                 Join-Path $TestDrive 'net-findings'
             ) -Findings $findings
             (Get-Content -LiteralPath $path -Raw | Test-Json -SchemaFile (
+                    Join-Path $script:netRulesRepoRoot 'schemas/findings.schema.json'
+                )) | Should -BeTrue
+        }
+
+        It 'persists deterministic schema-valid findings for both attested checks' {
+            $models = Get-SyntheticNetModelSet
+            $models.network.edgeOriginAssessment = [pscustomobject]@{
+                edgeRangesOnly = $true
+                originAuthentication = 'Absent'
+                source = 'OperatorAttestation'
+            }
+            $models.network.auxiliaryRoutes = @(
+                [pscustomobject]@{
+                    routeKey = 'aux-portal'
+                    endpointType = 'Portal'
+                    publicListener = $true
+                    ownerNeed = 'NotNeeded'
+                    source = 'OperatorAttestation'
+                }
+            )
+            $findings = @(Invoke-ApimRuleEngine -Rules $script:netRules `
+                    -Models $models -Manifest $script:netRulesManifest `
+                    -Config $script:netRulesConfig)
+            @($findings.ruleId) | Should -Contain 'APIM-NET-001'
+            @($findings.ruleId) | Should -Contain 'APIM-NET-009'
+            $first = Write-ApimFindingSet -RunPath (
+                Join-Path $TestDrive 'attested-first'
+            ) -Findings $findings
+            $second = Write-ApimFindingSet -RunPath (
+                Join-Path $TestDrive 'attested-second'
+            ) -Findings $findings
+            $json = Get-Content -LiteralPath $first -Raw
+            $json | Should -Be (Get-Content -LiteralPath $second -Raw)
+            ($json | Test-Json -SchemaFile (
                     Join-Path $script:netRulesRepoRoot 'schemas/findings.schema.json'
                 )) | Should -BeTrue
         }
