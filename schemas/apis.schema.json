@@ -1,0 +1,269 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.invalid/apim-assessment/schemas/apis.schema.json",
+  "title": "APIM Assessment API Model",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "apiId",
+      "displayName",
+      "path",
+      "apiType",
+      "protocols",
+      "backendHost",
+      "products",
+      "ownerTag",
+      "tags",
+      "versionSet",
+      "version",
+      "revisionCount",
+      "nonCurrentOnlineRevisions",
+      "operationCount",
+      "subscriptionRequired",
+      "callerAuth",
+      "throttling",
+      "ipFilter",
+      "corsUnsafe",
+      "backendAuth",
+      "hardcodedSecret",
+      "baseMissing",
+      "mockOrTrace",
+      "backendTlsValidation",
+      "bodyLogging",
+      "sensitiveHeadersLogged",
+      "reachability",
+      "exposure",
+      "calls90d",
+      "callsViaAppGw",
+      "callsInternal",
+      "lastCall",
+      "p95Ms",
+      "backendP95Ms",
+      "pct5xx",
+      "openApiScore",
+      "inGit",
+      "findingIds",
+      "modelStatus",
+      "missingInputs"
+    ],
+    "properties": {
+      "apiId": {
+        "type": "string",
+        "minLength": 1
+      },
+      "displayName": {
+        "type": "string",
+        "minLength": 1
+      },
+      "path": {
+        "type": "string"
+      },
+      "apiType": {
+        "type": "string",
+        "minLength": 1
+      },
+      "protocols": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "uniqueItems": true
+      },
+      "backendHost": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "minLength": 1
+      },
+      "products": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "uniqueItems": true
+      },
+      "ownerTag": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "minLength": 1
+      },
+      "tags": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "uniqueItems": true
+      },
+      "versionSet": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "minLength": 1
+      },
+      "version": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "minLength": 1
+      },
+      "revisionCount": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "nonCurrentOnlineRevisions": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "operationCount": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "subscriptionRequired": {
+        "type": "boolean"
+      },
+      "callerAuth": {
+        "enum": [
+          "Entra/JWT",
+          "mTLS",
+          "SubscriptionKeyOnly",
+          "None",
+          "Mixed",
+          null
+        ]
+      },
+      "throttling": {
+        "$ref": "#/definitions/nullableBoolean"
+      },
+      "ipFilter": {
+        "$ref": "#/definitions/nullableBoolean"
+      },
+      "corsUnsafe": {
+        "$ref": "#/definitions/nullableBoolean"
+      },
+      "backendAuth": {
+        "$ref": "#/definitions/nullableBoolean"
+      },
+      "hardcodedSecret": {
+        "$ref": "#/definitions/nullableBoolean"
+      },
+      "baseMissing": {
+        "$ref": "#/definitions/nullableBoolean"
+      },
+      "mockOrTrace": {
+        "$ref": "#/definitions/nullableBoolean"
+      },
+      "backendTlsValidation": {
+        "$ref": "#/definitions/nullableBoolean"
+      },
+      "bodyLogging": {
+        "$ref": "#/definitions/nullableBoolean"
+      },
+      "sensitiveHeadersLogged": {
+        "$ref": "#/definitions/nullableBoolean"
+      },
+      "reachability": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "minLength": 1
+      },
+      "exposure": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "minLength": 1
+      },
+      "calls90d": {
+        "$ref": "#/definitions/nullableNumber"
+      },
+      "callsViaAppGw": {
+        "$ref": "#/definitions/nullableNumber"
+      },
+      "callsInternal": {
+        "$ref": "#/definitions/nullableNumber"
+      },
+      "lastCall": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "format": "date-time"
+      },
+      "p95Ms": {
+        "$ref": "#/definitions/nullableNumber"
+      },
+      "backendP95Ms": {
+        "$ref": "#/definitions/nullableNumber"
+      },
+      "pct5xx": {
+        "$ref": "#/definitions/nullableNumber"
+      },
+      "openApiScore": {
+        "type": [
+          "integer",
+          "null"
+        ],
+        "minimum": 0,
+        "maximum": 100
+      },
+      "inGit": {
+        "$ref": "#/definitions/nullableBoolean"
+      },
+      "findingIds": {
+        "type": [
+          "array",
+          "null"
+        ],
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "uniqueItems": true
+      },
+      "modelStatus": {
+        "enum": [
+          "Complete",
+          "Partial"
+        ]
+      },
+      "missingInputs": {
+        "$ref": "#/definitions/missingInputs"
+      }
+    }
+  },
+  "definitions": {
+    "nullableBoolean": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "nullableNumber": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "missingInputs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    }
+  }
+}

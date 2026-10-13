@@ -20,7 +20,16 @@ orders paths expand `common-auth`; the operation backend records one missing
 sanitized effective policies: both orders paths require JWT, retain two
 hard-coded-secret locations, and report missing backend inheritance; only the
 partner path is throttled. The status path has no policy risks or controls.
-Record exact counts and expected outcomes here as each fixture surface is added.
+The API/operation model fixtures contain two current APIs and two operations.
+`orders-v1|get-orders` has two product paths, requires JWT on both, and has
+throttling on only one path; its matrix therefore passes caller authentication,
+fails rate-limit coverage, hard-coded-secret absence, and base presence, and
+reports backend authentication as `NA`. `status-v1|get-status` falls back to a
+subscription-required product, so its API caller-auth classification is
+`SubscriptionKeyOnly` while the matrix caller-auth control fails. Unavailable
+backend, diagnostics, exposure, findings, Git, OpenAPI-quality, and usage inputs
+remain explicit `null`/Partial values. Record exact counts and expected outcomes
+here as each fixture surface is added.
 The target topology is Internal VNet APIM behind a public Basic/host-wide
 Application Gateway route, disabled WAF, and an assumed-reachable edge.
 

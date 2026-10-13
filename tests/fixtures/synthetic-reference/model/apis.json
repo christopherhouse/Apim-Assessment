@@ -1,0 +1,115 @@
+[
+  {
+    "apiId": "orders-v1",
+    "displayName": "Orders API",
+    "path": "orders",
+    "apiType": "http",
+    "protocols": [
+      "https"
+    ],
+    "backendHost": "backend.synthetic.invalid",
+    "products": [
+      "internal",
+      "partner"
+    ],
+    "ownerTag": null,
+    "tags": [
+      "partner"
+    ],
+    "versionSet": "orders",
+    "version": "v1",
+    "revisionCount": 1,
+    "nonCurrentOnlineRevisions": 0,
+    "operationCount": 1,
+    "subscriptionRequired": true,
+    "callerAuth": "Entra/JWT",
+    "throttling": true,
+    "ipFilter": false,
+    "corsUnsafe": false,
+    "backendAuth": null,
+    "hardcodedSecret": true,
+    "baseMissing": true,
+    "mockOrTrace": false,
+    "backendTlsValidation": null,
+    "bodyLogging": null,
+    "sensitiveHeadersLogged": null,
+    "reachability": null,
+    "exposure": null,
+    "calls90d": null,
+    "callsViaAppGw": null,
+    "callsInternal": null,
+    "lastCall": null,
+    "p95Ms": null,
+    "backendP95Ms": null,
+    "pct5xx": null,
+    "openApiScore": null,
+    "inGit": null,
+    "findingIds": null,
+    "modelStatus": "Partial",
+    "missingInputs": [
+      "backends",
+      "diagnostics",
+      "exposure",
+      "findings",
+      "git",
+      "openApiQuality",
+      "usage"
+    ]
+  },
+  {
+    "apiId": "status-v1",
+    "displayName": "Status API",
+    "path": "status",
+    "apiType": "http",
+    "protocols": [
+      "https"
+    ],
+    "backendHost": "backend.synthetic.invalid",
+    "products": [
+      "internal"
+    ],
+    "ownerTag": null,
+    "tags": [
+      "platform"
+    ],
+    "versionSet": "status",
+    "version": "v1",
+    "revisionCount": 2,
+    "nonCurrentOnlineRevisions": 1,
+    "operationCount": 1,
+    "subscriptionRequired": true,
+    "callerAuth": "SubscriptionKeyOnly",
+    "throttling": false,
+    "ipFilter": false,
+    "corsUnsafe": false,
+    "backendAuth": null,
+    "hardcodedSecret": false,
+    "baseMissing": false,
+    "mockOrTrace": false,
+    "backendTlsValidation": null,
+    "bodyLogging": null,
+    "sensitiveHeadersLogged": null,
+    "reachability": null,
+    "exposure": null,
+    "calls90d": null,
+    "callsViaAppGw": null,
+    "callsInternal": null,
+    "lastCall": null,
+    "p95Ms": null,
+    "backendP95Ms": null,
+    "pct5xx": null,
+    "openApiScore": null,
+    "inGit": null,
+    "findingIds": null,
+    "modelStatus": "Partial",
+    "missingInputs": [
+      "backends",
+      "diagnostics",
+      "exposure",
+      "findings",
+      "git",
+      "openApiQuality",
+      "usage"
+    ]
+  }
+]

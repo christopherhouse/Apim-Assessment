@@ -1,0 +1,75 @@
+[
+  {
+    "apiId": "orders-v1",
+    "operationId": "get-orders",
+    "method": "GET",
+    "fullPath": "/orders",
+    "hasDescription": true,
+    "products": [
+      "internal",
+      "partner"
+    ],
+    "policyEvaluationStatus": "Complete",
+    "callerAuthJwt": true,
+    "callerAuthMtls": false,
+    "callerAuthModes": [
+      "Entra/JWT"
+    ],
+    "hasUnauthenticatedPolicyPath": false,
+    "throttling": true,
+    "throttlingAllPaths": false,
+    "ipFilter": false,
+    "ipFilterAllPaths": false,
+    "hostRestriction": false,
+    "corsUnsafe": false,
+    "backendAuth": null,
+    "backendAuthAllPaths": null,
+    "hardcodedSecret": true,
+    "backendOverride": false,
+    "backendOverrideHttp": false,
+    "mockOrTrace": false,
+    "returnsWithoutBackend": false,
+    "baseMissing": true,
+    "calls90d": null,
+    "modelStatus": "Partial",
+    "missingInputs": [
+      "backends",
+      "usage"
+    ]
+  },
+  {
+    "apiId": "status-v1",
+    "operationId": "get-status",
+    "method": "GET",
+    "fullPath": "/status",
+    "hasDescription": true,
+    "products": [
+      "internal"
+    ],
+    "policyEvaluationStatus": "Complete",
+    "callerAuthJwt": false,
+    "callerAuthMtls": false,
+    "callerAuthModes": [],
+    "hasUnauthenticatedPolicyPath": true,
+    "throttling": false,
+    "throttlingAllPaths": false,
+    "ipFilter": false,
+    "ipFilterAllPaths": false,
+    "hostRestriction": false,
+    "corsUnsafe": false,
+    "backendAuth": null,
+    "backendAuthAllPaths": null,
+    "hardcodedSecret": false,
+    "backendOverride": false,
+    "backendOverrideHttp": false,
+    "mockOrTrace": false,
+    "returnsWithoutBackend": false,
+    "baseMissing": false,
+    "calls90d": null,
+    "modelStatus": "Partial",
+    "missingInputs": [
+      "backends",
+      "usage"
+    ]
+  }
+]

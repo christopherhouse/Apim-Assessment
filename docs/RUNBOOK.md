@@ -9,9 +9,11 @@ internal APIM service/API/product catalog collectors with bounded parallel child
 requests, plus restricted policy collection with normalized hashes and
 collection-time secret-candidate redaction. Private offline helpers now merge
 effective policies, normalize/hash them, and extract deterministic policy flags.
-Collection/analyze orchestration, remaining collectors, model builders/rules,
-the model-data airlock, Copilot operator workflow, reports/comparison, and
-Excel/HTML templates are not implemented.
+Private offline builders now create schema-validated API, operation, and policy
+matrix records from saved synthetic-equivalent inputs. Collection/analyze
+orchestration, remaining collectors and models, rules, the model-data airlock,
+Copilot operator workflow, reports/comparison, and Excel/HTML templates are not
+implemented.
 
 Do not run the planned commands in specification section 14 until their tasks
 are implemented, tested, and marked available in the root README.
@@ -60,6 +62,29 @@ so plain-HTTP risk remains visible without retaining host, path, query, fragment
 or credential data. Effective policies with unresolved fragments are marked
 Partial so downstream models cannot treat absent detections as authoritative
 negatives. There is still no public analyze command.
+
+The internal API/operation model helper joins current API catalog records,
+operations, revisions, tags, product memberships, and per-product policy flags.
+It sorts records and memberships deterministically, invalidates a catalog backend
+host when effective policy overrides the target, and represents unavailable
+collector-derived values as `null` rather than false or zero. Every incomplete
+record carries `modelStatus=Partial` and sorted `missingInputs`. The policy matrix
+uses `Pass`, `Fail`, or `NA`: a detected risk remains `Fail`, while missing or
+Partial evidence that prevents a decision becomes `NA`. All three model arrays
+must pass their closed JSON schemas before the writer creates any files.
+
+## Offline model fixture check
+
+The private model path can be validated without Azure access:
+
+```powershell
+Invoke-Pester .\tests\unit\ApiPolicyModel.Tests.ps1 -Output Detailed
+```
+
+The tests use only the customer-neutral synthetic fixture, exercise persisted
+`model/apis.json`, `model/operations.json`, and `model/policyMatrix.json` in a
+temporary test drive, and verify fail-closed schema handling. This is a
+development check, not an operator assessment command.
 
 ## Future operator requirements
 
