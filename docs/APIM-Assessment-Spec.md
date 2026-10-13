@@ -368,6 +368,15 @@ definitive result; a positively detected risk still produces `Fail`. Writers
 validate every pending model array against its closed schema before writing any
 of them.
 
+The shared model gate currently covers `apis`, `operations`, `policyMatrix`,
+`subscriptions`, `network`, and `exposure` (D-19). Pending outputs are serialized
+once, validated with `Test-Json -SchemaFile`, and only those validated snapshots
+are persisted. The private saved-run loader requires every implemented model
+file and validates the complete set before returning anything to downstream
+analysis. Missing files, unknown model names, unavailable schemas, and invalid
+JSON/schema data fail closed. Future model contracts join the gate with their
+builders; public Analyze orchestration remains T-311.
+
 ### 8.1 `model/apis.json` (one row per API, current revision)
 | Field | Type | Derivation |
 |---|---|---|

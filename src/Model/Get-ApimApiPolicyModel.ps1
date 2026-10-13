@@ -2,18 +2,6 @@
 
 Set-StrictMode -Version Latest
 
-$script:ApiModelSchemaPaths = [ordered]@{
-    apis = Join-Path (
-        Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
-    ) 'schemas/apis.schema.json'
-    operations = Join-Path (
-        Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
-    ) 'schemas/operations.schema.json'
-    policyMatrix = Join-Path (
-        Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
-    ) 'schemas/policyMatrix.schema.json'
-}
-
 function Get-ApimModelValue {
     [CmdletBinding()]
     param(
@@ -982,42 +970,14 @@ function Write-ApimApiPolicyModel {
         [object] $Model
     )
 
-    $outputs = [ordered]@{
-        apis = @{
-            relativePath = 'model/apis.json'
-            records = @(Get-ApimModelValue -InputObject $Model -Name apis `
-                    -Context 'API policy model')
-        }
-        operations = @{
-            relativePath = 'model/operations.json'
-            records = @(Get-ApimModelValue -InputObject $Model `
-                    -Name operations -Context 'API policy model')
-        }
-        policyMatrix = @{
-            relativePath = 'model/policyMatrix.json'
-            records = @(Get-ApimModelValue -InputObject $Model `
-                    -Name policyMatrix -Context 'API policy model')
-        }
+    $models = [ordered]@{
+        apis = @(Get-ApimModelValue -InputObject $Model -Name apis `
+                -Context 'API policy model')
+        operations = @(Get-ApimModelValue -InputObject $Model `
+                -Name operations -Context 'API policy model')
+        policyMatrix = @(Get-ApimModelValue -InputObject $Model `
+                -Name policyMatrix -Context 'API policy model')
     }
 
-    foreach ($name in $outputs.Keys) {
-        $schemaPath = $script:ApiModelSchemaPaths[$name]
-        if (-not (Test-Path -LiteralPath $schemaPath -PathType Leaf)) {
-            throw "Model schema '$name' was unavailable."
-        }
-        $json = ConvertTo-Json -InputObject $outputs[$name].records `
-            -Depth 100
-        if (-not ($json | Test-Json -SchemaFile $schemaPath `
-                    -ErrorAction Stop)) {
-            throw "Model '$name' failed schema validation."
-        }
-    }
-
-    $paths = [System.Collections.Generic.List[string]]::new()
-    foreach ($name in $outputs.Keys) {
-        $paths.Add((Write-RunFile -RunPath $RunPath `
-                    -RelativePath $outputs[$name].relativePath `
-                    -InputObject $outputs[$name].records -Depth 100))
-    }
-    return $paths.ToArray()
+    return Write-ApimModelSet -RunPath $RunPath -Models $models
 }

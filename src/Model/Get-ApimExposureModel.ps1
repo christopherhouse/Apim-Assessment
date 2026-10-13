@@ -2,13 +2,6 @@
 
 Set-StrictMode -Version Latest
 
-$script:ExposureModelSchemaPath = Join-Path (
-    Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
-) 'schemas/exposure.schema.json'
-$script:ExposureApiSchemaPath = Join-Path (
-    Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
-) 'schemas/apis.schema.json'
-
 function ConvertTo-ApimIpv4Number {
     [CmdletBinding()]
     param(
@@ -1598,33 +1591,8 @@ function Write-ApimExposureModel {
         [object[]] $ApiRecords
     )
 
-    foreach ($path in @(
-            $script:ExposureModelSchemaPath,
-            $script:ExposureApiSchemaPath
-        )) {
-        if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
-            throw 'Exposure model schema was unavailable.'
-        }
-    }
-    $exposureJson = ConvertTo-Json -InputObject $ExposureRecords -Depth 100
-    if (-not ($exposureJson | Test-Json `
-                -SchemaFile $script:ExposureModelSchemaPath `
-                -ErrorAction Stop)) {
-        throw 'Exposure model failed schema validation.'
-    }
-    $apiJson = ConvertTo-Json -InputObject $ApiRecords -Depth 100
-    if (-not ($apiJson | Test-Json `
-                -SchemaFile $script:ExposureApiSchemaPath `
-                -ErrorAction Stop)) {
-        throw 'Exposure API backfill failed schema validation.'
-    }
-
-    return @(
-        Write-RunFile -RunPath $RunPath `
-            -RelativePath 'model/exposure.json' `
-            -InputObject $ExposureRecords -Depth 100
-        Write-RunFile -RunPath $RunPath `
-            -RelativePath 'model/apis.json' `
-            -InputObject $ApiRecords -Depth 100
-    )
+    return Write-ApimModelSet -RunPath $RunPath -Models ([ordered]@{
+            exposure = $ExposureRecords
+            apis = $ApiRecords
+        })
 }

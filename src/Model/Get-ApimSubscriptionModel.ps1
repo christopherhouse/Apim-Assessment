@@ -2,10 +2,6 @@
 
 Set-StrictMode -Version Latest
 
-$script:SubscriptionModelSchemaPath = Join-Path (
-    Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
-) 'schemas/subscriptions.schema.json'
-
 function ConvertTo-ApimSubscriptionDate {
     [CmdletBinding()]
     param(
@@ -204,17 +200,6 @@ function Write-ApimSubscriptionModel {
         [object[]] $Records
     )
 
-    if (-not (Test-Path -LiteralPath $script:SubscriptionModelSchemaPath `
-            -PathType Leaf)) {
-        throw 'Subscription model schema was unavailable.'
-    }
-    $json = ConvertTo-Json -InputObject $Records -Depth 50
-    if (-not ($json | Test-Json `
-                -SchemaFile $script:SubscriptionModelSchemaPath `
-                -ErrorAction Stop)) {
-        throw 'Subscription model failed schema validation.'
-    }
-    return Write-RunFile -RunPath $RunPath `
-        -RelativePath 'model/subscriptions.json' `
-        -InputObject $Records -Depth 50
+    return Write-ApimModelSet -RunPath $RunPath `
+        -Models ([ordered]@{ subscriptions = $Records })
 }
