@@ -40,6 +40,12 @@ The network model fixture proves that Internal VNet APIM behind a public
 Basic/host-wide Application Gateway route, with a restricted APIM-subnet NSG,
 is not directly public even though its configured App Gateway listener is
 public. WAF is disabled and the external edge remains assumed reachable.
+The exposure fixture contains two route-by-API records from that one public
+Basic listener: both APIs are Reachable with no effective route restriction, but
+both remain `exposure=Unknown`, Medium confidence, and Partial because route
+usage is not yet available. `model/apis.exposure.json` records the corresponding
+post-exposure API backfill separately from the pre-exposure `model/apis.json`
+fixture used by the API-model tests.
 
 Planned T-201 counts: 60 APIs, four all-API subscriptions, 11 unused APIs,
 14 APIs without products, seven key-only external APIs, three missing `<base/>`

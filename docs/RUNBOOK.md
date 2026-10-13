@@ -12,10 +12,11 @@ redaction, and an internal network collector for Application Gateway/WAF and
 Resource Graph evidence. Private offline helpers now merge effective policies,
 normalize/hash them, and extract deterministic policy flags. Private offline
 builders create schema-validated API, operation, policy-matrix, subscription,
-and network records from saved synthetic-equivalent inputs. Collection/analyze
-orchestration, remaining collectors and models, exposure classification, rules,
-the model-data airlock, Copilot operator workflow, reports/comparison, and
-Excel/HTML templates are not implemented.
+network, and pre-telemetry exposure records from saved synthetic-equivalent
+inputs. Collection/analyze orchestration, remaining collectors and models,
+telemetry-based exposure refinement, rules, the model-data airlock, Copilot
+operator workflow, reports/comparison, and Excel/HTML templates are not
+implemented.
 
 Do not run the planned commands in specification section 14 until their tasks
 are implemented, tested, and marked available in the root README.
@@ -134,6 +135,35 @@ The customer-neutral network path can be checked offline:
 ```powershell
 Invoke-Pester .\tests\unit\NetworkCollector.Tests.ps1,`
   .\tests\unit\NetworkModel.Tests.ps1 -Output Detailed
+```
+
+## Exposure classification
+
+The private exposure model reads saved APIs, operations, the network model,
+ARM-shaped Application Gateway configuration, and effective policy-path
+evidence. It emits one closed-schema route-by-API record, treats Basic routing as
+host-wide `/*`, resolves path maps and one unconditional literal path rewrite,
+and fails unresolved rewrites to `Unknown` with Low confidence. Backend pools
+must target the APIM gateway host or address. Direct-public evidence overrides
+normal route matching.
+
+Restrictions are evaluated on each operation/product path. IP allow/forbid
+ranges and structural 403/404 host checks can classify a reachable route as
+Restricted; an unrestricted product path remains authoritative when missing
+inbound `<base/>` bypasses a restriction. JWT and mTLS do not change
+reachability. Until P4 supplies route usage, reachable unrestricted routes stay
+`exposure=Unknown`, `confidence=Medium`, and `missingInputs=["usage"]`; the
+optional usage hook accepts complete normalized `apiId`/`route`/`calls` rows
+where route is `ViaAppGw` or `Internal`, and only then distinguishes
+`ExternalInUse` from `ExternalUnintended`. Incomplete telemetry remains Unknown.
+The writer validates both `model/exposure.json` and the back-filled
+`model/apis.json` before writing either file.
+
+The customer-neutral exposure path can be checked offline:
+
+```powershell
+Invoke-Pester .\tests\unit\ExposureModel.Tests.ps1,`
+  .\tests\unit\PolicyFlags.Tests.ps1 -Output Detailed
 ```
 
 ## Future operator requirements

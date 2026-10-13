@@ -285,6 +285,39 @@ Describe 'Effective APIM policy flags' {
             $result.backendOverrideHttp | Should -BeTrue
         }
 
+        It 'captures structural host restriction evidence without response content' {
+            $xml = @'
+<policies>
+  <inbound>
+    <choose data-scope="api:synthetic-api">
+      <when condition="@(context.Request.OriginalUrl.Host != &quot;internal.synthetic.invalid&quot;)">
+        <return-response>
+          <set-status code="403" reason="Forbidden" />
+        </return-response>
+      </when>
+    </choose>
+  </inbound>
+</policies>
+'@
+
+            $result = Get-ApimPolicyFlags -EffectiveXml $xml
+
+            $result.hostRestriction | Should -BeTrue
+            $result.hostRestrictions.Count | Should -Be 1
+            $result.hostRestrictions[0].location |
+                Should -Be '/policies[1]/inbound[1]/choose[1]/when[1]'
+            $result.hostRestrictions[0].scope |
+                Should -Be 'api:synthetic-api'
+            $result.hostRestrictions[0].condition |
+                Should -Be (
+                    '@(context.Request.OriginalUrl.Host != ' +
+                    '"internal.synthetic.invalid")'
+                )
+            $result.hostRestrictions[0].statusCode | Should -Be '403'
+            $result.hostRestrictions[0].PSObject.Properties.Name |
+                Should -Not -Contain 'reason'
+        }
+
         It 'marks unresolved fragments as a partial evaluation' {
             $xml = @'
 <policies>

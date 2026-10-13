@@ -1,0 +1,54 @@
+[
+  {
+    "routeKey": "agw-synthetic-prod|public-https|api.synthetic.invalid|/*|orders-v1",
+    "gateway": "agw-synthetic-prod",
+    "listener": "public-https",
+    "listenerHost": "api.synthetic.invalid",
+    "backendHost": "api.synthetic.invalid",
+    "frontendType": "Public",
+    "ruleType": "Basic",
+    "pattern": "/*",
+    "wafState": "Disabled",
+    "wafMode": "Detection",
+    "edge": "Cloudflare-Assumed",
+    "apiId": "orders-v1",
+    "reachability": "Reachable",
+    "restriction": "None",
+    "exposure": "Unknown",
+    "callsViaAppGw": null,
+    "callsInternal": null,
+    "confidence": "Medium",
+    "baseMissingBypass": false,
+    "restrictedOperations": [],
+    "modelStatus": "Partial",
+    "missingInputs": [
+      "usage"
+    ]
+  },
+  {
+    "routeKey": "agw-synthetic-prod|public-https|api.synthetic.invalid|/*|status-v1",
+    "gateway": "agw-synthetic-prod",
+    "listener": "public-https",
+    "listenerHost": "api.synthetic.invalid",
+    "backendHost": "api.synthetic.invalid",
+    "frontendType": "Public",
+    "ruleType": "Basic",
+    "pattern": "/*",
+    "wafState": "Disabled",
+    "wafMode": "Detection",
+    "edge": "Cloudflare-Assumed",
+    "apiId": "status-v1",
+    "reachability": "Reachable",
+    "restriction": "None",
+    "exposure": "Unknown",
+    "callsViaAppGw": null,
+    "callsInternal": null,
+    "confidence": "Medium",
+    "baseMissingBypass": false,
+    "restrictedOperations": [],
+    "modelStatus": "Partial",
+    "missingInputs": [
+      "usage"
+    ]
+  }
+]

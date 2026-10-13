@@ -9,7 +9,7 @@ HTML executive presentation, and run comparisons.
 
 ## Current status
 
-**Collection and policy-model foundation only; not yet an operational assessment
+**Collection and deterministic-model foundation only; not yet an operational assessment
 tool.** The
 module imports and contains private configuration validation, structured logging,
 a guarded ARM transport, schema-validated run persistence, and internal APIM
@@ -18,8 +18,9 @@ assessment commands.
 Effective policy inheritance, fragment expansion, scope attribution, and
 normalized hashing plus deterministic policy-flag extraction are implemented as
 private offline model helpers. Private schema-validated builders now produce the
-API, operation, policy-matrix, subscription, and network model records from saved
-inputs. Remaining collectors and models, exposure classification, rules, the
+API, operation, policy-matrix, subscription, network, and pre-telemetry exposure
+model records from saved inputs. Remaining collectors and models, telemetry-based
+exposure refinement, rules, the
 model-data airlock, Copilot operator workflow, CLI entry points, and report
 templates are not implemented.
 
@@ -30,7 +31,7 @@ templates are not implemented.
 | Structured JSON-lines logging and progress | Run resume and persisted progress orchestration |
 | Guarded ARM transport with paging/retry | Excel report, carry-forward, and run comparison |
 | Versioned run manifest lifecycle and APIM service/API/product/subscription/policy/network collectors | Remaining APIM, telemetry, and cost collectors |
-| Effective policy merge/flags plus API, operation, policy-matrix, subscription, and network models | Remaining model builders, exposure model, and rule engine |
+| Effective policy merge/flags plus API, operation, policy-matrix, subscription, network, and pre-telemetry exposure models | Remaining model builders, telemetry exposure refinement, and rule engine |
 | Synthetic-fixture scaffold | Populated fixtures and offline integration pipeline |
 | Windows/Linux lint and test CI | Model-data airlock and local Copilot broker |
 | Copilot development instructions, agents, and skills | Assessment analyst agents and operator skills |
