@@ -13,7 +13,8 @@ Resource Graph evidence. Private offline helpers now merge effective policies,
 normalize/hash them, and extract deterministic policy flags. Private offline
 builders create schema-validated API, operation, policy-matrix, subscription,
 network, and pre-telemetry exposure records from saved synthetic-equivalent
-inputs. A private rule engine, seven NET catalog entries, and a
+inputs. A private rule engine, seven NET catalog entries, eight model-backed
+SEC catalog entries, and a
 closed findings schema are available for offline synthetic testing. Full
 collection/analyze orchestration, remaining collectors and models,
 telemetry-based exposure refinement, rule catalogs, the model-data airlock, Copilot
@@ -51,6 +52,7 @@ Rule-engine acceptance remains offline and synthetic:
 ```powershell
 .\scripts\Invoke-Checks.ps1 -TestPath .\tests\unit\RuleEngine.Tests.ps1
 .\scripts\Invoke-Checks.ps1 -TestPath .\tests\unit\NetRules.Tests.ps1
+.\scripts\Invoke-Checks.ps1 -TestPath .\tests\unit\SecRules.Tests.ps1
 ```
 
 The private `Get-ApimRuleCatalog`, `Invoke-ApimRuleEngine`, and
@@ -63,8 +65,12 @@ usage. `rules/NET.rules.ps1` includes NET-001/002/004/006/007/008/009.
 NET-001 and NET-009 need operator-corroborated facts in the closed network
 model. With no attestation, both emit Info/NotEvaluated rather than asserting
 absent authentication or unnecessary publication. No full saved-run
-Analyze path, findings report, or model-safe promotion is available yet. Never
-pass restricted models or findings to Copilot.
+Analyze path, findings report, or model-safe promotion is available yet.
+`rules/SEC.rules.ps1` includes SEC-003/004/005/007/012/014/015/020. Rules with
+unknown applicable facts emit one Info/NotEvaluated finding unless other
+records already provide definitive positive evidence. SEC-014 remains
+NotEvaluated for ordinary saved models until diagnostics collection is
+implemented. Never pass restricted models or findings to Copilot.
 
 ## Reusable collection smoke (Microsoft-owned test APIM only)
 

@@ -20,9 +20,11 @@ Describe 'Evidence-backed NET catalog' {
                 -TenantId '00000000-0000-0000-0000-000000000002' `
                 -Operator Synthetic -RunId 'synthetic-net-rules'
             $script:netRulesManifest = Get-RunManifest -RunPath $run.Path
-            $script:netRules = @(Get-ApimRuleCatalog -CatalogPath (
+            $script:netRules = @(
+                Get-ApimRuleCatalog -CatalogPath (
                     Join-Path $script:netRulesRepoRoot 'rules'
-                ))
+                ) | Where-Object Id -Like 'APIM-NET-*'
+            )
             $script:netFixtureRoot = Join-Path $script:netRulesRepoRoot (
                 'tests/fixtures/synthetic-reference/model'
             )
