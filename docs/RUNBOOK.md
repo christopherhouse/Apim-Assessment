@@ -13,7 +13,7 @@ Resource Graph evidence. Private offline helpers now merge effective policies,
 normalize/hash them, and extract deterministic policy flags. Private offline
 builders create schema-validated API, operation, policy-matrix, subscription,
 network, and pre-telemetry exposure records from saved synthetic-equivalent
-inputs. Collection/analyze orchestration, remaining collectors and models,
+inputs. Full collection/analyze orchestration, remaining collectors and models,
 telemetry-based exposure refinement, rules, the model-data airlock, Copilot
 operator workflow, reports/comparison, and Excel/HTML templates are not
 implemented.
@@ -42,6 +42,70 @@ commands. ARM and collector behavior, including parallel throttle enforcement, i
 exercised through mocked or synthetic offline tests only. Missing development
 modules are installed into the current user's module path; Pester results go to
 ignored `artifacts`.
+
+## Reusable collection smoke (Microsoft-owned test APIM only)
+
+The preparatory `scripts/Invoke-ApimSmoke.ps1` entry point exercises the six
+implemented collectors in fixed dependency order: Service, Apis, Products,
+Subscriptions, Policies, Network. The same command will run newly registered
+checks after their synthetic acceptance. A failure is recorded in the manifest,
+independent checks continue, and dependent checks are Skipped; no false success
+is reported. Exit status is 0 when all registered collection checks complete, 1
+for configuration/preflight failure, 2 for Az module/context failure, 3 when
+collection is Partial, and 4 for an unexpected run failure. Only these fixed
+statuses and check names appear on the console. Restricted raw output, manifest,
+and logs stay under `Output.Root`. This is **not** the full T-604 acceptance or a
+customer assessment: Analyze, rules, reports, and model-data promotion are not
+run. Do not pass live output, identifiers, errors, or logs to Copilot.
+
+In Copilot CLI, these `!` commands are safe because they run only synthetic
+offline tests and automatically include all current/future unit tests:
+
+```text
+! pwsh -NoProfile -File .\scripts\Invoke-Checks.ps1 -TestPath .\tests\unit\SmokeRunner.Tests.ps1
+! pwsh -NoProfile -File .\scripts\Invoke-Checks.ps1
+```
+
+**Live smoke is maintainer-operated in an ordinary PowerShell terminal, never
+in Copilot CLI or its `!` shell.** An authorized maintainer must choose a
+Microsoft-owned test APIM (T-114), use Reader-level APIM/network permissions
+and an existing Az login, and verify that the private configuration, restricted
+`Output.Root`, and separate unused `Output.ModelSafeRoot` are external paths
+outside the repository and **all** Copilot trusted/allowed directories. Install
+`Az.Accounts` and `Az.ResourceGraph` in the maintainer's PowerShell environment
+using the organization's approved process; the smoke command never installs
+modules or initiates a login.
+
+In that separate terminal, from the repository root, prepare a private config:
+
+```powershell
+$private = Join-Path $HOME 'apim-smoke-private'
+New-Item -ItemType Directory -Path $private -Force | Out-Null
+if (-not (Test-Path -LiteralPath (Join-Path $private 'smoke.psd1'))) {
+    Copy-Item .\config\sample.psd1 (Join-Path $private 'smoke.psd1')
+}
+```
+
+Edit `smoke.psd1` **locally, outside Copilot**. Set the Microsoft-owned test
+subscription ID, APIM name/resource group, an environment name such as `Test`,
+only the relevant network groups/gateways (empty arrays if none), and absolute
+non-overlapping external Output roots. Leave other required sample settings
+valid. Never paste this file or its values into a prompt. Use a separately
+approved storage location and retention policy for the restricted run.
+
+Sign in if needed (`Connect-AzAccount`) and select the intended subscription
+using your normal Azure PowerShell workflow in that same terminal. Then run:
+
+```powershell
+.\scripts\Invoke-ApimSmoke.ps1 -Config (Join-Path $private 'smoke.psd1') `
+    -Environment Test -MicrosoftOwnedTestEnvironment
+$LASTEXITCODE
+```
+
+The command refuses an unacknowledged target, repo-local config or output roots, or a
+context whose subscription ID differs from the configured target. Inspect the
+restricted manifest and outputs locally in that terminal; do not print or share
+them in Copilot. There is no public full assessment command yet.
 
 The internal policy collector reads the previously collected API, operation, and
 product catalogs, discovers policy fragments, and writes restricted XML under

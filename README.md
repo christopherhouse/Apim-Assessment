@@ -21,8 +21,14 @@ private offline model helpers. Private schema-validated builders now produce the
 API, operation, policy-matrix, subscription, network, and pre-telemetry exposure
 model records from saved inputs. Remaining collectors and models, telemetry-based
 exposure refinement, rules, the
-model-data airlock, Copilot operator workflow, CLI entry points, and report
+model-data airlock, Copilot operator workflow, assessment CLI entry points, and report
 templates are not implemented.
+
+An independent, **maintainer-only collection smoke command** now exercises all
+six implemented collectors in dependency order against a Microsoft-owned test
+APIM. It is not an assessment entry point or a customer-run command: it cannot
+analyze or report, and its live execution is owned by authorized maintainers
+outside Copilot CLI. No live Azure resources were used to develop or test it.
 
 All six implemented model contracts now share a fail-closed schema gate.
 Writers validate every pending serialized snapshot before writing any file, and
@@ -37,6 +43,7 @@ builders; this gate is not a public Analyze command or the model-data airlock.
 | Structured JSON-lines logging and progress | Run resume and persisted progress orchestration |
 | Guarded ARM transport with paging/retry | Excel report, carry-forward, and run comparison |
 | Versioned run manifest lifecycle and APIM service/API/product/subscription/policy/network collectors | Remaining APIM, telemetry, and cost collectors |
+| Maintainer-only cumulative collection smoke script (service, APIs, products, subscriptions, policies, network) | Full assessment orchestration and live acceptance |
 | Effective policy merge/flags plus six implemented models with shared schema-gated persistence and saved-run loading | Remaining model builders, telemetry exposure refinement, and rule engine |
 | Synthetic-fixture scaffold | Populated fixtures and offline integration pipeline |
 | Windows/Linux lint and test CI | Model-data airlock and local Copilot broker |
@@ -68,6 +75,19 @@ The dependency installer installs pinned Pester 5.x and PSScriptAnalyzer version
 from PowerShell Gallery into the current user's module directory; administrator
 rights are not needed. Validation is offline and does not authenticate to Azure.
 Results are written to the ignored `artifacts` directory.
+
+In Copilot CLI, `!` runs a shell command. The following commands run **only
+synthetic and mocked offline checks** and automatically cover new Pester tests
+as capabilities are implemented:
+
+```text
+! pwsh -NoProfile -File .\scripts\Invoke-Checks.ps1 -TestPath .\tests\unit\SmokeRunner.Tests.ps1
+! pwsh -NoProfile -File .\scripts\Invoke-Checks.ps1
+```
+
+Do **not** run an Azure login, the live smoke command, or any command that reads
+restricted output using `!` or an assessment agent. The live command and
+maintainer-only setup are in [the runbook](docs/RUNBOOK.md).
 
 Develop only on `feature/<name>`, `chore/<name>`, or `bugfix/<name>` branches.
 Open a pull request to `main`; CI rejects other source-branch prefixes.
@@ -139,6 +159,18 @@ a success-shaped false result.
 The optional operator experience will use GitHub Copilot CLI repository agents
 and skills through a narrow local broker. The deterministic collection, analysis,
 Excel, and HTML paths will remain runnable without Copilot.
+
+For a pre-acceptance smoke only, `scripts/Invoke-ApimSmoke.ps1` runs the current
+service, API catalog, product, subscription, policy, and network collectors with
+an existing matching `Az.Accounts` context and `Az.ResourceGraph`. It requires
+an explicit Microsoft-owned test-environment acknowledgement. Private config
+and restricted output must be outside the repository and all Copilot
+trusted/allowed directories. Only fixed check statuses appear on the console;
+the manifest and raw results stay in restricted local storage. Check failures
+are recorded as Failed/Partial and dependent checks as Skipped. Future
+implemented capabilities join this fixed check list after synthetic acceptance
+without changing the maintainer's invocation. A passing collection smoke
+does **not** imply analysis, reports, full-run acceptance, or customer readiness.
 
 Operators will supply an existing `Connect-AzAccount` context. Intended access is
 Reader on the APIM and network resource groups, Log Analytics Reader on the
