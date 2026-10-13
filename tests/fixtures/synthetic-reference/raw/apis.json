@@ -1,0 +1,44 @@
+{
+  "value": [
+    {
+      "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-synthetic-prod/providers/Microsoft.ApiManagement/service/apim-synthetic-prod/apis/orders-v1",
+      "name": "orders-v1",
+      "type": "Microsoft.ApiManagement/service/apis",
+      "properties": {
+        "displayName": "Orders API",
+        "path": "orders",
+        "protocols": [
+          "https"
+        ],
+        "serviceUrl": "https://backend.synthetic.invalid/orders",
+        "subscriptionRequired": true,
+        "apiType": "http",
+        "apiRevision": "1",
+        "isCurrent": true,
+        "apiVersion": "v1",
+        "apiVersionSetId": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-synthetic-prod/providers/Microsoft.ApiManagement/service/apim-synthetic-prod/apiVersionSets/orders",
+        "description": "Synthetic order operations."
+      }
+    },
+    {
+      "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-synthetic-prod/providers/Microsoft.ApiManagement/service/apim-synthetic-prod/apis/status-v1",
+      "name": "status-v1",
+      "type": "Microsoft.ApiManagement/service/apis",
+      "properties": {
+        "displayName": "Status API",
+        "path": "status",
+        "protocols": [
+          "https"
+        ],
+        "serviceUrl": "https://backend.synthetic.invalid/status",
+        "subscriptionRequired": false,
+        "apiType": "http",
+        "apiRevision": "2",
+        "isCurrent": true,
+        "apiVersion": "v1",
+        "apiVersionSetId": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-synthetic-prod/providers/Microsoft.ApiManagement/service/apim-synthetic-prod/apiVersionSets/status",
+        "description": "Synthetic status operations."
+      }
+    }
+  ]
+}

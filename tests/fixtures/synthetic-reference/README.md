@@ -5,12 +5,13 @@ export. All identifiers, IPs, policies, telemetry, and costs must be generated.
 Do not include customer or engagement names, real-person names, or copied
 customer data, even with a promise to anonymize it afterward.
 
-The `raw/service.json` fixture is implemented for T-103 and describes a wholly
-synthetic Internal VNet APIM service. Other raw subdirectories remain empty until
-T-201 and subsequent collector/model tasks. Record exact counts and expected
-outcomes here as each fixture surface is added. The target topology is Internal
-VNet APIM behind a public Basic/host-wide Application Gateway route, disabled
-WAF, and an assumed-reachable edge.
+The implemented collector fixtures currently contain one APIM service, two APIs,
+three API revisions, two operations, two API-tag assignments, two products, two
+product/API memberships, and two product/group memberships. Other raw
+subdirectories remain empty until T-201 and subsequent collector/model tasks.
+Record exact counts and expected outcomes here as each fixture surface is added.
+The target topology is Internal VNet APIM behind a public Basic/host-wide
+Application Gateway route, disabled WAF, and an assumed-reachable edge.
 
 Planned T-201 counts: 60 APIs, four all-API subscriptions, 11 unused APIs,
 14 APIs without products, seven key-only external APIs, three missing `<base/>`

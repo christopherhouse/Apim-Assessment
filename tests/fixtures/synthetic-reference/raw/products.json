@@ -1,0 +1,26 @@
+{
+  "value": [
+    {
+      "name": "internal",
+      "properties": {
+        "displayName": "Internal",
+        "state": "published",
+        "subscriptionRequired": true,
+        "approvalRequired": true,
+        "subscriptionsLimit": 1,
+        "description": "Synthetic internal product."
+      }
+    },
+    {
+      "name": "partner",
+      "properties": {
+        "displayName": "Partner",
+        "state": "published",
+        "subscriptionRequired": true,
+        "approvalRequired": true,
+        "subscriptionsLimit": 2,
+        "description": "Synthetic external partner product."
+      }
+    }
+  ]
+}

@@ -4,11 +4,11 @@
 
 The toolkit is **not ready for customer assessment runs**. It has an importable
 module foundation, strict private configuration validation, structured logging,
-a guarded ARM transport, schema-validated run-folder/manifest persistence, the
-first internal APIM service collector, development checks, and release automation.
-Collection orchestration and remaining collectors, models/rules, the model-data
-airlock, Copilot operator workflow, reports/comparison, and Excel/HTML templates
-are not implemented.
+a guarded ARM transport, schema-validated run-folder/manifest persistence, and
+internal APIM service/API/product catalog collectors with bounded parallel child
+requests. Collection orchestration and remaining collectors, models/rules, the
+model-data airlock, Copilot operator workflow, reports/comparison, and Excel/HTML
+templates are not implemented.
 
 Do not run the planned commands in specification section 14 until their tasks
 are implemented, tested, and marked available in the root README.
@@ -25,10 +25,11 @@ Get-Module ApimAssessment
 ```
 
 These commands do not connect to Azure. The module exports no public assessment
-functions, so the internal run-persistence and service-collector helpers are not
-operator commands. ARM and collector behavior is exercised through mocked offline
-tests only. Missing development modules are installed into the current user's
-module path; Pester results go to ignored `artifacts`.
+functions, so the internal run-persistence and collector helpers are not operator
+commands. ARM and collector behavior, including parallel throttle enforcement, is
+exercised through mocked or synthetic offline tests only. Missing development
+modules are installed into the current user's module path; Pester results go to
+ignored `artifacts`.
 
 ## Future operator requirements
 
