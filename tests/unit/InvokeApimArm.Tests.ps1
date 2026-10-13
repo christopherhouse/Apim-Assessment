@@ -207,6 +207,99 @@ Describe 'Invoke-ApimArm safety and transport behavior' {
             } | Should -Throw '*before a usable response was received*'
         }
 
+        It 'preserves a bounded HTTP status carried directly by an exception' {
+            Mock Invoke-ApimArmRequest {
+                $exception = [System.Exception]::new('synthetic-private-error')
+                $exception | Add-Member -MemberType NoteProperty `
+                    -Name StatusCode -Value 403
+                throw $exception
+            }
+
+            try {
+                Invoke-ApimArm -Uri '/failure'
+                throw 'Expected a guarded ARM failure.'
+            }
+            catch {
+                $_.Exception.Data['StatusCode'] | Should -Be 403
+                $_.Exception.Data['TransportKind'] | Should -BeNullOrEmpty
+                $_.Exception.Message | Should -Not -Match 'synthetic-private'
+            }
+        }
+
+        It 'does not treat a successful status on a thrown exception as an HTTP error' {
+            Mock Invoke-ApimArmRequest {
+                $exception = [System.Exception]::new('synthetic-private-error')
+                $exception | Add-Member -MemberType NoteProperty `
+                    -Name StatusCode -Value 200
+                throw $exception
+            }
+
+            try {
+                Invoke-ApimArm -Uri '/failure'
+                throw 'Expected a guarded ARM failure.'
+            }
+            catch {
+                $_.Exception.Data['StatusCode'] | Should -BeNullOrEmpty
+                $_.Exception.Message | Should -Match 'before a usable response'
+            }
+        }
+
+        It 'classifies fixed authentication and timeout categories' {
+            $auth = [System.Management.Automation.ErrorRecord]::new(
+                [System.Exception]::new('synthetic-private-auth'), 'Synthetic',
+                [System.Management.Automation.ErrorCategory]::AuthenticationError,
+                $null
+            )
+            $timeout = [System.Management.Automation.ErrorRecord]::new(
+                [System.TimeoutException]::new('synthetic-private-timeout'),
+                'Synthetic',
+                [System.Management.Automation.ErrorCategory]::NotSpecified, $null
+            )
+
+            Get-ApimArmTransportKind -ErrorRecord $auth |
+                Should -Be 'AUTH'
+            Get-ApimArmTransportKind -ErrorRecord $timeout |
+                Should -Be 'TIMEOUT'
+        }
+
+        It 'classifies a local cmdlet binding error without retaining its text' {
+            Mock Invoke-ApimArmRequest {
+                throw [System.Management.Automation.ParameterBindingException]::new(
+                    'synthetic-private-parameter'
+                )
+            }
+
+            try {
+                Invoke-ApimArm -Uri '/failure'
+                throw 'Expected a guarded ARM failure.'
+            }
+            catch {
+                $_.Exception.Data['TransportKind'] | Should -Be 'COMMAND'
+                $_.Exception.Message | Should -Not -Match 'synthetic-private'
+            }
+        }
+
+        It 'recognizes nested network failures without treating them as HTTP' {
+            Mock Invoke-ApimArmRequest {
+                $inner = [System.Net.Http.HttpRequestException]::new(
+                    'synthetic-private-network'
+                )
+                throw [System.InvalidOperationException]::new(
+                    'synthetic-private-wrapper', $inner
+                )
+            }
+
+            try {
+                Invoke-ApimArm -Uri '/failure'
+                throw 'Expected a guarded ARM failure.'
+            }
+            catch {
+                $_.Exception.Data['StatusCode'] | Should -BeNullOrEmpty
+                $_.Exception.Data['TransportKind'] | Should -Be 'NETWORK'
+                $_.Exception.Message | Should -Not -Match 'synthetic-private'
+            }
+        }
+
         It 'honors Cost Management retry headers' {
             $script:attempt = 0
             Mock Invoke-ApimArmRequest {

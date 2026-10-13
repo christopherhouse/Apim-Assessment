@@ -166,11 +166,12 @@ an existing matching `Az.Accounts` context and `Az.ResourceGraph`. It requires
 an explicit Microsoft-owned test-environment acknowledgement. Private config
 and restricted output must be outside the repository and all Copilot
 trusted/allowed directories. Only registered check/status names and, for failed
-checks, a bounded ARM HTTP or local/unknown failure code appear on the console,
+checks, a bounded ARM HTTP, transport-category, or local/unknown failure code
+appear on the console,
 never exception text, paths, or response content. The manifest and raw results
 stay in restricted local storage. Check failures are recorded as Failed/Partial
-and dependent checks as Skipped. Future
-implemented capabilities join this fixed check list after synthetic acceptance
+and dependent checks as Skipped. Future implemented capabilities join this fixed
+check list after synthetic acceptance
 without changing the maintainer's invocation. A passing collection smoke
 does **not** imply analysis, reports, full-run acceptance, or customer readiness.
 

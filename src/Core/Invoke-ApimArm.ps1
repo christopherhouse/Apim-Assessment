@@ -268,7 +268,10 @@ function Get-ApimArmFailure {
         [Nullable[int]] $StatusCode,
 
         [Parameter(Mandatory)]
-        [int] $Attempts
+        [int] $Attempts,
+
+        [AllowNull()]
+        [string] $TransportKind
     )
 
     $message = if ($null -eq $StatusCode) {
@@ -282,7 +285,45 @@ function Get-ApimArmFailure {
     if ($null -ne $StatusCode) {
         $exception.Data['StatusCode'] = [int] $StatusCode
     }
+    if ($TransportKind -in @('AUTH', 'COMMAND', 'NETWORK', 'TIMEOUT')) {
+        $exception.Data['TransportKind'] = $TransportKind
+    }
     return $exception
+}
+
+function Get-ApimArmTransportKind {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [System.Management.Automation.ErrorRecord] $ErrorRecord
+    )
+
+    if ($ErrorRecord.CategoryInfo.Category -in @(
+            [System.Management.Automation.ErrorCategory]::AuthenticationError,
+            [System.Management.Automation.ErrorCategory]::SecurityError,
+            [System.Management.Automation.ErrorCategory]::PermissionDenied
+        )) {
+        return 'AUTH'
+    }
+
+    $exception = $ErrorRecord.Exception
+    for ($depth = 0; $null -ne $exception -and $depth -lt 4; $depth++) {
+        if ($exception -is [System.Management.Automation.CommandNotFoundException] -or
+            $exception -is [System.Management.Automation.ParameterBindingException]) {
+            return 'COMMAND'
+        }
+        if ($exception -is [System.TimeoutException] -or
+            $exception -is [System.OperationCanceledException]) {
+            return 'TIMEOUT'
+        }
+        if ($exception -is [System.Net.Http.HttpRequestException] -or
+            $exception -is [System.Net.WebException] -or
+            $exception -is [System.Net.Sockets.SocketException]) {
+            return 'NETWORK'
+        }
+        $exception = $exception.InnerException
+    }
+    return $null
 }
 
 function Invoke-ApimArm {
@@ -339,11 +380,25 @@ function Invoke-ApimArm {
                     $null
                 }
                 $statusCode = Get-ApimArmStatusCode -InputObject $errorResponse
+                if ($null -eq $statusCode) {
+                    $directStatus = Get-ApimArmStatusCode -InputObject $_.Exception
+                    if ($null -ne $directStatus -and
+                        $directStatus -ge 300 -and $directStatus -le 599) {
+                        $statusCode = $directStatus
+                    }
+                }
                 $retryable = $statusCode -eq 429 -or
                     ($null -ne $statusCode -and $statusCode -ge 500 -and
                     $statusCode -le 599)
                 if (-not $retryable -or $attempt -ge $MaxAttempts) {
-                    throw (Get-ApimArmFailure -StatusCode $statusCode -Attempts $attempt)
+                    $kind = if ($null -eq $statusCode) {
+                        Get-ApimArmTransportKind -ErrorRecord $_
+                    }
+                    else {
+                        $null
+                    }
+                    throw (Get-ApimArmFailure -StatusCode $statusCode `
+                        -Attempts $attempt -TransportKind $kind)
                 }
 
                 $headers = Get-ApimArmHeaderMap -InputObject $errorResponse

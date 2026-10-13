@@ -239,6 +239,31 @@ Describe 'Cumulative collection smoke runner' {
                 Should -Be 'ARM_NO_RESPONSE'
         }
 
+        It 'exposes only allowlisted transport categories' -TestCases @(
+            @{ Kind = 'AUTH'; Code = 'ARM_AUTH_ERROR' }
+            @{ Kind = 'COMMAND'; Code = 'ARM_COMMAND_ERROR' }
+            @{ Kind = 'NETWORK'; Code = 'ARM_NETWORK_ERROR' }
+            @{ Kind = 'TIMEOUT'; Code = 'ARM_TIMEOUT' }
+        ) {
+            param($Kind, $Code)
+
+            $script:smokeTransportKind = $Kind
+            Mock Invoke-ApimServiceCollector {
+                throw (Get-ApimArmFailure -StatusCode $null -Attempts 1 `
+                    -TransportKind $script:smokeTransportKind)
+            }
+
+            $result = Invoke-ApimSmoke -Config $script:smokeConfig `
+                -EnvironmentName Prod -TenantId (
+                    '00000000-0000-0000-0000-000000000010'
+                )
+
+            ($result.Checks | Where-Object Name -EQ Service).FailureCode |
+                Should -Be $Code
+            @($result.Checks | Where-Object Status -EQ Skipped).Count |
+                Should -Be 5
+        }
+
         It 'distinguishes local I/O failures without printing a private path' {
             Mock Invoke-ApimServiceCollector {
                 throw [System.IO.IOException]::new(
@@ -271,6 +296,9 @@ Describe 'Cumulative collection smoke runner' {
             )
             Get-ApimSmokeFailureCode -ErrorRecord $unmarkedRecord |
                 Should -Be 'UNKNOWN_FAILURE'
+            Get-ApimSmokeFailureCode -ErrorRecord $invalidRecord |
+                Should -Be 'ARM_NO_RESPONSE'
+            $invalid.Data['TransportKind'] = 'synthetic-private-value'
             Get-ApimSmokeFailureCode -ErrorRecord $invalidRecord |
                 Should -Be 'ARM_NO_RESPONSE'
         }

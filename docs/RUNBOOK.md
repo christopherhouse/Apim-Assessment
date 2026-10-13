@@ -60,7 +60,14 @@ the maintainer's local Reader access to the test service.
 name and resource group locally against the selected subscription.
 Other `ARM_HTTP_<status>` codes report only the numeric status (429 and 5xx
 are reported after retries). `ARM_NO_RESPONSE` means the guarded request
-received no usable HTTP response; check local connectivity and Az setup.
+received no usable HTTP response **and** the underlying error did not match a
+known category; it does not prove a network outage. `ARM_AUTH_ERROR` indicates
+an Az authentication/permission error; check the local login and test-resource
+access. `ARM_COMMAND_ERROR` indicates a missing cmdlet or invalid parameter;
+check the locally installed Az module. `ARM_NETWORK_ERROR` indicates a network
+exception; check local connectivity to Azure Resource Manager.
+`ARM_TIMEOUT` indicates a timeout/cancellation; check connectivity and retry
+policy locally. These codes never include exception text or raw responses.
 `LOCAL_IO_ERROR` means a local write/read failed; check restricted storage
 permissions and available space. `UNKNOWN_FAILURE` needs maintainer-only
 investigation and does not imply that Azure returned success. Do not paste

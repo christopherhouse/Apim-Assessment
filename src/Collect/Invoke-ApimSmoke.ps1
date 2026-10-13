@@ -42,6 +42,12 @@ function Get-ApimSmokeFailureCode {
         if ($status -is [int] -and $status -ge 100 -and $status -le 599) {
             return "ARM_HTTP_$status"
         }
+        switch ($exception.Data['TransportKind']) {
+            'AUTH' { return 'ARM_AUTH_ERROR' }
+            'COMMAND' { return 'ARM_COMMAND_ERROR' }
+            'NETWORK' { return 'ARM_NETWORK_ERROR' }
+            'TIMEOUT' { return 'ARM_TIMEOUT' }
+        }
         return 'ARM_NO_RESPONSE'
     }
     if ($exception -is [System.IO.IOException] -or
