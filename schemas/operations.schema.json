@@ -1,0 +1,165 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.invalid/apim-assessment/schemas/operations.schema.json",
+  "title": "APIM Assessment Operation Model",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "apiId",
+      "operationId",
+      "method",
+      "fullPath",
+      "hasDescription",
+      "products",
+      "policyEvaluationStatus",
+      "callerAuthJwt",
+      "callerAuthMtls",
+      "callerAuthModes",
+      "hasUnauthenticatedPolicyPath",
+      "throttling",
+      "throttlingAllPaths",
+      "ipFilter",
+      "ipFilterAllPaths",
+      "hostRestriction",
+      "corsUnsafe",
+      "backendAuth",
+      "backendAuthAllPaths",
+      "hardcodedSecret",
+      "backendOverride",
+      "backendOverrideHttp",
+      "mockOrTrace",
+      "returnsWithoutBackend",
+      "baseMissing",
+      "calls90d",
+      "modelStatus",
+      "missingInputs"
+    ],
+    "properties": {
+      "apiId": {
+        "type": "string",
+        "minLength": 1
+      },
+      "operationId": {
+        "type": "string",
+        "minLength": 1
+      },
+      "method": {
+        "type": "string",
+        "minLength": 1
+      },
+      "fullPath": {
+        "type": "string",
+        "pattern": "^/"
+      },
+      "hasDescription": {
+        "type": "boolean"
+      },
+      "products": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "uniqueItems": true
+      },
+      "policyEvaluationStatus": {
+        "enum": [
+          "Complete",
+          "Partial"
+        ]
+      },
+      "callerAuthJwt": {
+        "type": "boolean"
+      },
+      "callerAuthMtls": {
+        "type": "boolean"
+      },
+      "callerAuthModes": {
+        "type": "array",
+        "items": {
+          "enum": [
+            "Entra/JWT",
+            "mTLS"
+          ]
+        },
+        "uniqueItems": true
+      },
+      "hasUnauthenticatedPolicyPath": {
+        "type": "boolean"
+      },
+      "throttling": {
+        "type": "boolean"
+      },
+      "throttlingAllPaths": {
+        "type": "boolean"
+      },
+      "ipFilter": {
+        "type": "boolean"
+      },
+      "ipFilterAllPaths": {
+        "type": "boolean"
+      },
+      "hostRestriction": {
+        "type": "boolean"
+      },
+      "corsUnsafe": {
+        "type": "boolean"
+      },
+      "backendAuth": {
+        "$ref": "#/definitions/nullableBoolean"
+      },
+      "backendAuthAllPaths": {
+        "$ref": "#/definitions/nullableBoolean"
+      },
+      "hardcodedSecret": {
+        "type": "boolean"
+      },
+      "backendOverride": {
+        "type": "boolean"
+      },
+      "backendOverrideHttp": {
+        "type": "boolean"
+      },
+      "mockOrTrace": {
+        "type": "boolean"
+      },
+      "returnsWithoutBackend": {
+        "type": "boolean"
+      },
+      "baseMissing": {
+        "type": "boolean"
+      },
+      "calls90d": {
+        "type": [
+          "number",
+          "null"
+        ],
+        "minimum": 0
+      },
+      "modelStatus": {
+        "enum": [
+          "Complete",
+          "Partial"
+        ]
+      },
+      "missingInputs": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "uniqueItems": true
+      }
+    }
+  },
+  "definitions": {
+    "nullableBoolean": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    }
+  }
+}

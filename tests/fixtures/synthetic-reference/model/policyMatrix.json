@@ -1,0 +1,34 @@
+[
+  {
+    "apiId": "orders-v1",
+    "evaluationStatus": "Partial",
+    "callerAuth": "Pass",
+    "rateLimit": "Fail",
+    "ipFilter": "Fail",
+    "corsSafe": "Pass",
+    "backendAuth": "NA",
+    "noHardcodedSecret": "Fail",
+    "basePresent": "Fail",
+    "noMockTrace": "Pass",
+    "modelStatus": "Partial",
+    "missingInputs": [
+      "backends"
+    ]
+  },
+  {
+    "apiId": "status-v1",
+    "evaluationStatus": "Partial",
+    "callerAuth": "Fail",
+    "rateLimit": "Fail",
+    "ipFilter": "Fail",
+    "corsSafe": "Pass",
+    "backendAuth": "NA",
+    "noHardcodedSecret": "Pass",
+    "basePresent": "Pass",
+    "noMockTrace": "Pass",
+    "modelStatus": "Partial",
+    "missingInputs": [
+      "backends"
+    ]
+  }
+]

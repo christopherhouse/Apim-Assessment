@@ -74,7 +74,7 @@ function Write-RunFile {
     Test-ConfigPathLink -Path $directory -Context 'Run file path'
 
     $content = if ($Format -eq 'Json') {
-        $InputObject | ConvertTo-Json -Depth $Depth
+        ConvertTo-Json -InputObject $InputObject -Depth $Depth
     }
     else {
         [string] $InputObject

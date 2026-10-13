@@ -360,6 +360,14 @@ If `GitRepoPath` set: enumerate `*.xml` under `GitPolicyRoot`, map to scopes by 
 
 All model files are arrays of flat-ish records validated against `schemas/*.schema.json`. Field names are camelCase. Arrays sorted by primary key.
 
+Until all dependent collectors and models are available, records include
+`modelStatus` (`Complete` or `Partial`) and a sorted `missingInputs[]`. An
+unavailable value is `null`, never a success-shaped false, zero, or empty value.
+Policy-matrix controls use `NA` when missing or Partial evidence prevents a
+definitive result; a positively detected risk still produces `Fail`. Writers
+validate every pending model array against its closed schema before writing any
+of them.
+
 ### 8.1 `model/apis.json` (one row per API, current revision)
 | Field | Type | Derivation |
 |---|---|---|
