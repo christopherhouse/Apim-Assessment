@@ -582,6 +582,10 @@ Edge layer: with `Edge.Mode = AssumedReachable`, every public listener is treate
 }
 ```
 `$ctx` gives access to config thresholds, all model files, and the manifest.
+Until additional model contracts exist, the private engine evaluates only
+Service, Api, Operation, Subscription, Route, and Network targets; catalog
+entries for other scopes are deferred (D-29). Rules must declare their target
+model and any additional model they use in `Requires`.
 
 ### 10.2 Findings schema (`findings.json`, one record per rule × target)
 ```json
@@ -600,6 +604,10 @@ Edge layer: with `Edge.Mode = AssumedReachable`, every public listener is treate
 - `findingKey` = `ruleId|resourceName|scope` — stable across runs (no timestamps, no GUIDs that change).
 - `evaluation` = `Evaluated` | `NotEvaluated` (missing input; severity forced to `Info`, evidence lists missing files).
 - `usage`: `InUse` if `calls90d > 0` for API-scoped; `NotApplicable` for service-level.
+- When telemetry is missing, `usage` is null (not `Unused`) and uses a neutral
+  1.0 priority multiplier. Missing required model files yield one
+  Info/NotEvaluated finding per rule; malformed available models fail closed
+  (D-29).
 - Sorted by `priorityScore` desc, then `ruleId`, then `scope`.
 
 ### 10.3 Priority score

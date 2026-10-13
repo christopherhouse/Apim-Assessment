@@ -13,14 +13,17 @@ Resource Graph evidence. Private offline helpers now merge effective policies,
 normalize/hash them, and extract deterministic policy flags. Private offline
 builders create schema-validated API, operation, policy-matrix, subscription,
 network, and pre-telemetry exposure records from saved synthetic-equivalent
-inputs. Full collection/analyze orchestration, remaining collectors and models,
-telemetry-based exposure refinement, rules, the model-data airlock, Copilot
+inputs. A private rule engine and closed findings schema are available for
+offline synthetic testing; no production catalog entries exist yet. Full
+collection/analyze orchestration, remaining collectors and models,
+telemetry-based exposure refinement, rule catalogs, the model-data airlock, Copilot
 operator workflow, reports/comparison, and Excel/HTML templates are not
 implemented.
 
 All six implemented model contracts share a private schema gate for pending
-writes and complete saved-run loading. This does not add a public Analyze
-command or authorize model access to restricted run data.
+writes and complete saved-run loading. Private findings are validated against
+`schemas/findings.schema.json` before restricted persistence. This does not add
+a public Analyze command or authorize model/findings access to an agent.
 
 Do not run the planned commands in specification section 14 until their tasks
 are implemented, tested, and marked available in the root README.
@@ -42,6 +45,20 @@ commands. ARM and collector behavior, including parallel throttle enforcement, i
 exercised through mocked or synthetic offline tests only. Missing development
 modules are installed into the current user's module path; Pester results go to
 ignored `artifacts`.
+
+Rule-engine acceptance remains offline and synthetic:
+
+```powershell
+.\scripts\Invoke-Checks.ps1 -TestPath .\tests\unit\RuleEngine.Tests.ps1
+```
+
+The private `Get-ApimRuleCatalog`, `Invoke-ApimRuleEngine`, and
+`Write-ApimFindingSet` helpers are not operator commands. Rules require explicit
+model inputs; missing/failed inputs produce one Info/NotEvaluated finding per
+rule, but malformed available models and invalid evidence fail closed. Unknown
+usage is not zero usage. No catalog rules, full saved-run Analyze path, findings
+report, or model-safe promotion are available yet. Never pass restricted models
+or findings to Copilot.
 
 ## Reusable collection smoke (Microsoft-owned test APIM only)
 
