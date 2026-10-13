@@ -13,8 +13,8 @@ Resource Graph evidence. Private offline helpers now merge effective policies,
 normalize/hash them, and extract deterministic policy flags. Private offline
 builders create schema-validated API, operation, policy-matrix, subscription,
 network, and pre-telemetry exposure records from saved synthetic-equivalent
-inputs. A private rule engine and closed findings schema are available for
-offline synthetic testing; no production catalog entries exist yet. Full
+inputs. A private rule engine, seven NET catalog entries, and a
+closed findings schema are available for offline synthetic testing. Full
 collection/analyze orchestration, remaining collectors and models,
 telemetry-based exposure refinement, rule catalogs, the model-data airlock, Copilot
 operator workflow, reports/comparison, and Excel/HTML templates are not
@@ -50,15 +50,21 @@ Rule-engine acceptance remains offline and synthetic:
 
 ```powershell
 .\scripts\Invoke-Checks.ps1 -TestPath .\tests\unit\RuleEngine.Tests.ps1
+.\scripts\Invoke-Checks.ps1 -TestPath .\tests\unit\NetRules.Tests.ps1
 ```
 
 The private `Get-ApimRuleCatalog`, `Invoke-ApimRuleEngine`, and
 `Write-ApimFindingSet` helpers are not operator commands. Rules require explicit
 model inputs; missing/failed inputs produce one Info/NotEvaluated finding per
-rule, but malformed available models and invalid evidence fail closed. Unknown
-usage is not zero usage. No catalog rules, full saved-run Analyze path, findings
-report, or model-safe promotion are available yet. Never pass restricted models
-or findings to Copilot.
+rule. An optional, allowlisted field-level `DataGaps` callback marks required
+facts within a present model as NotEvaluated instead of a false pass; malformed
+available models and invalid evidence fail closed. Unknown usage is not zero
+usage. `rules/NET.rules.ps1` includes NET-001/002/004/006/007/008/009.
+NET-001 and NET-009 need operator-corroborated facts in the closed network
+model. With no attestation, both emit Info/NotEvaluated rather than asserting
+absent authentication or unnecessary publication. No full saved-run
+Analyze path, findings report, or model-safe promotion is available yet. Never
+pass restricted models or findings to Copilot.
 
 ## Reusable collection smoke (Microsoft-owned test APIM only)
 
@@ -296,6 +302,18 @@ allow reaches TCP 443, records positive direct-public reasons, and aggregates
 multiple App Gateway TLS/WAF configurations conservatively. Missing subnet, NSG,
 public-IP, or front-door evidence leaves `directPublic=null` with
 `modelStatus=Partial`; it is never treated as restricted or safe by default.
+The builder also accepts optional, in-memory `-OperatorEvidence` with exactly
+`edgeRangesOnly` (Boolean or null), `originAuthentication`
+(`Present`/`Absent`/`Unknown`), and `auxiliaryRoutes` (null or a complete
+array of `routeKey`, `endpointType`=`Portal`/`Management`,
+`publicListener` Boolean, and `ownerNeed`=`Needed`/`NotNeeded`/`Unknown`).
+Only an authorized operator can corroborate these facts, including all
+effective listener, WAF, NSG, and APIM-policy authentication paths and the
+endpoint owner's need. They are *not* inferred from absent Azure resources or
+missing policy evidence. Each supplied fact is labeled `OperatorAttestation`
+in the restricted model; unknowns stay null/Unknown. This is a private model
+input, **not** a live collection or public operator command. Never paste
+private evidence or restricted model output into Copilot.
 
 The customer-neutral network path can be checked offline:
 

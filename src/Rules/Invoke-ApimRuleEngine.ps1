@@ -50,6 +50,11 @@ function Assert-ApimRule {
         $Rule.EvidenceText -isnot [scriptblock] -or
         ($Rule.Contains('Applies') -and $null -ne $Rule.Applies -and
             $Rule.Applies -isnot [scriptblock]) -or
+        ($Rule.Contains('DataGaps') -and $null -ne $Rule.DataGaps -and
+            $Rule.DataGaps -isnot [scriptblock]) -or
+        ($Rule.Contains('TargetField') -and
+            ($Rule.Scope -cne 'Route' -or
+                $Rule.TargetField -cne 'auxiliaryRoutes')) -or
         $Rule.Enabled -isnot [bool] -or
         $Rule.Requires -isnot [array] -or
         $Rule.SourceFiles -isnot [array] -or
@@ -130,9 +135,17 @@ function Get-ApimRuleTarget {
     if ($Rule.Scope -eq 'Service') {
         return $Manifest.apim
     }
-    $name = $script:ApimRuleScopes[$Rule.Scope]
+    $name = if ($Rule.Contains('TargetField')) {
+        'network'
+    }
+    else {
+        $script:ApimRuleScopes[$Rule.Scope]
+    }
     if (-not $Models.Contains($name) -or $null -eq $Models[$name]) {
         throw "Rule target model '$name' was unavailable."
+    }
+    if ($Rule.Contains('TargetField')) {
+        return $Models[$name].auxiliaryRoutes
     }
     return $Models[$name]
 }
@@ -308,11 +321,29 @@ function Invoke-ApimRuleEngine {
                 Test-ApimModelJson -Name $name -Json $json
             }
         }
-        $targetModel = $script:ApimRuleScopes[$rule.Scope]
+        $targetModel = if ($rule.Contains('TargetField')) {
+            'network'
+        }
+        else {
+            $script:ApimRuleScopes[$rule.Scope]
+        }
         if ($null -ne $targetModel) {
             $targetPath = "model/$targetModel.json"
             if ($targetPath -cnotin $rule.Requires) {
                 throw 'Rule definition must require its target model.'
+            }
+        }
+        if ($missing.Count -eq 0 -and $rule.Contains('DataGaps') -and
+            $null -ne $rule.DataGaps) {
+            foreach ($gap in @(& $rule.DataGaps $ctx)) {
+                if ($gap -isnot [string] -or
+                    $gap -cnotmatch '^(model/[A-Za-z]+\.json)#[A-Za-z][A-Za-z0-9]*$' -or
+                    $Matches[1] -cnotin $rule.Requires) {
+                    throw 'Rule data gap referenced an undeclared model field.'
+                }
+                if (-not $missing.Contains($gap)) {
+                    $missing.Add($gap)
+                }
             }
         }
 
@@ -336,7 +367,7 @@ function Invoke-ApimRuleEngine {
                     priorityScore = Get-ApimRulePriority -Severity $severity `
                         -Exposure $exposure -Usage $usage -Config $Config
                     evidence = [ordered]@{ missingInputs = $missingFiles }
-                    evidenceText = 'Required model input was unavailable.'
+                    evidenceText = 'Required assessment evidence was unavailable.'
                     recommendation = $rule.Recommendation
                     effort = $rule.Effort
                     sourceFiles = @($rule.SourceFiles)

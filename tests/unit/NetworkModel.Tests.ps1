@@ -91,6 +91,81 @@ Describe 'APIM network model' {
             $actual.modelStatus | Should -Be 'Complete'
         }
 
+        It 'keeps uncorroborated origin and endpoint intent unavailable' {
+            $inputData = Get-SyntheticNetworkModelInput
+            $actual = Get-ApimNetworkModel @inputData
+            $actual.edgeOriginAssessment | Should -BeNullOrEmpty
+            $actual.auxiliaryRoutes | Should -BeNullOrEmpty
+        }
+
+        It 'normalizes and sorts explicit operator evidence without persisting extra fields' {
+            $inputData = Get-SyntheticNetworkModelInput
+            $inputData.OperatorEvidence = @{
+                edgeRangesOnly = $true
+                originAuthentication = 'Absent'
+                auxiliaryRoutes = @(
+                    @{
+                        routeKey = 'z-management'
+                        endpointType = 'Management'
+                        publicListener = $false
+                        ownerNeed = 'Needed'
+                    }
+                    @{
+                        routeKey = 'a-portal'
+                        endpointType = 'Portal'
+                        publicListener = $true
+                        ownerNeed = 'NotNeeded'
+                    }
+                )
+            }
+            $actual = Get-ApimNetworkModel @inputData
+
+            $actual.edgeOriginAssessment.source |
+                Should -Be 'OperatorAttestation'
+            @($actual.auxiliaryRoutes.routeKey) |
+                Should -Be @('a-portal', 'z-management')
+            $actual.auxiliaryRoutes[0].source |
+                Should -Be 'OperatorAttestation'
+            (ConvertTo-NetworkModelJson $actual |
+                Test-Json -SchemaFile $script:networkSchemaPath) |
+                Should -BeTrue
+        }
+
+        It 'preserves a corroborated empty auxiliary inventory, not null' {
+            $inputData = Get-SyntheticNetworkModelInput
+            $inputData.OperatorEvidence = @{
+                edgeRangesOnly = $null
+                originAuthentication = 'Unknown'
+                auxiliaryRoutes = @()
+            }
+            $actual = Get-ApimNetworkModel @inputData
+            $actual.auxiliaryRoutes | Should -Be @()
+            (ConvertTo-NetworkModelJson $actual |
+                Test-Json -SchemaFile $script:networkSchemaPath) |
+                Should -BeTrue
+        }
+
+        It 'rejects unsupported, duplicate, or extraneous operator facts' {
+            $inputData = Get-SyntheticNetworkModelInput
+            $inputData.OperatorEvidence = @{
+                edgeRangesOnly = $true
+                originAuthentication = 'Absent'
+                auxiliaryRoutes = @()
+                secret = 'synthetic-not-persisted'
+            }
+            { Get-ApimNetworkModel @inputData } | Should -Throw
+            $inputData.OperatorEvidence.Remove('secret')
+            $inputData.OperatorEvidence.auxiliaryRoutes = @(
+                @{ routeKey = 'a'; endpointType = 'Portal'; publicListener = $true; ownerNeed = 'NotNeeded' }
+                @{ routeKey = 'a'; endpointType = 'Management'; publicListener = $true; ownerNeed = 'NotNeeded' }
+            )
+            { Get-ApimNetworkModel @inputData } | Should -Throw
+            $inputData.OperatorEvidence.auxiliaryRoutes = @(
+                @{ routeKey = 'a'; endpointType = 'Portal'; publicListener = 'yes'; ownerNeed = 'NotNeeded' }
+            )
+            { Get-ApimNetworkModel @inputData } | Should -Throw
+        }
+
         It 'marks an effective broad Internet allow as DirectPublic' {
             $inputData = Get-SyntheticNetworkModelInput
             $broadRule = [pscustomobject]@{

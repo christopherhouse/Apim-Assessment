@@ -19,6 +19,8 @@
     "wafMode",
     "otherFrontDoors",
     "otherPublicIpRoutes",
+    "edgeOriginAssessment",
+    "auxiliaryRoutes",
     "modelStatus",
     "missingInputs"
   ],
@@ -110,6 +112,40 @@
     },
     "otherPublicIpRoutes": {
       "$ref": "#/definitions/nullableStringArray"
+    },
+    "edgeOriginAssessment": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["edgeRangesOnly", "originAuthentication", "source"],
+          "properties": {
+            "edgeRangesOnly": { "type": ["boolean", "null"] },
+            "originAuthentication": {
+              "enum": ["Present", "Absent", "Unknown"]
+            },
+            "source": { "const": "OperatorAttestation" }
+          }
+        }
+      ]
+    },
+    "auxiliaryRoutes": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "routeKey", "endpointType", "publicListener", "ownerNeed", "source"
+        ],
+        "properties": {
+          "routeKey": { "type": "string", "minLength": 1 },
+          "endpointType": { "enum": ["Portal", "Management"] },
+          "publicListener": { "type": "boolean" },
+          "ownerNeed": { "enum": ["Needed", "NotNeeded", "Unknown"] },
+          "source": { "const": "OperatorAttestation" }
+        }
+      }
     },
     "modelStatus": {
       "enum": [

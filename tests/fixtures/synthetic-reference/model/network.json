@@ -17,6 +17,8 @@
   "wafMode": "Detection",
   "otherFrontDoors": [],
   "otherPublicIpRoutes": [],
+  "edgeOriginAssessment": null,
+  "auxiliaryRoutes": null,
   "modelStatus": "Complete",
   "missingInputs": []
 }
