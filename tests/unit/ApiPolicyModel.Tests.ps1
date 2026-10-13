@@ -65,6 +65,14 @@ Describe 'API and policy matrix models' {
                     )
                 }
 
+                $apiDiagnostics = @{}
+                foreach ($api in @($apis.value)) {
+                    $apiName = [string] $api.name
+                    $apiDiagnostics[$apiName] = Read-ModelFixtureJson (
+                        "raw/apiDiagnostics/$apiName.json"
+                    )
+                }
+
                 $policyFlags = @(
                     foreach ($entry in @(
                             (Read-ModelFixtureJson (
@@ -92,6 +100,10 @@ Describe 'API and policy matrix models' {
                     ProductsPayload = $products
                     ProductApisByProduct = $productApis
                     PolicyFlags = $policyFlags
+                    ServiceDiagnosticsPayload = Read-ModelFixtureJson (
+                        'raw/diagnostics.json'
+                    )
+                    DiagnosticsByApi = $apiDiagnostics
                 }
             }
 
@@ -176,6 +188,106 @@ Describe 'API and policy matrix models' {
             $operation.fullPath | Should -Be '/status'
         }
 
+        It 'derives diagnostic risks while retaining incomplete settings as unknown' {
+            $inputData = Get-SyntheticModelInput
+            $model = Get-ApimApiPolicyModel @inputData
+            $orders = $model.apis | Where-Object apiId -EQ 'orders-v1'
+            $status = $model.apis | Where-Object apiId -EQ 'status-v1'
+
+            $orders.bodyLogging | Should -BeTrue
+            $orders.sensitiveHeadersLogged | Should -BeTrue
+            $orders.missingInputs | Should -Not -Contain 'diagnostics'
+            $status.bodyLogging | Should -BeNullOrEmpty
+            $status.sensitiveHeadersLogged | Should -BeNullOrEmpty
+            $status.missingInputs | Should -Contain 'diagnostics'
+        }
+
+        It 'uses API-level diagnostics instead of the all-APIs diagnostic' {
+            $inputData = Get-SyntheticModelInput
+            $statusDiagnostic = $inputData.DiagnosticsByApi['status-v1'].value[0]
+            $statusDiagnostic.properties.backend = [pscustomobject]@{
+                request = [pscustomobject]@{
+                    headers = @()
+                    bodyBytes = 0
+                }
+                response = [pscustomobject]@{
+                    headers = @()
+                    bodyBytes = 0
+                }
+            }
+
+            $model = Get-ApimApiPolicyModel @inputData
+            $status = $model.apis | Where-Object apiId -EQ 'status-v1'
+
+            $status.bodyLogging | Should -BeFalse
+            $status.sensitiveHeadersLogged | Should -BeFalse
+            $status.missingInputs | Should -Not -Contain 'diagnostics'
+        }
+
+        It 'inherits all-APIs diagnostics when an API has no override' {
+            $inputData = Get-SyntheticModelInput
+            $inputData.DiagnosticsByApi['status-v1'].value = @()
+
+            $model = Get-ApimApiPolicyModel @inputData
+            $status = $model.apis | Where-Object apiId -EQ 'status-v1'
+
+            $status.bodyLogging | Should -BeFalse
+            $status.sensitiveHeadersLogged | Should -BeTrue
+            $status.missingInputs | Should -Not -Contain 'diagnostics'
+        }
+
+        It 'treats known empty effective diagnostics as no logging' {
+            $inputData = Get-SyntheticModelInput
+            $inputData.ServiceDiagnosticsPayload.value = @()
+            $inputData.DiagnosticsByApi['status-v1'].value = @()
+
+            $model = Get-ApimApiPolicyModel @inputData
+            $status = $model.apis | Where-Object apiId -EQ 'status-v1'
+
+            $status.bodyLogging | Should -BeFalse
+            $status.sensitiveHeadersLogged | Should -BeFalse
+            $status.missingInputs | Should -Not -Contain 'diagnostics'
+        }
+
+        It 'retains unknown diagnostics when API child evidence is missing' {
+            $inputData = Get-SyntheticModelInput
+            $inputData.DiagnosticsByApi.Remove('status-v1')
+
+            $model = Get-ApimApiPolicyModel @inputData
+            $orders = $model.apis | Where-Object apiId -EQ 'orders-v1'
+            $status = $model.apis | Where-Object apiId -EQ 'status-v1'
+
+            $orders.bodyLogging | Should -BeTrue
+            $status.bodyLogging | Should -BeNullOrEmpty
+            $status.sensitiveHeadersLogged | Should -BeNullOrEmpty
+            $status.missingInputs | Should -Contain 'diagnostics'
+        }
+
+        It 'retains unknown diagnostics when diagnostic inputs are unavailable' {
+            $inputData = Get-SyntheticModelInput
+            $inputData.Remove('ServiceDiagnosticsPayload')
+            $inputData.Remove('DiagnosticsByApi')
+
+            $model = Get-ApimApiPolicyModel @inputData
+
+            foreach ($api in $model.apis) {
+                $api.bodyLogging | Should -BeNullOrEmpty
+                $api.sensitiveHeadersLogged | Should -BeNullOrEmpty
+                $api.missingInputs | Should -Contain 'diagnostics'
+            }
+        }
+
+        It 'rejects malformed normalized diagnostic settings' {
+            $inputData = Get-SyntheticModelInput
+            $inputData.DiagnosticsByApi[
+                'orders-v1'
+            ].value[0].properties.frontend.request.bodyBytes = '1024'
+
+            {
+                Get-ApimApiPolicyModel @inputData
+            } | Should -Throw '*body-byte count was invalid*'
+        }
+
         It 'uses authoritative backend credentials for matrix controls' {
             $inputData = Get-SyntheticModelInput
             $inputData.BackendCredentialByApi = @{
@@ -236,6 +348,9 @@ Describe 'API and policy matrix models' {
             $inputData.TagsByApi = @{
                 'status-v1' = $inputData.TagsByApi['status-v1']
             }
+            $inputData.DiagnosticsByApi = @{
+                'status-v1' = $inputData.DiagnosticsByApi['status-v1']
+            }
             $inputData.ProductApisByProduct = @{
                 internal = [pscustomobject] @{ value = @() }
                 partner = [pscustomobject] @{ value = @() }
@@ -268,6 +383,9 @@ Describe 'API and policy matrix models' {
             }
             $inputData.TagsByApi = @{
                 'status-v1' = $inputData.TagsByApi['status-v1']
+            }
+            $inputData.DiagnosticsByApi = @{
+                'status-v1' = $inputData.DiagnosticsByApi['status-v1']
             }
             $inputData.ProductApisByProduct = @{
                 internal = [pscustomobject] @{ value = @() }

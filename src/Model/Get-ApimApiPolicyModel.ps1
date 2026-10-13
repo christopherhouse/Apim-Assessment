@@ -144,6 +144,184 @@ function Get-ApimModelBoolean {
     return [bool] $value
 }
 
+function Get-ApimDiagnosticModelValue {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [ValidateNotNull()]
+        [object] $InputObject,
+
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string] $Name,
+
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string] $Context,
+
+        [switch] $AllowMissing
+    )
+
+    if ($InputObject -is [System.Collections.IDictionary]) {
+        if ($InputObject.Contains($Name)) {
+            return ,$InputObject[$Name]
+        }
+    }
+    else {
+        $property = $InputObject.PSObject.Properties[$Name]
+        if ($null -ne $property) {
+            return ,$property.Value
+        }
+    }
+    if ($AllowMissing) {
+        return $null
+    }
+    throw "$Context did not contain '$Name'."
+}
+
+function Get-ApimDiagnosticRiskFact {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [AllowEmptyCollection()]
+        [object[]] $Diagnostics
+    )
+
+    $hasPositiveBody = $false
+    $hasUnknownBody = $false
+    $hasSensitiveHeader = $false
+    $hasUnknownRequestHeader = $false
+    $sensitiveNames = [System.Collections.Generic.HashSet[string]]::new(
+        [System.StringComparer]::OrdinalIgnoreCase
+    )
+    foreach ($name in @(
+            'Authorization',
+            'Ocp-Apim-Subscription-Key',
+            'Cookie'
+        )) {
+        $null = $sensitiveNames.Add($name)
+    }
+
+    foreach ($diagnostic in $Diagnostics) {
+        $properties = Get-ApimDiagnosticModelValue `
+            -InputObject $diagnostic -Name properties `
+            -Context 'APIM diagnostic model resource'
+        foreach ($pipelineName in @('frontend', 'backend')) {
+            $pipeline = Get-ApimDiagnosticModelValue `
+                -InputObject $properties -Name $pipelineName `
+                -Context 'APIM diagnostic model properties' -AllowMissing
+            foreach ($messageName in @('request', 'response')) {
+                $message = if ($null -eq $pipeline) {
+                    $null
+                }
+                else {
+                    Get-ApimDiagnosticModelValue -InputObject $pipeline `
+                        -Name $messageName `
+                        -Context "APIM diagnostic $pipelineName settings" `
+                        -AllowMissing
+                }
+                $bodyBytes = if ($null -eq $message) {
+                    $null
+                }
+                else {
+                    Get-ApimDiagnosticModelValue -InputObject $message `
+                        -Name bodyBytes `
+                        -Context (
+                            "APIM diagnostic $pipelineName $messageName settings"
+                        ) -AllowMissing
+                }
+                $bodyByteNumber = 0.0
+                if ($null -ne $bodyBytes -and
+                    ($bodyBytes -is [bool] -or
+                        $bodyBytes -is [string] -or
+                        -not [double]::TryParse(
+                            [string] $bodyBytes,
+                            [System.Globalization.NumberStyles]::Float,
+                            [System.Globalization.CultureInfo]::InvariantCulture,
+                            [ref] $bodyByteNumber
+                        ) -or
+                        [double]::IsNaN($bodyByteNumber) -or
+                        [double]::IsInfinity($bodyByteNumber) -or
+                        $bodyByteNumber -lt 0 -or
+                        [math]::Floor($bodyByteNumber) -ne $bodyByteNumber)) {
+                    throw 'APIM diagnostic body-byte count was invalid.'
+                }
+                if ($null -eq $bodyBytes) {
+                    $hasUnknownBody = $true
+                }
+                elseif ($bodyByteNumber -gt 0) {
+                    $hasPositiveBody = $true
+                }
+
+                if ($messageName -eq 'request') {
+                    $headers = if ($null -eq $message) {
+                        $null
+                    }
+                    else {
+                        Get-ApimDiagnosticModelValue `
+                            -InputObject $message -Name headers `
+                            -Context (
+                                "APIM diagnostic $pipelineName request settings"
+                            ) -AllowMissing
+                    }
+                    if ($null -ne $headers) {
+                        if ($headers -is [string] -or
+                            $headers -isnot [System.Collections.IEnumerable]) {
+                            throw 'APIM diagnostic request headers were invalid.'
+                        }
+                        foreach ($header in @($headers)) {
+                            if ($header -isnot [string] -or
+                                [string]::IsNullOrWhiteSpace($header)) {
+                                throw (
+                                    'APIM diagnostic request headers were ' +
+                                    'invalid.'
+                                )
+                            }
+                            if ($sensitiveNames.Contains([string] $header)) {
+                                $hasSensitiveHeader = $true
+                            }
+                        }
+                    }
+                    else {
+                        $hasUnknownRequestHeader = $true
+                    }
+                }
+            }
+        }
+    }
+
+    $bodyLogging = if ($hasPositiveBody) {
+        $true
+    }
+    elseif ($Diagnostics.Count -eq 0) {
+        $false
+    }
+    elseif ($hasUnknownBody) {
+        $null
+    }
+    else {
+        $false
+    }
+
+    $sensitiveHeadersLogged = if ($hasSensitiveHeader) {
+        $true
+    }
+    elseif ($Diagnostics.Count -eq 0) {
+        $false
+    }
+    elseif ($hasUnknownRequestHeader) {
+        $null
+    }
+    else {
+        $false
+    }
+
+    return [pscustomobject] [ordered]@{
+        bodyLogging = $bodyLogging
+        sensitiveHeadersLogged = $sensitiveHeadersLogged
+    }
+}
+
 function Join-ApimOperationPath {
     [CmdletBinding()]
     param(
@@ -305,6 +483,12 @@ function Get-ApimApiPolicyModel {
         [AllowNull()]
         [System.Collections.IDictionary] $BackendCredentialByApi,
 
+        [AllowNull()]
+        [object] $ServiceDiagnosticsPayload,
+
+        [AllowNull()]
+        [System.Collections.IDictionary] $DiagnosticsByApi,
+
         [ValidateNotNullOrEmpty()]
         [string] $OwnerTagPattern = '^(owner|team)[:=-]'
     )
@@ -406,6 +590,43 @@ function Get-ApimApiPolicyModel {
             if (-not $backendMap.ContainsKey($apiName)) {
                 throw 'Backend credential map was missing an API.'
             }
+        }
+    }
+
+    $serviceDiagnostics = $null
+    $serviceDiagnosticFacts = $null
+    if ($null -ne $ServiceDiagnosticsPayload) {
+        $serviceDiagnostics = @(Get-ApimModelCollection `
+                -Payload $ServiceDiagnosticsPayload `
+                -Context 'Service diagnostic payload')
+        $serviceDiagnosticFacts = Get-ApimDiagnosticRiskFact `
+            -Diagnostics $serviceDiagnostics
+    }
+    $diagnosticMap = $null
+    $diagnosticFactMap = $null
+    if ($null -ne $DiagnosticsByApi) {
+        $diagnosticMap = ConvertTo-ApimModelInputMap `
+            -InputObject $DiagnosticsByApi `
+            -Context 'API diagnostic payload map'
+        $diagnosticFactMap = [System.Collections.Generic.Dictionary[
+            string,
+            object
+        ]]::new([System.StringComparer]::OrdinalIgnoreCase)
+        foreach ($apiName in $diagnosticMap.Keys) {
+            if (-not $currentApis.ContainsKey($apiName)) {
+                throw 'API diagnostic payload map contained an unknown API.'
+            }
+            $apiDiagnostics = @(Get-ApimModelCollection `
+                    -Payload $diagnosticMap[$apiName] `
+                    -Context "API diagnostic payload for '$apiName'")
+            $diagnosticFactMap.Add(
+                $apiName,
+                [pscustomobject] [ordered]@{
+                    count = $apiDiagnostics.Count
+                    facts = Get-ApimDiagnosticRiskFact `
+                        -Diagnostics $apiDiagnostics
+                }
+            )
         }
     }
 
@@ -783,10 +1004,23 @@ function Get-ApimApiPolicyModel {
             [string] $apiVersionValue
         }
 
+        $diagnosticFacts = [pscustomobject] [ordered]@{
+            bodyLogging = $null
+            sensitiveHeadersLogged = $null
+        }
+        if ($null -ne $diagnosticMap -and
+            $diagnosticMap.ContainsKey($apiName)) {
+            if ($diagnosticFactMap[$apiName].count -gt 0) {
+                $diagnosticFacts = $diagnosticFactMap[$apiName].facts
+            }
+            elseif ($null -ne $serviceDiagnosticFacts) {
+                $diagnosticFacts = $serviceDiagnosticFacts
+            }
+        }
+
         $missingInputs = [System.Collections.Generic.List[string]]::new()
         foreach ($missingInput in @(
                 'backends',
-                'diagnostics',
                 'exposure',
                 'findings',
                 'git',
@@ -794,6 +1028,10 @@ function Get-ApimApiPolicyModel {
                 'usage'
             )) {
             $missingInputs.Add($missingInput)
+        }
+        if ($null -eq $diagnosticFacts.bodyLogging -or
+            $null -eq $diagnosticFacts.sensitiveHeadersLogged) {
+            $missingInputs.Add('diagnostics')
         }
         if ($null -eq $backendHost) {
             $missingInputs.Add('backendTarget')
@@ -860,8 +1098,9 @@ function Get-ApimApiPolicyModel {
                 mockOrTrace               = Get-ApimAggregateRiskValue `
                     -Records $apiOperations -Name mockOrTrace
                 backendTlsValidation      = $null
-                bodyLogging               = $null
-                sensitiveHeadersLogged    = $null
+                bodyLogging               = $diagnosticFacts.bodyLogging
+                sensitiveHeadersLogged    = $diagnosticFacts.
+                    sensitiveHeadersLogged
                 reachability              = $null
                 exposure                  = $null
                 calls90d                  = $null

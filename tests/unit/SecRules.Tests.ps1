@@ -164,14 +164,14 @@ Describe 'Evidence-backed SEC catalog' {
                     -Models $models).Count | Should -Be 0
         }
 
-        It 'flags known diagnostic body logging even while another API is unknown' {
+        It 'flags model-derived diagnostic body and sensitive-header logging' {
             $models = Get-SyntheticSecModelSet
-            $models.apis[0].bodyLogging = $true
             $found = @(Get-SyntheticSecFinding -RuleId 'APIM-SEC-014' `
                     -Models $models)
             $found.Count | Should -Be 1
             $found[0].scope | Should -Be 'api:orders-v1'
             $found[0].evidence.bodyLogging | Should -BeTrue
+            $found[0].evidence.sensitiveHeadersLogged | Should -BeTrue
             $found[0].sourceFiles | Should -Contain 'raw/apiDiagnostics/'
 
             foreach ($api in $models.apis) {
@@ -238,7 +238,10 @@ Describe 'Evidence-backed SEC catalog' {
                     $models.apis[0].corsUnsafe = $null
                 }
                 Sec014 {
-                    $null = $models
+                    foreach ($api in $models.apis) {
+                        $api.bodyLogging = $null
+                        $api.sensitiveHeadersLogged = $null
+                    }
                 }
                 Sec015 {
                     foreach ($subscription in $models.subscriptions) {
