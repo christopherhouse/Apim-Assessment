@@ -8,10 +8,10 @@ a guarded ARM transport, schema-validated run-folder/manifest persistence, and
 internal APIM service/API/product catalog collectors with bounded parallel child
 requests, plus restricted policy collection with normalized hashes and
 collection-time secret-candidate redaction. Private offline helpers now merge
-effective policies and normalize/hash them. Collection/analyze orchestration,
-remaining collectors, policy flags/models/rules, the model-data airlock,
-Copilot operator workflow, reports/comparison, and Excel/HTML templates are not
-implemented.
+effective policies, normalize/hash them, and extract deterministic policy flags.
+Collection/analyze orchestration, remaining collectors, model builders/rules,
+the model-data airlock, Copilot operator workflow, reports/comparison, and
+Excel/HTML templates are not implemented.
 
 Do not run the planned commands in specification section 14 until their tasks
 are implemented, tested, and marked available in the root README.
@@ -47,7 +47,19 @@ section-level `<base/>`, records missing-base scope and section, expands policy
 fragments to depth five with cycle/missing guards, and retains structural
 `data-scope` attribution. Unresolved fragment includes remain in the effective
 XML with a `data-fragment-status` marker and a structured issue; they are not
-silently treated as expanded. There is still no public analyze command.
+silently treated as expanded.
+
+The internal flag helper consumes effective policy XML and missing-base metadata.
+It detects caller/backend authentication, throttling, IP/host restrictions,
+unsafe CORS, hard-coded-secret markers, backend overrides, mock/trace behavior,
+unconditional inbound responses, and missing inheritance. Evidence is structural
+and deterministic; hard-coded-secret evidence contains locations only. Stored
+`***REDACTED***` markers preserve the same flags produced before synthetic
+redaction. Secret-bearing HTTP(S) URLs retain only their scheme plus the marker
+so plain-HTTP risk remains visible without retaining host, path, query, fragment,
+or credential data. Effective policies with unresolved fragments are marked
+Partial so downstream models cannot treat absent detections as authoritative
+negatives. There is still no public analyze command.
 
 ## Future operator requirements
 

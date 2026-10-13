@@ -27,6 +27,9 @@ Describe 'Policy XML safety and hashing' {
             $result.Xml | Should -Not -Match 'synthetic-secret-value'
             $result.Xml | Should -Not -Match 'synthetic-signature'
             $result.Xml | Should -Not -Match 'synthetic-password'
+            $result.Xml | Should -Match (
+                'url="https://\*\*\*REDACTED\*\*\*"'
+            )
             ([regex]::Matches($result.Xml, '\*\*\*REDACTED\*\*\*')).Count |
                 Should -Be 3
             $result.SecretLocations | Should -Be @(
@@ -68,6 +71,27 @@ Describe 'Policy XML safety and hashing' {
 
             $result.Xml | Should -Match 'GetValueOrDefault'
             $result.SecretLocations | Should -BeNullOrEmpty
+        }
+
+        It 'redacts URL user information while retaining only the scheme' {
+            $xml = @'
+<policies>
+  <inbound>
+    <send-request url="https://synthetic-user:synthetic-pass@example.invalid/path" />
+  </inbound>
+</policies>
+'@
+
+            $result = Protect-ApimPolicyXml -Xml $xml
+
+            $result.Xml | Should -Not -Match 'synthetic-user'
+            $result.Xml | Should -Not -Match 'synthetic-pass'
+            $result.Xml | Should -Match (
+                'url="https://\*\*\*REDACTED\*\*\*"'
+            )
+            $result.SecretLocations | Should -Be @(
+                '/policies[1]/inbound[1]/send-request[1]/@url'
+            )
         }
 
         It 'hashes equivalent policy XML identically' {

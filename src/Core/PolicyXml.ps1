@@ -112,6 +112,44 @@ function Test-ApimPolicySecretCandidate {
     return $false
 }
 
+function Protect-ApimPolicyUrlValue {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string] $Value
+    )
+
+    $uri = $null
+    if ([System.Uri]::TryCreate(
+            $Value,
+            [System.UriKind]::Absolute,
+            [ref] $uri
+        ) -and $uri.Scheme -in @('http', 'https')) {
+        return "$($uri.Scheme)://***REDACTED***"
+    }
+    return '***REDACTED***'
+}
+
+function Test-ApimPolicyUrlSecretCandidate {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [AllowEmptyString()]
+        [string] $Value
+    )
+
+    if (Test-ApimPolicySecretCandidate -Value $Value) {
+        return $true
+    }
+    $uri = $null
+    return [System.Uri]::TryCreate(
+        $Value,
+        [System.UriKind]::Absolute,
+        [ref] $uri
+    ) -and -not [string]::IsNullOrWhiteSpace($uri.UserInfo)
+}
+
 function Protect-ApimPolicyXml {
     [CmdletBinding()]
     param(
@@ -170,11 +208,12 @@ function Protect-ApimPolicyXml {
             "//*[local-name()='set-backend-service']/@base-url"
         ))
     foreach ($urlAttribute in $urlAttributes) {
-        if (Test-ApimPolicySecretCandidate -Value $urlAttribute.Value) {
+            if (Test-ApimPolicyUrlSecretCandidate -Value $urlAttribute.Value) {
             $null = $locations.Add(
                 (Get-ApimPolicyNodeLocation -Node $urlAttribute)
             )
-            $urlAttribute.Value = '***REDACTED***'
+            $urlAttribute.Value = Protect-ApimPolicyUrlValue `
+                -Value $urlAttribute.Value
         }
     }
 

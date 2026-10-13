@@ -416,6 +416,23 @@ aggregation consumes the per-product flag records produced by §8.4.
 | `returnsWithoutBackend` | `//return-response` in inbound not inside a `choose` |
 | `baseMissing` | from merge |
 
+The flag result contains `evaluationStatus` (`Complete` or `Partial`), the
+Boolean flags above, `backendOverrideHttp`, and deterministic structural detail
+arrays for IP filters, backend overrides, hard-coded-secret locations, missing
+base inheritance, and unresolved fragments. An unresolved fragment makes the
+result Partial; consumers must not interpret undetected flags as authoritative
+negative results on that path. Backend-entity credentials may be supplied as a
+separate collected input and set `backendAuth=true`.
+
+Hard-coded-secret detection supports both pre-redaction policy XML and stored
+sanitized XML. In sanitized XML, `***REDACTED***` in a secret-bearing policy
+field is a trusted prior-detection marker. Only structural locations are
+returned; secret values are never returned or persisted. Collection-time
+redaction remains authoritative per D-14, and tests require flag/location parity
+before and after synthetic redaction. A secret-bearing HTTP(S) URL retains only
+its scheme plus the marker so plain-HTTP risk remains detectable; its host, path,
+query, fragment, and credentials are removed.
+
 Normalization for hashing: remove comments, collapse whitespace, sort
 attributes, use LF line endings, and then SHA-256. Effective-policy hashes include
 the deterministic `data-scope` and unresolved-fragment status attributes.
@@ -740,7 +757,7 @@ Collection, deterministic analysis, Excel, and HTML rendering remain runnable wi
 
 | Area | Requirement |
 |---|---|
-| Security | Read-only (§3.1). No secret values persisted or logged. `RedactPolicySecrets` strips detected secret literals from stored policy XML (replace with `***REDACTED***`) **after** flagging. |
+| Security | Read-only (§3.1). No secret values persisted or logged. Policy collection detects secret candidates, records structural locations only, and replaces literals with `***REDACTED***` before persistence. Offline flagging recognizes those trusted markers and must match pre-redaction synthetic flag/location results (D-14). |
 | AI data boundary | Raw/model/restricted data never enter model context. Package construction is allowlist-only; validation and physical promotion are fail-closed (§3.2, §10.6). |
 | Privacy | User identities not stored by default; principals reported as counts/types unless enabled. |
 | Data handling | Runs are written locally; README states runs must be stored in a customer-approved location and deleted after readout. Agent-assisted restricted roots are outside every Copilot-visible path; repository-local manual defaults remain gitignored. |

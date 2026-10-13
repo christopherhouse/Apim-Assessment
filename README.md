@@ -15,9 +15,10 @@ module imports and contains private configuration validation, structured logging
 a guarded ARM transport, schema-validated run persistence, and internal APIM
 service/API/product/policy collectors, but exports no assessment commands.
 Effective policy inheritance, fragment expansion, scope attribution, and
-normalized hashing are implemented as private offline model helpers. Remaining
-collectors, policy flags/models, rules, the model-data airlock, Copilot operator
-workflow, CLI entry points, and report templates are not implemented yet.
+normalized hashing plus deterministic policy-flag extraction are implemented as
+private offline model helpers. Remaining collectors, model builders, rules, the
+model-data airlock, Copilot operator workflow, CLI entry points, and report
+templates are not implemented yet.
 
 | Available | Planned |
 |---|---|
@@ -26,7 +27,7 @@ workflow, CLI entry points, and report templates are not implemented yet.
 | Structured JSON-lines logging and progress | Run resume and persisted progress orchestration |
 | Guarded ARM transport with paging/retry | Excel report, carry-forward, and run comparison |
 | Versioned run manifest lifecycle and APIM service/API/product/policy collectors | Remaining APIM, network, telemetry, and cost collectors |
-| Effective policy merge, fragment guards, scope attribution, and stable hashing | Policy flags, exposure model, and rule engine |
+| Effective policy merge, fragment guards, scope attribution, stable hashing, and policy flags | Model builders, exposure model, and rule engine |
 | Synthetic-fixture scaffold | Populated fixtures and offline integration pipeline |
 | Windows/Linux lint and test CI | Model-data airlock and local Copilot broker |
 | Copilot development instructions, agents, and skills | Assessment analyst agents and operator skills |
@@ -80,8 +81,11 @@ The private model helpers can merge saved, redacted policy XML completely
 offline. They produce one effective policy per product path, expand fragments
 with depth and cycle guards, retain unresolved markers, record missing
 `<base/>` scope/section metadata, preserve `data-scope` attribution, and compute
-normalized SHA-256 hashes. Policy flag extraction and model-file orchestration
-remain planned.
+normalized SHA-256 hashes. Policy flags detect caller/backend authentication,
+throttling, restrictions, unsafe CORS, backend overrides, hard-coded-secret
+markers, mock/trace behavior, unconditional responses, and missing inheritance.
+Unresolved fragments produce a Partial evaluation instead of silent negative
+results. Model-file orchestration remains planned.
 
 The optional operator experience will use GitHub Copilot CLI repository agents
 and skills through a narrow local broker. The deterministic collection, analysis,
@@ -131,7 +135,7 @@ ApimAssessment.psd1 / .psm1  Module metadata and source loader
 src/
   Core/                     Config, ARM guard, manifest persistence, logging, retries
   Collect/                  Isolated read-only collectors (service/API/product/policy implemented)
-  Model/                    Policy merge/hashing implemented; flags, exposure, drift planned
+  Model/                    Policy merge/hashing/flags implemented; exposure and drift planned
   Rules/                    Rule engine and priority scoring
   Package/                  Model-safe package construction, validation and promotion (planned)
   Report/                   Excel/HTML export and tracking carry-forward

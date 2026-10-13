@@ -1,0 +1,77 @@
+{
+  "schemaVersion": "1.0",
+  "policies": [
+    {
+      "product": "internal",
+      "apiId": "orders-v1",
+      "operationId": "get-orders",
+      "evaluationStatus": "Complete",
+      "flags": {
+        "callerAuthJwt": true,
+        "callerAuthMtls": false,
+        "throttling": false,
+        "ipFilter": false,
+        "hostRestriction": false,
+        "corsUnsafe": false,
+        "backendAuth": false,
+        "hardcodedSecret": true,
+        "backendOverride": false,
+        "backendOverrideHttp": false,
+        "mockOrTrace": false,
+        "returnsWithoutBackend": false,
+        "baseMissing": true
+      },
+      "hardcodedSecretLocations": [
+        "/policies[1]/backend[1]/authentication-basic[1]/@password",
+        "/policies[1]/inbound[1]/set-header[2]/value[1]"
+      ]
+    },
+    {
+      "product": "partner",
+      "apiId": "orders-v1",
+      "operationId": "get-orders",
+      "evaluationStatus": "Complete",
+      "flags": {
+        "callerAuthJwt": true,
+        "callerAuthMtls": false,
+        "throttling": true,
+        "ipFilter": false,
+        "hostRestriction": false,
+        "corsUnsafe": false,
+        "backendAuth": false,
+        "hardcodedSecret": true,
+        "backendOverride": false,
+        "backendOverrideHttp": false,
+        "mockOrTrace": false,
+        "returnsWithoutBackend": false,
+        "baseMissing": true
+      },
+      "hardcodedSecretLocations": [
+        "/policies[1]/backend[1]/authentication-basic[1]/@password",
+        "/policies[1]/inbound[1]/set-header[2]/value[1]"
+      ]
+    },
+    {
+      "product": "internal",
+      "apiId": "status-v1",
+      "operationId": "get-status",
+      "evaluationStatus": "Complete",
+      "flags": {
+        "callerAuthJwt": false,
+        "callerAuthMtls": false,
+        "throttling": false,
+        "ipFilter": false,
+        "hostRestriction": false,
+        "corsUnsafe": false,
+        "backendAuth": false,
+        "hardcodedSecret": false,
+        "backendOverride": false,
+        "backendOverrideHttp": false,
+        "mockOrTrace": false,
+        "returnsWithoutBackend": false,
+        "baseMissing": false
+      },
+      "hardcodedSecretLocations": []
+    }
+  ]
+}
