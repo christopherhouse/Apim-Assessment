@@ -42,10 +42,13 @@ throttling on only one path; its matrix therefore passes caller authentication,
 fails rate-limit coverage, hard-coded-secret absence, and base presence, and
 reports backend authentication as `NA`. `status-v1|get-status` falls back to a
 subscription-required product, so its API caller-auth classification is
-`SubscriptionKeyOnly` while the matrix caller-auth control fails. Unavailable
-backend, diagnostics-to-model mapping, exposure, findings, Git, OpenAPI-quality,
-and usage inputs remain explicit `null`/Partial values. Record exact counts and
-expected outcomes here as each fixture surface is added.
+`SubscriptionKeyOnly` while the matrix caller-auth control fails. The API model
+uses the non-empty API diagnostic override for each API: `orders-v1` has known
+body logging and sensitive request-header logging, while `status-v1` remains
+unknown because its backend diagnostic section is missing. Unavailable backend,
+exposure, findings, Git, OpenAPI-quality, and usage inputs remain explicit
+`null`/Partial values. Record exact counts and expected outcomes here as each
+fixture surface is added.
 The network model fixture proves that Internal VNet APIM behind a public
 Basic/host-wide Application Gateway route, with a restricted APIM-subnet NSG,
 is not directly public even though its configured App Gateway listener is

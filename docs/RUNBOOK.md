@@ -69,10 +69,10 @@ absent authentication or unnecessary publication. No full saved-run
 Analyze path, findings report, or model-safe promotion is available yet.
 `rules/SEC.rules.ps1` includes SEC-003/004/005/007/012/014/015/020. Rules with
 unknown applicable facts emit one Info/NotEvaluated finding unless other
-records already provide definitive positive evidence. SEC-014 remains
-NotEvaluated for ordinary saved models until collected diagnostics are
-integrated into the API model. Never pass restricted models or findings to
-Copilot.
+records already provide definitive positive evidence. SEC-014 consumes
+model-derived diagnostic body and sensitive-request-header facts; incomplete
+normalized settings remain null and can still produce NotEvaluated rather than a
+false pass. Never pass restricted models or findings to Copilot.
 
 ## Reusable collection smoke (Microsoft-owned test APIM only)
 
@@ -254,6 +254,18 @@ record carries `modelStatus=Partial` and sorted `missingInputs`. The policy matr
 uses `Pass`, `Fail`, or `NA`: a detected risk remains `Fail`, while missing or
 Partial evidence that prevents a decision becomes `NA`. All three model arrays
 must pass their closed JSON schemas before the writer creates any files.
+
+When diagnostic inputs are supplied, a non-empty per-API diagnostic collection
+overrides the all-APIs collection for that API; an empty per-API collection
+inherits the all-APIs settings. `bodyLogging` is true when any effective
+frontend/backend request or response body-byte count is positive.
+`sensitiveHeadersLogged` is true when effective frontend/backend request headers
+include `Authorization`, `Ocp-Apim-Subscription-Key`, or `Cookie`,
+case-insensitively. If no positive fact is present but a required normalized
+section is missing, the field stays null and `diagnostics` remains in
+`missingInputs`. Missing per-API child files likewise remain unknown even when
+the service file exists, because an uncollected API override cannot be ruled
+out.
 
 ## Offline model fixture check
 

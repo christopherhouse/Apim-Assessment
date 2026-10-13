@@ -31,8 +31,8 @@
     "baseMissing": true,
     "mockOrTrace": false,
     "backendTlsValidation": null,
-    "bodyLogging": null,
-    "sensitiveHeadersLogged": null,
+    "bodyLogging": true,
+    "sensitiveHeadersLogged": true,
     "reachability": "Reachable",
     "exposure": "Unknown",
     "calls90d": null,
@@ -48,7 +48,6 @@
     "modelStatus": "Partial",
     "missingInputs": [
       "backends",
-      "diagnostics",
       "findings",
       "git",
       "openApiQuality",

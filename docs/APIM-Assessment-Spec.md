@@ -395,7 +395,7 @@ builders; public Analyze orchestration remains T-311.
 | `callerAuth` | enum `Entra/JWT`, `mTLS`, `SubscriptionKeyOnly`, `None`, `Mixed` | from effective policy flags across operations |
 | `throttling`, `ipFilter`, `corsUnsafe`, `backendAuth`, `hardcodedSecret`, `baseMissing`, `mockOrTrace` | bool | from effective policy flags (any operation) |
 | `backendTlsValidation` | bool/null | backend entity tls flags; null if raw URL |
-| `bodyLogging`, `sensitiveHeadersLogged` | bool | diagnostics |
+| `bodyLogging`, `sensitiveHeadersLogged` | bool/null | Effective diagnostics using default API-over-all-APIs precedence. A non-empty API-level collection overrides the service collection; an empty API collection inherits it. `bodyLogging=true` when any effective frontend/backend request/response body-byte count is positive. `sensitiveHeadersLogged=true` when effective frontend/backend request headers contain `Authorization`, `Ocp-Apim-Subscription-Key`, or `Cookie` case-insensitively. Missing child evidence or normalized sections remains null and retains `missingInputs=["diagnostics"]` unless a positive fact is already known. |
 | `reachability` | enum (§9) | exposure model |
 | `exposure` | enum (§9) | exposure model |
 | `calls90d`, `callsViaAppGw`, `callsInternal`, `lastCall`, `p95Ms`, `backendP95Ms`, `pct5xx` | | logs |
@@ -710,10 +710,11 @@ T-304 currently implements SEC-003/004/005/007/012/014/015/020 against the
 closed API, operation, and subscription models. Known positive evidence remains
 evaluated when another record has an unavailable fact; if all otherwise
 applicable evidence is unknown, the rule emits one Info/NotEvaluated finding.
-SEC-014 is implemented at the model/rule boundary but remains NotEvaluated for
-ordinary saved runs until diagnostics collection populates its fields. The
-remaining SEC rules stay deferred until their service/security,
-named-value/backend/certificate, product-classification, diagnostics, or
+SEC-014 consumes the collected diagnostic contract through the API model and
+evaluates known body/sensitive-request-header logging in saved runs. Incomplete
+diagnostic evidence remains null and produces NotEvaluated when no positive fact
+is known (D-35). The remaining SEC rules stay deferred until their
+service/security, named-value/backend/certificate, product-classification, or
 authorization evidence is modeled (D-32).
 
 ### 11.3 Governance / Operational Excellence (GOV)

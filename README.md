@@ -201,10 +201,13 @@ NET-001 and NET-009 remain NotEvaluated when the required attestation is absent.
 The eight private SEC checks evaluate only facts represented by current closed
 models; known positive evidence is retained when unrelated records are
 incomplete, while wholly unknown applicable evidence produces one
-Info/NotEvaluated finding. Service/security posture, named-value, backend, certificate, product
-classification, and diagnostics-to-model integration remain deferred. There is
-no public evaluation command, report, or model-safe promotion yet; do not expose
-these private findings or models to an agent.
+Info/NotEvaluated finding. Collected service/API diagnostics now populate
+`bodyLogging` and `sensitiveHeadersLogged` using API-over-all-APIs precedence, so
+SEC-014 evaluates saved synthetic-equivalent runs while incomplete sections stay
+unknown. Service/security posture, named-value, backend, certificate, and
+product classification remain deferred. There is no public evaluation command,
+report, or model-safe promotion yet; do not expose these private findings or
+models to an agent.
 
 The subscription model classifies AllApis/Product/Api scope, extracts a stable
 scope target, detects the built-in master subscription, and emits sorted
