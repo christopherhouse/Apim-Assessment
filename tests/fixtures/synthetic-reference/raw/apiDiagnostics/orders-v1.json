@@ -1,0 +1,46 @@
+{
+  "value": [
+    {
+      "name": "applicationinsights",
+      "properties": {
+        "loggerId": "/loggers/application-insights",
+        "alwaysLog": "allErrors",
+        "sampling": {
+          "samplingType": "fixed",
+          "percentage": 100.0
+        },
+        "verbosity": "verbose",
+        "logClientIp": true,
+        "httpCorrelationProtocol": "W3C",
+        "frontend": {
+          "request": {
+            "headers": [
+              "Authorization",
+              "Cookie",
+              "Ocp-Apim-Subscription-Key"
+            ],
+            "bodyBytes": 1024
+          },
+          "response": {
+            "headers": [
+              "content-type"
+            ],
+            "bodyBytes": 512
+          }
+        },
+        "backend": {
+          "request": {
+            "headers": [
+              "x-request-id"
+            ],
+            "bodyBytes": 256
+          },
+          "response": {
+            "headers": [],
+            "bodyBytes": 256
+          }
+        }
+      }
+    }
+  ]
+}

@@ -96,6 +96,12 @@ Describe 'Cumulative collection smoke runner' {
                     -Status Completed -Items 7
                 'synthetic-private-security-assets-path'
             }
+            Mock Invoke-ApimDiagnosticsCollector {
+                $script:smokeOrder.Add('Diagnostics')
+                Set-RunCollectorStatus -RunPath $RunPath -Name Diagnostics `
+                    -Status Completed -Items 5
+                'synthetic-private-diagnostics-path'
+            }
             Mock Invoke-ApimPolicyCollector {
                 $script:smokeOrder.Add('Policies')
                 Set-RunCollectorStatus -RunPath $RunPath -Name Policies `
@@ -118,7 +124,7 @@ Describe 'Cumulative collection smoke runner' {
 
             $names = @(
                 'Service', 'Apis', 'Products', 'Subscriptions',
-                'SecurityAssets', 'Policies', 'Network'
+                'SecurityAssets', 'Diagnostics', 'Policies', 'Network'
             )
             @($script:smokeOrder) | Should -Be $names
             @($result.Checks.Name) | Should -Be $names
@@ -132,6 +138,8 @@ Describe 'Cumulative collection smoke runner' {
             Should -Invoke Invoke-ApimApiCatalogCollector -Exactly -Times 1 `
                 -ParameterFilter { $ThrottleLimit -eq 2 }
             Should -Invoke Invoke-ApimProductCollector -Exactly -Times 1 `
+                -ParameterFilter { $ThrottleLimit -eq 2 }
+            Should -Invoke Invoke-ApimDiagnosticsCollector -Exactly -Times 1 `
                 -ParameterFilter { $ThrottleLimit -eq 2 }
             Should -Invoke Invoke-ApimPolicyCollector -Exactly -Times 1 `
                 -ParameterFilter { $ThrottleLimit -eq 2 }
@@ -168,19 +176,23 @@ Describe 'Cumulative collection smoke runner' {
             @($script:smokeEvents.Phase) | Should -Be @(
                 'Running', 'Finished', 'Running', 'Finished',
                 'Running', 'Finished', 'Running', 'Finished',
-                'Running', 'Finished', 'Finished', 'Running', 'Finished'
+                'Running', 'Finished', 'Finished', 'Finished',
+                'Running', 'Finished'
             )
             @($script:smokeEvents.Name) | Should -Be @(
                 'Service', 'Service', 'Apis', 'Apis', 'Products', 'Products',
                 'Subscriptions', 'Subscriptions', 'SecurityAssets',
-                'SecurityAssets', 'Policies', 'Network', 'Network'
+                'SecurityAssets', 'Diagnostics', 'Policies', 'Network',
+                'Network'
             )
             $script:smokeEvents[2].Index | Should -Be 2
-            $script:smokeEvents[2].Total | Should -Be 7
+            $script:smokeEvents[2].Total | Should -Be 8
             $script:smokeEvents[3].Status | Should -Be 'Failed'
             $script:smokeEvents[3].FailureCode | Should -Be 'UNKNOWN_FAILURE'
             $script:smokeEvents[10].Status | Should -Be 'Skipped'
             $script:smokeEvents[10].FailureCode | Should -BeNullOrEmpty
+            $script:smokeEvents[11].Status | Should -Be 'Skipped'
+            $script:smokeEvents[11].FailureCode | Should -BeNullOrEmpty
             (ConvertTo-Json -InputObject @($script:smokeEvents) -Depth 5) |
                 Should -Not -Match 'synthetic-private|00000000-0000'
         }
@@ -217,13 +229,14 @@ Describe 'Cumulative collection smoke runner' {
                     '00000000-0000-0000-0000-000000000010'
                 ) -OnProgress $callback | Out-Null
 
-            $lines.Count | Should -Be 13
+            $lines.Count | Should -Be 14
             $lines[3] | Should -Match 'Apis - Failed \(UNKNOWN_FAILURE\)'
-            $lines[10] | Should -Match 'Policies - Skipped'
+            $lines[10] | Should -Match 'Diagnostics - Skipped'
+            $lines[11] | Should -Match 'Policies - Skipped'
             ($lines -join ' ') | Should -Not -Match 'synthetic-private'
         }
 
-        It 'skips policy after API failure while continuing independent checks' {
+        It 'skips API-dependent checks while continuing independent checks' {
             Mock Invoke-ApimApiCatalogCollector {
                 $script:smokeOrder.Add('Apis')
                 throw 'synthetic-private-canary'
@@ -249,9 +262,12 @@ Describe 'Cumulative collection smoke runner' {
                 Should -BeNullOrEmpty
             ($result.Checks | Where-Object Name -EQ Network).Status |
                 Should -Be 'Completed'
+            ($result.Checks | Where-Object Name -EQ Diagnostics).Status |
+                Should -Be 'Skipped'
             (ConvertTo-Json -InputObject $result -Depth 10) |
                 Should -Not -Match 'synthetic-private-canary'
             Should -Invoke Invoke-ApimPolicyCollector -Exactly -Times 0
+            Should -Invoke Invoke-ApimDiagnosticsCollector -Exactly -Times 0
 
             $runFolder = @(Get-ChildItem -LiteralPath (
                     $script:smokeConfig.Output.Root
@@ -277,7 +293,7 @@ Describe 'Cumulative collection smoke runner' {
             @($script:smokeOrder) | Should -Be @('Service')
             $result.Status | Should -Be 'Partial'
             @($result.Checks.Status | Where-Object { $_ -eq 'Skipped' }).Count |
-                Should -Be 6
+                Should -Be 7
             ($result.Checks | Where-Object Name -EQ Service).FailureCode |
                 Should -Be 'UNKNOWN_FAILURE'
             Should -Invoke Invoke-ApimNetworkCollector -Exactly -Times 0
@@ -303,7 +319,7 @@ Describe 'Cumulative collection smoke runner' {
             $service.Status | Should -Be 'Failed'
             $service.FailureCode | Should -Be "ARM_HTTP_$HttpStatus"
             @($result.Checks | Where-Object Status -EQ Skipped).Count |
-                Should -Be 6
+                Should -Be 7
             (ConvertTo-Json -InputObject $result -Depth 10) |
                 Should -Not -Match '00000000-0000'
         }
@@ -344,7 +360,7 @@ Describe 'Cumulative collection smoke runner' {
             ($result.Checks | Where-Object Name -EQ Service).FailureCode |
                 Should -Be $Code
             @($result.Checks | Where-Object Status -EQ Skipped).Count |
-                Should -Be 6
+                Should -Be 7
         }
 
         It 'distinguishes local I/O failures without printing a private path' {
@@ -433,6 +449,8 @@ Describe 'Cumulative collection smoke runner' {
             ($result.Checks | Where-Object Name -EQ Apis).Status |
                 Should -Be 'Partial'
             ($result.Checks | Where-Object Name -EQ Policies).Status |
+                Should -Be 'Skipped'
+            ($result.Checks | Where-Object Name -EQ Diagnostics).Status |
                 Should -Be 'Skipped'
             ($result.Checks | Where-Object Name -EQ Network).Status |
                 Should -Be 'Completed'

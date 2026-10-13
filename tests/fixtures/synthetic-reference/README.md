@@ -15,7 +15,12 @@ Security-asset fixtures add three named values, two backends, and two
 certificates. Named-value values and backend credential values are absent;
 fixtures retain only derived pattern locations and structural authentication
 metadata. Certificate fixtures contain expiry and Key Vault references only,
-never certificate bytes, passwords, or private material. The
+never certificate bytes, passwords, or private material. Diagnostic fixtures add
+two logger targets, one service diagnostic, and one diagnostic record for each
+of the two APIs. `orders-v1` captures request/response bodies and sensitive
+request-header names; `status-v1` records empty header arrays, zero-byte capture,
+and a missing backend section. Logger credentials, descriptions, payload
+samples, data-masking details, and header values are absent. The
 policy fixture index covers eight scopes: five present policies, three absent
 policies, and two structural hard-coded-secret locations whose committed XML
 values are already redacted. API/product relationships contain three memberships so
@@ -38,9 +43,9 @@ fails rate-limit coverage, hard-coded-secret absence, and base presence, and
 reports backend authentication as `NA`. `status-v1|get-status` falls back to a
 subscription-required product, so its API caller-auth classification is
 `SubscriptionKeyOnly` while the matrix caller-auth control fails. Unavailable
-backend, diagnostics, exposure, findings, Git, OpenAPI-quality, and usage inputs
-remain explicit `null`/Partial values. Record exact counts and expected outcomes
-here as each fixture surface is added.
+backend, diagnostics-to-model mapping, exposure, findings, Git, OpenAPI-quality,
+and usage inputs remain explicit `null`/Partial values. Record exact counts and
+expected outcomes here as each fixture surface is added.
 The network model fixture proves that Internal VNet APIM behind a public
 Basic/host-wide Application Gateway route, with a restricted APIM-subnet NSG,
 is not directly public even though its configured App Gateway listener is

@@ -13,8 +13,9 @@ HTML executive presentation, and run comparisons.
 tool.** The
 module imports and contains private configuration validation, structured logging,
 a guarded ARM transport, schema-validated run persistence, and internal APIM
-service/API/product/subscription/policy/network collectors plus an allowlisted
-named-value/backend/certificate collector, but exports no assessment commands.
+service/API/product/subscription/policy/network collectors plus allowlisted
+named-value/backend/certificate and logger/diagnostic collectors, but exports no
+assessment commands.
 Effective policy inheritance, fragment expansion, scope attribution, and
 normalized hashing plus deterministic policy-flag extraction are implemented as
 private offline model helpers. Private schema-validated builders now produce the
@@ -34,13 +35,13 @@ other rule catalogs, the model-data airlock, Copilot operator workflow,
 assessment CLI entry points, and report templates are not implemented.
 
 An independent, **maintainer-only collection smoke command** now exercises all
-seven implemented collector checks in dependency order against a Microsoft-owned test
+eight implemented collector checks in dependency order against a Microsoft-owned test
 APIM. It is not an assessment entry point or a customer-run command: it cannot
 analyze or report, and its live execution is owned by authorized maintainers
 outside Copilot CLI. The maintainer reports the prior six checks completed on a
-test APIM; the newly registered SecurityAssets check has synthetic acceptance
-but still needs a maintainer-only live retry. No agent used live Azure resources
-or inspected restricted output.
+test APIM; the newly registered SecurityAssets and Diagnostics checks have
+synthetic acceptance but still need maintainer-only live validation. No agent
+used live Azure resources or inspected restricted output.
 
 All six implemented model contracts now share a fail-closed schema gate.
 Writers validate every pending serialized snapshot before writing any file, and
@@ -54,8 +55,8 @@ builders; this gate is not a public Analyze command or the model-data airlock.
 | Strict private configuration validation | Public assessment entry points |
 | Structured JSON-lines logging and progress | Run resume and persisted progress orchestration |
 | Guarded ARM transport with paging/retry | Excel report, carry-forward, and run comparison |
-| Versioned run manifest lifecycle and APIM service/API/product/subscription/policy/network plus secret-safe named-value/backend/certificate collectors | Remaining APIM, telemetry, and cost collectors |
-| Maintainer-only cumulative collection smoke script (seven registered checks through SecurityAssets) | Full assessment orchestration and live acceptance |
+| Versioned run manifest lifecycle and APIM service/API/product/subscription/policy/network plus secret-safe named-value/backend/certificate and logger/diagnostic collectors | Remaining APIM, telemetry, and cost collectors |
+| Maintainer-only cumulative collection smoke script (eight registered checks through Diagnostics) | Full assessment orchestration and live acceptance |
 | Effective policy merge/flags plus six implemented models with shared schema-gated persistence and saved-run loading | Remaining model builders and telemetry exposure refinement |
 | Private offline rule engine, seven NET checks, eight SEC checks, configurable priority scoring, and schema-gated findings | Remaining SEC/GOV/REL catalog entries and public Analyze orchestration |
 | Synthetic-fixture scaffold | Populated fixtures and offline integration pipeline |
@@ -133,6 +134,15 @@ redacts secret candidates before storage, and remains Partial if any policy
 cannot be safely parsed. Previously sanitized policies may already be stored;
 an incomplete run has no complete policy index.
 
+Diagnostics collection reads service loggers, service diagnostics, and bounded
+per-API diagnostics through guarded GET requests. It persists only allowlisted
+logger targets and diagnostic configuration: header names are sorted, body
+capture is reduced to nullable byte counts, and logger credentials,
+descriptions, samples, data-masking configuration, header values, and unknown
+fields are dropped. Missing settings remain `null`; known empty header lists
+remain arrays. Sanitized root files may remain when API child collection fails,
+with the collector recorded as Partial.
+
 Subscription collection uses one guarded list request and persists only an
 explicit metadata allowlist. It never calls `listSecrets`, drops key fields and
 unknown response fields, derives only a non-identifying `ownerType`, and does not
@@ -191,10 +201,10 @@ NET-001 and NET-009 remain NotEvaluated when the required attestation is absent.
 The eight private SEC checks evaluate only facts represented by current closed
 models; known positive evidence is retained when unrelated records are
 incomplete, while wholly unknown applicable evidence produces one
-Info/NotEvaluated finding. Service/security posture, named-value, backend,
-certificate, product classification, and live diagnostics dependencies remain
-deferred. There is no public evaluation command, report, or model-safe
-promotion yet; do not expose these private findings or models to an agent.
+Info/NotEvaluated finding. Service/security posture, named-value, backend, certificate, product
+classification, and diagnostics-to-model integration remain deferred. There is
+no public evaluation command, report, or model-safe promotion yet; do not expose
+these private findings or models to an agent.
 
 The subscription model classifies AllApis/Product/Api scope, extracts a stable
 scope target, detects the built-in master subscription, and emits sorted
@@ -215,8 +225,9 @@ and skills through a narrow local broker. The deterministic collection, analysis
 Excel, and HTML paths will remain runnable without Copilot.
 
 For a pre-acceptance smoke only, `scripts/Invoke-ApimSmoke.ps1` runs the current
-service, API catalog, product, subscription, policy, and network collectors with
-an existing matching `Az.Accounts` context and `Az.ResourceGraph`. It requires
+service, API catalog, product, subscription, security-asset, diagnostic, policy,
+and network collectors with an existing matching `Az.Accounts` context and
+`Az.ResourceGraph`. It requires
 an explicit Microsoft-owned test-environment acknowledgement. Private config
 and restricted output must be outside the repository and all Copilot
 trusted/allowed directories. Only registered check/status names and, for failed
