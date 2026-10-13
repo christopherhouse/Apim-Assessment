@@ -6,14 +6,14 @@ The toolkit is **not ready for customer assessment runs**. It has an importable
 module foundation, strict private configuration validation, structured logging,
 a guarded ARM transport, schema-validated run-folder/manifest persistence, and
 internal APIM service/API/product catalog collectors with bounded parallel child
-requests, plus restricted policy collection with normalized hashes and
-collection-time secret-candidate redaction. Private offline helpers now merge
-effective policies, normalize/hash them, and extract deterministic policy flags.
-Private offline builders now create schema-validated API, operation, and policy
-matrix records from saved synthetic-equivalent inputs. Collection/analyze
-orchestration, remaining collectors and models, rules, the model-data airlock,
-Copilot operator workflow, reports/comparison, and Excel/HTML templates are not
-implemented.
+requests, an allowlisted subscription collector, plus restricted policy
+collection with normalized hashes and collection-time secret-candidate
+redaction. Private offline helpers now merge effective policies, normalize/hash
+them, and extract deterministic policy flags. Private offline builders create
+schema-validated API, operation, policy-matrix, and subscription records from
+saved synthetic-equivalent inputs. Collection/analyze orchestration, remaining
+collectors and models, rules, the model-data airlock, Copilot operator workflow,
+reports/comparison, and Excel/HTML templates are not implemented.
 
 Do not run the planned commands in specification section 14 until their tasks
 are implemented, tested, and marked available in the root README.
@@ -85,6 +85,29 @@ The tests use only the customer-neutral synthetic fixture, exercise persisted
 `model/apis.json`, `model/operations.json`, and `model/policyMatrix.json` in a
 temporary test drive, and verify fail-closed schema handling. This is a
 development check, not an operator assessment command.
+
+## Subscription metadata boundary
+
+The internal subscription collector calls only the APIM subscription list
+endpoint through the guarded GET transport. It never calls `listSecrets`.
+Persisted `raw/subscriptions.json` contains only subscription ID, display name,
+scope, state, derived `ownerType`, dates, and `allowTracing`. Subscription keys,
+`ownerId`, user identifiers, and unknown response fields are dropped before
+persistence. `ownerType` is limited to `BuiltIn`, `User`, `None`, or `Unknown`.
+
+The private subscription model derives AllApis/Product/Api scope and target,
+detects `master` at AllApis scope as the built-in master, and writes sorted
+flags from `AllApis`, `AllowTracing`, `BuiltInMaster`, `NoExpiration`, and
+`OwnerMissing`. Until subscription usage telemetry is implemented, `calls90d`
+and `lastUsed` are `null` and each record explicitly reports
+`modelStatus=Partial` with `missingInputs=["usage"]`.
+
+The customer-neutral subscription path can be checked offline:
+
+```powershell
+Invoke-Pester .\tests\unit\SubscriptionCollector.Tests.ps1,`
+  .\tests\unit\SubscriptionModel.Tests.ps1 -Output Detailed
+```
 
 ## Future operator requirements
 

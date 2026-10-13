@@ -285,7 +285,7 @@ Rules: a collector failure **never** aborts the run; it is recorded as `Failed/P
 | `products.json` | `{base}/products` | `state`, `subscriptionRequired`, `approvalRequired`, `subscriptionsLimit`, `description` |
 | `productApis/<product>.json` | `{base}/products/{p}/apis` | API membership |
 | `productGroups/<product>.json` | `{base}/products/{p}/groups` | visibility |
-| `subscriptions.json` | `{base}/subscriptions` | `scope`, `state`, `ownerId`, `createdDate`, `expirationDate`, `allowTracing`, `displayName` (**never** call `listSecrets`) |
+| `subscriptions.json` | `{base}/subscriptions` | Allowlisted `name`, `scope`, `state`, derived non-identifying `ownerType`, `createdDate`, `expirationDate`, `allowTracing`, `displayName`. Drop `ownerId`, keys, and unknown fields; **never** call `listSecrets`. |
 | `namedValues.json` | `{base}/namedValues` | `displayName`, `secret`, `keyVault.secretIdentifier`, `keyVault.lastStatus`, `tags`. Value is only returned for non-secret values — store it only for secret-pattern detection, then **drop it** (`RedactPolicySecrets`) |
 | `backends.json` | `{base}/backends` | `url`, `protocol`, `tls.validateCertificateChain`, `tls.validateCertificateName`, `credentials`, `circuitBreaker`, `type`, `pool` |
 | `certificates.json` | `{base}/certificates` | `expirationDate`, `keyVault` |
@@ -458,6 +458,15 @@ the deterministic `data-scope` and unresolved-fragment status attributes.
 | `drift.json` | API (and scope) × env | `presentDev/Test/Prod/Git`, `hashDev/Test/Prod/Git`, `matches` (`All`, `ProdOnly`, `Differs`), `note` (requires prior runs for other envs or a multi-env run) |
 | `portal.json` | single object | portal status, published revision, sign-in/sign-up settings, identity providers, custom domain, products visible to which groups |
 | `openApiQuality.json` | API | Spectral error/warn counts, score |
+
+Subscription scope is derived from the terminal APIM resource path: the service
+root is `AllApis`, `/products/{id}` is `Product`, and `/apis/{id}` is `Api`.
+`scopeTarget` is null for AllApis and the decoded terminal ID otherwise.
+`subscriptionId=master` at AllApis scope is the built-in master. Collection
+derives `ownerType` in memory and drops `ownerId`; model flags are sorted from
+`AllApis`, `AllowTracing`, `BuiltInMaster`, `NoExpiration`, and `OwnerMissing`.
+Until usage telemetry is available, `calls90d` and `lastUsed` are null with
+`modelStatus=Partial` and `missingInputs=["usage"]`.
 
 ### 8.6 OpenAPI score (optional)
 If Spectral is available: run `spectral lint` with ruleset `spectral:oas` + `rulesets/apim-style.yaml` (naming, versioning, descriptions, error responses). Score = `max(0, 100 − 10×errors − 2×warnings)` (configurable). Otherwise `openApiScore=null` and a description-coverage metric from operations is used.

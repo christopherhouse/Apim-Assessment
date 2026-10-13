@@ -1,0 +1,135 @@
+[
+  {
+    "subscriptionId": "api-client",
+    "displayName": "API Client",
+    "scopeType": "Api",
+    "scopeTarget": "orders-v1",
+    "state": "active",
+    "ownerType": "None",
+    "createdDate": "2026-04-01T00:00:00.0000000+00:00",
+    "expirationDate": null,
+    "allowTracing": true,
+    "calls90d": null,
+    "lastUsed": null,
+    "isBuiltInMaster": false,
+    "flags": [
+      "AllowTracing",
+      "NoExpiration",
+      "OwnerMissing"
+    ],
+    "modelStatus": "Partial",
+    "missingInputs": [
+      "usage"
+    ]
+  },
+  {
+    "subscriptionId": "master",
+    "displayName": "Built-in all-access subscription",
+    "scopeType": "AllApis",
+    "scopeTarget": null,
+    "state": "active",
+    "ownerType": "BuiltIn",
+    "createdDate": "2025-01-01T00:00:00.0000000+00:00",
+    "expirationDate": null,
+    "allowTracing": true,
+    "calls90d": null,
+    "lastUsed": null,
+    "isBuiltInMaster": true,
+    "flags": [
+      "AllApis",
+      "AllowTracing",
+      "BuiltInMaster",
+      "NoExpiration"
+    ],
+    "modelStatus": "Partial",
+    "missingInputs": [
+      "usage"
+    ]
+  },
+  {
+    "subscriptionId": "migration-access",
+    "displayName": "Migration Access",
+    "scopeType": "AllApis",
+    "scopeTarget": null,
+    "state": "active",
+    "ownerType": "User",
+    "createdDate": "2026-03-01T00:00:00.0000000+00:00",
+    "expirationDate": "2027-03-01T00:00:00.0000000+00:00",
+    "allowTracing": false,
+    "calls90d": null,
+    "lastUsed": null,
+    "isBuiltInMaster": false,
+    "flags": [
+      "AllApis"
+    ],
+    "modelStatus": "Partial",
+    "missingInputs": [
+      "usage"
+    ]
+  },
+  {
+    "subscriptionId": "platform-shared",
+    "displayName": "Platform Shared",
+    "scopeType": "AllApis",
+    "scopeTarget": null,
+    "state": "active",
+    "ownerType": "User",
+    "createdDate": "2026-02-01T00:00:00.0000000+00:00",
+    "expirationDate": null,
+    "allowTracing": false,
+    "calls90d": null,
+    "lastUsed": null,
+    "isBuiltInMaster": false,
+    "flags": [
+      "AllApis",
+      "NoExpiration"
+    ],
+    "modelStatus": "Partial",
+    "missingInputs": [
+      "usage"
+    ]
+  },
+  {
+    "subscriptionId": "product-client",
+    "displayName": "Product Client",
+    "scopeType": "Product",
+    "scopeTarget": "internal",
+    "state": "active",
+    "ownerType": "Unknown",
+    "createdDate": "2026-05-01T00:00:00.0000000+00:00",
+    "expirationDate": null,
+    "allowTracing": false,
+    "calls90d": null,
+    "lastUsed": null,
+    "isBuiltInMaster": false,
+    "flags": [
+      "NoExpiration"
+    ],
+    "modelStatus": "Partial",
+    "missingInputs": [
+      "usage"
+    ]
+  },
+  {
+    "subscriptionId": "suspended-all",
+    "displayName": "Suspended All APIs",
+    "scopeType": "AllApis",
+    "scopeTarget": null,
+    "state": "suspended",
+    "ownerType": "User",
+    "createdDate": "2026-01-01T00:00:00.0000000+00:00",
+    "expirationDate": null,
+    "allowTracing": false,
+    "calls90d": null,
+    "lastUsed": null,
+    "isBuiltInMaster": false,
+    "flags": [
+      "AllApis",
+      "NoExpiration"
+    ],
+    "modelStatus": "Partial",
+    "missingInputs": [
+      "usage"
+    ]
+  }
+]
