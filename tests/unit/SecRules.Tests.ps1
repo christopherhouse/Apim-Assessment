@@ -69,12 +69,12 @@ Describe 'Evidence-backed SEC catalog' {
             }
         }
 
-        It 'loads the ten currently model-backed SEC rules with empty references' {
+        It 'loads the eleven currently model-backed SEC rules with empty references' {
             @($script:secRules.Id) | Should -Be @(
                 'APIM-SEC-003', 'APIM-SEC-004', 'APIM-SEC-005',
-                'APIM-SEC-007', 'APIM-SEC-008', 'APIM-SEC-010',
-                'APIM-SEC-012', 'APIM-SEC-014', 'APIM-SEC-015',
-                'APIM-SEC-020'
+                'APIM-SEC-007', 'APIM-SEC-008', 'APIM-SEC-009',
+                'APIM-SEC-010', 'APIM-SEC-012', 'APIM-SEC-014',
+                'APIM-SEC-015', 'APIM-SEC-020'
             )
             foreach ($rule in $script:secRules) {
                 $rule.References.Count | Should -Be 0
@@ -178,6 +178,44 @@ Describe 'Evidence-backed SEC catalog' {
                     -Models $models).Count | Should -Be 0
         }
 
+        It 'evaluates Key Vault health across named values and certificates' {
+            $models = Get-SyntheticSecModelSet
+            $found = @(Get-SyntheticSecFinding -RuleId 'APIM-SEC-009' `
+                    -Models $models)
+            $found.Count | Should -Be 1
+            $found[0].scope | Should -Be 'certificate:uploaded-certificate'
+            $found[0].evidence.assetType | Should -Be 'Certificate'
+            $found[0].evidence.keyVaultBacked | Should -BeFalse
+            $found[0].sourceFiles |
+                Should -Contain 'model/certificates.json'
+
+            $models.namedValues[0].keyVaultStatus = $null
+            $found = @(Get-SyntheticSecFinding -RuleId 'APIM-SEC-009' `
+                    -Models $models)
+            $found.Count | Should -Be 1
+            $found[0].scope | Should -Be 'certificate:uploaded-certificate'
+            $found[0].evaluation | Should -Be 'Evaluated'
+
+            $models.certificates[1].keyVaultBacked = $true
+            $models.namedValues[0].keyVaultStatus = 'Failed'
+            $found = @(Get-SyntheticSecFinding -RuleId 'APIM-SEC-009' `
+                    -Models $models)
+            $found.Count | Should -Be 1
+            $found[0].scope |
+                Should -Be 'named-value:key-vault-reference'
+            $found[0].evidence.assetType | Should -Be 'NamedValue'
+            $found[0].evidence.secret | Should -BeTrue
+            $found[0].evidence.keyVaultStatus | Should -Be 'Failed'
+            @($found[0].evidence.PSObject.Properties.Name) |
+                Should -Not -Contain 'value'
+            $found[0].sourceFiles |
+                Should -Contain 'raw/namedValues.json'
+
+            $models.namedValues[0].keyVaultStatus = 'Success'
+            @(Get-SyntheticSecFinding -RuleId 'APIM-SEC-009' `
+                    -Models $models).Count | Should -Be 0
+        }
+
         It 'flags explicitly disabled HTTPS backend certificate validation' {
             $models = Get-SyntheticSecModelSet
             $models.backends[0].tlsValidationName = $false
@@ -264,6 +302,7 @@ Describe 'Evidence-backed SEC catalog' {
             -TestCases @(
                 @{ Id = 'APIM-SEC-003'; Missing = 'callerAuth'; Setup = 'Sec003' }
                 @{ Id = 'APIM-SEC-004'; Missing = 'callerAuth'; Setup = 'Sec004' }
+                @{ Id = 'APIM-SEC-009'; Missing = 'keyVaultStatus'; Setup = 'Sec009' }
                 @{ Id = 'APIM-SEC-010'; Missing = 'tlsValidationChain'; Setup = 'Sec010' }
                 @{ Id = 'APIM-SEC-012'; Missing = 'corsUnsafe'; Setup = 'Sec012' }
                 @{ Id = 'APIM-SEC-014'; Missing = 'bodyLogging'; Setup = 'Sec014' }
@@ -279,6 +318,10 @@ Describe 'Evidence-backed SEC catalog' {
                 Sec004 {
                     $models.apis[1].subscriptionRequired = $false
                     $models.apis[1].callerAuth = $null
+                }
+                Sec009 {
+                    $models.certificates[1].keyVaultBacked = $true
+                    $models.namedValues[0].keyVaultStatus = $null
                 }
                 Sec010 {
                     $models.backends[0].tlsValidationChain = $null
@@ -312,6 +355,9 @@ Describe 'Evidence-backed SEC catalog' {
                     if ($Id -eq 'APIM-SEC-015') {
                         'subscriptions'
                     }
+                    elseif ($Id -eq 'APIM-SEC-009') {
+                        'namedValues'
+                    }
                     elseif ($Id -eq 'APIM-SEC-010') {
                         'backends'
                     }
@@ -329,7 +375,8 @@ Describe 'Evidence-backed SEC catalog' {
                 $finding[0].evaluation | Should -Be 'NotEvaluated'
                 $finding[0].severity | Should -Be 'Info'
                 $finding[0].scope | Should -Be 'missing-input'
-                $finding[0].evidence.missingInputs.Count | Should -Be 1
+                $finding[0].evidence.missingInputs.Count |
+                    Should -Be $(if ($id -eq 'APIM-SEC-009') { 2 } else { 1 })
             }
         }
 
@@ -345,6 +392,7 @@ Describe 'Evidence-backed SEC catalog' {
                     -Models $models -Manifest $script:secRulesManifest `
                     -Config $script:secRulesConfig)
             @($findings.ruleId) | Should -Contain 'APIM-SEC-004'
+            @($findings.ruleId) | Should -Contain 'APIM-SEC-009'
             @($findings.ruleId) | Should -Contain 'APIM-SEC-020'
             $first = Write-ApimFindingSet -RunPath (
                 Join-Path $TestDrive 'sec-first'
