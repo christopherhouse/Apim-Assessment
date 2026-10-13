@@ -8,8 +8,9 @@ a guarded ARM transport, schema-validated run-folder/manifest persistence, and
 internal APIM service/API/product catalog collectors with bounded parallel child
 requests, an allowlisted subscription collector, plus restricted policy
 collection with normalized hashes and collection-time secret-candidate
-redaction, and an internal network collector for Application Gateway/WAF and
-Resource Graph evidence. Private offline helpers now merge effective policies,
+redaction, an allowlisted named-value/backend/certificate collector, and an
+internal network collector for Application Gateway/WAF and Resource Graph
+evidence. Private offline helpers now merge effective policies,
 normalize/hash them, and extract deterministic policy flags. Private offline
 builders create schema-validated API, operation, policy-matrix, subscription,
 network, and pre-telemetry exposure records from saved synthetic-equivalent
@@ -74,10 +75,13 @@ implemented. Never pass restricted models or findings to Copilot.
 
 ## Reusable collection smoke (Microsoft-owned test APIM only)
 
-The preparatory `scripts/Invoke-ApimSmoke.ps1` entry point exercises the six
+The preparatory `scripts/Invoke-ApimSmoke.ps1` entry point exercises the seven
 implemented collectors in fixed dependency order: Service, Apis, Products,
-Subscriptions, Policies, Network. The same command will run newly registered
-checks after their synthetic acceptance. A failure is recorded in the manifest,
+Subscriptions, SecurityAssets, Policies, Network. SecurityAssets writes only
+allowlisted metadata: named-value values are dropped after in-memory pattern
+detection, backend credential values are reduced to structural facts, and
+certificate data/private material is never stored. The same command will run
+newly registered checks after their synthetic acceptance. A failure is recorded in the manifest,
 independent checks continue, and dependent checks are Skipped; no false success
 is reported. Exit status is 0 when all registered collection checks complete, 1
 for configuration/preflight failure, 2 for Az module/context failure, 3 when
@@ -143,6 +147,9 @@ Restricted raw output, manifest, and logs stay under `Output.Root`. This is
 **not** the full T-604 acceptance or a
 customer assessment: Analyze, rules, reports, and model-data promotion are not
 run. Do not pass live output, identifiers, errors, or logs to Copilot.
+The maintainer's previously reported live smoke covered the original six checks;
+the newly registered SecurityAssets check still requires a maintainer-only live
+run on the Microsoft-owned test environment.
 
 In Copilot CLI, these `!` commands are safe because they run only synthetic
 offline tests and automatically include all current/future unit tests:

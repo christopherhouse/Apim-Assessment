@@ -1,0 +1,50 @@
+{
+  "value": [
+    {
+      "name": "key-vault-reference",
+      "properties": {
+        "displayName": "Key Vault reference",
+        "secret": true,
+        "keyVault": {
+          "secretIdentifier": "https://synthetic-vault.invalid/secrets/backend-credential",
+          "lastStatus": {
+            "code": "Success"
+          }
+        },
+        "tags": [
+          "security"
+        ],
+        "secretPatternLocations": [
+          "displayName",
+          "value"
+        ]
+      }
+    },
+    {
+      "name": "partner-api-key",
+      "properties": {
+        "displayName": "Partner API key",
+        "secret": false,
+        "keyVault": null,
+        "tags": [
+          "partner",
+          "security"
+        ],
+        "secretPatternLocations": [
+          "displayName",
+          "value"
+        ]
+      }
+    },
+    {
+      "name": "public-label",
+      "properties": {
+        "displayName": "Public label",
+        "secret": false,
+        "keyVault": null,
+        "tags": [],
+        "secretPatternLocations": []
+      }
+    }
+  ]
+}

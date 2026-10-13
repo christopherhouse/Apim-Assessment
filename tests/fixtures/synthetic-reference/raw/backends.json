@@ -1,0 +1,64 @@
+{
+  "value": [
+    {
+      "name": "orders-backend",
+      "properties": {
+        "url": "https://orders.synthetic.invalid/api",
+        "urlSanitized": true,
+        "protocol": "http",
+        "tls": {
+          "validateCertificateChain": true,
+          "validateCertificateName": true
+        },
+        "credentials": {
+          "configured": true,
+          "types": [
+            "Authorization",
+            "Certificate",
+            "Header",
+            "Other",
+            "Query"
+          ],
+          "authorizationScheme": "Basic",
+          "certificateCount": 1,
+          "headerNames": [
+            "x-api-key"
+          ],
+          "queryParameterNames": [
+            "sig"
+          ],
+          "unknownFieldsPresent": true
+        },
+        "circuitBreakerConfigured": true,
+        "poolConfigured": true,
+        "poolBackendCount": 2,
+        "type": "Single"
+      }
+    },
+    {
+      "name": "status-backend",
+      "properties": {
+        "url": "http://status.synthetic.invalid",
+        "urlSanitized": false,
+        "protocol": "http",
+        "tls": {
+          "validateCertificateChain": false,
+          "validateCertificateName": false
+        },
+        "credentials": {
+          "configured": false,
+          "types": [],
+          "authorizationScheme": null,
+          "certificateCount": 0,
+          "headerNames": [],
+          "queryParameterNames": [],
+          "unknownFieldsPresent": false
+        },
+        "circuitBreakerConfigured": false,
+        "poolConfigured": false,
+        "poolBackendCount": 0,
+        "type": null
+      }
+    }
+  ]
+}

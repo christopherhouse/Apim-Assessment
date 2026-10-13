@@ -1,0 +1,20 @@
+{
+  "value": [
+    {
+      "name": "key-vault-certificate",
+      "properties": {
+        "expirationDate": "2027-10-13T00:00:00.0000000+00:00",
+        "keyVault": {
+          "secretIdentifier": "https://synthetic-vault.invalid/secrets/apim-certificate"
+        }
+      }
+    },
+    {
+      "name": "uploaded-certificate",
+      "properties": {
+        "expirationDate": "2026-11-01T00:00:00.0000000+00:00",
+        "keyVault": null
+      }
+    }
+  ]
+}
