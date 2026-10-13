@@ -13,8 +13,8 @@ HTML executive presentation, and run comparisons.
 tool.** The
 module imports and contains private configuration validation, structured logging,
 a guarded ARM transport, schema-validated run persistence, and internal APIM
-service/API/product/subscription/policy/network collectors, but exports no
-assessment commands.
+service/API/product/subscription/policy/network collectors plus an allowlisted
+named-value/backend/certificate collector, but exports no assessment commands.
 Effective policy inheritance, fragment expansion, scope attribution, and
 normalized hashing plus deterministic policy-flag extraction are implemented as
 private offline model helpers. Private schema-validated builders now produce the
@@ -34,11 +34,13 @@ other rule catalogs, the model-data airlock, Copilot operator workflow,
 assessment CLI entry points, and report templates are not implemented.
 
 An independent, **maintainer-only collection smoke command** now exercises all
-six implemented collectors in dependency order against a Microsoft-owned test
+seven implemented collector checks in dependency order against a Microsoft-owned test
 APIM. It is not an assessment entry point or a customer-run command: it cannot
 analyze or report, and its live execution is owned by authorized maintainers
-outside Copilot CLI. The maintainer reports all six collection checks completed
-on a test APIM; no agent used live Azure resources or inspected restricted output.
+outside Copilot CLI. The maintainer reports the prior six checks completed on a
+test APIM; the newly registered SecurityAssets check has synthetic acceptance
+but still needs a maintainer-only live retry. No agent used live Azure resources
+or inspected restricted output.
 
 All six implemented model contracts now share a fail-closed schema gate.
 Writers validate every pending serialized snapshot before writing any file, and
@@ -52,8 +54,8 @@ builders; this gate is not a public Analyze command or the model-data airlock.
 | Strict private configuration validation | Public assessment entry points |
 | Structured JSON-lines logging and progress | Run resume and persisted progress orchestration |
 | Guarded ARM transport with paging/retry | Excel report, carry-forward, and run comparison |
-| Versioned run manifest lifecycle and APIM service/API/product/subscription/policy/network collectors | Remaining APIM, telemetry, and cost collectors |
-| Maintainer-only cumulative collection smoke script (service, APIs, products, subscriptions, policies, network) | Full assessment orchestration and live acceptance |
+| Versioned run manifest lifecycle and APIM service/API/product/subscription/policy/network plus secret-safe named-value/backend/certificate collectors | Remaining APIM, telemetry, and cost collectors |
+| Maintainer-only cumulative collection smoke script (seven registered checks through SecurityAssets) | Full assessment orchestration and live acceptance |
 | Effective policy merge/flags plus six implemented models with shared schema-gated persistence and saved-run loading | Remaining model builders and telemetry exposure refinement |
 | Private offline rule engine, seven NET checks, eight SEC checks, configurable priority scoring, and schema-gated findings | Remaining SEC/GOV/REL catalog entries and public Analyze orchestration |
 | Synthetic-fixture scaffold | Populated fixtures and offline integration pipeline |

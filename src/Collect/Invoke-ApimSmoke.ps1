@@ -109,6 +109,12 @@ function Invoke-ApimSmoke {
             Throttled = $false
         }
         [pscustomobject]@{
+            Name = 'SecurityAssets'
+            Function = 'Invoke-ApimSecurityAssetCollector'
+            Requires = @('Service')
+            Throttled = $false
+        }
+        [pscustomobject]@{
             Name = 'Policies'
             Function = 'Invoke-ApimPolicyCollector'
             Requires = @('Service', 'Apis', 'Products')

@@ -10,7 +10,12 @@ three API revisions, two operations, two API-tag assignments, two products,
 three product/API memberships, two product/group memberships, and six
 subscriptions. Four subscriptions are AllApis-scoped, including the built-in
 master; one is product-scoped and one is API-scoped. Subscription fixtures store
-only allowlisted metadata with derived owner types, never keys or owner IDs. The
+only allowlisted metadata with derived owner types, never keys or owner IDs.
+Security-asset fixtures add three named values, two backends, and two
+certificates. Named-value values and backend credential values are absent;
+fixtures retain only derived pattern locations and structural authentication
+metadata. Certificate fixtures contain expiry and Key Vault references only,
+never certificate bytes, passwords, or private material. The
 policy fixture index covers eight scopes: five present policies, three absent
 policies, and two structural hard-coded-secret locations whose committed XML
 values are already redacted. API/product relationships contain three memberships so

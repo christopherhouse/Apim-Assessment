@@ -90,6 +90,12 @@ Describe 'Cumulative collection smoke runner' {
                     -Status Completed -Items 4
                 'synthetic-private-subscriptions-path'
             }
+            Mock Invoke-ApimSecurityAssetCollector {
+                $script:smokeOrder.Add('SecurityAssets')
+                Set-RunCollectorStatus -RunPath $RunPath -Name SecurityAssets `
+                    -Status Completed -Items 7
+                'synthetic-private-security-assets-path'
+            }
             Mock Invoke-ApimPolicyCollector {
                 $script:smokeOrder.Add('Policies')
                 Set-RunCollectorStatus -RunPath $RunPath -Name Policies `
@@ -110,8 +116,10 @@ Describe 'Cumulative collection smoke runner' {
                     '00000000-0000-0000-0000-000000000010'
                 ) -ThrottleLimit 2
 
-            $names = @('Service', 'Apis', 'Products', 'Subscriptions',
-                'Policies', 'Network')
+            $names = @(
+                'Service', 'Apis', 'Products', 'Subscriptions',
+                'SecurityAssets', 'Policies', 'Network'
+            )
             @($script:smokeOrder) | Should -Be $names
             @($result.Checks.Name) | Should -Be $names
             @($result.Checks.Status | Sort-Object -Unique) |
@@ -160,19 +168,19 @@ Describe 'Cumulative collection smoke runner' {
             @($script:smokeEvents.Phase) | Should -Be @(
                 'Running', 'Finished', 'Running', 'Finished',
                 'Running', 'Finished', 'Running', 'Finished',
-                'Finished', 'Running', 'Finished'
+                'Running', 'Finished', 'Finished', 'Running', 'Finished'
             )
             @($script:smokeEvents.Name) | Should -Be @(
                 'Service', 'Service', 'Apis', 'Apis', 'Products', 'Products',
-                'Subscriptions', 'Subscriptions', 'Policies',
-                'Network', 'Network'
+                'Subscriptions', 'Subscriptions', 'SecurityAssets',
+                'SecurityAssets', 'Policies', 'Network', 'Network'
             )
             $script:smokeEvents[2].Index | Should -Be 2
-            $script:smokeEvents[2].Total | Should -Be 6
+            $script:smokeEvents[2].Total | Should -Be 7
             $script:smokeEvents[3].Status | Should -Be 'Failed'
             $script:smokeEvents[3].FailureCode | Should -Be 'UNKNOWN_FAILURE'
-            $script:smokeEvents[8].Status | Should -Be 'Skipped'
-            $script:smokeEvents[8].FailureCode | Should -BeNullOrEmpty
+            $script:smokeEvents[10].Status | Should -Be 'Skipped'
+            $script:smokeEvents[10].FailureCode | Should -BeNullOrEmpty
             (ConvertTo-Json -InputObject @($script:smokeEvents) -Depth 5) |
                 Should -Not -Match 'synthetic-private|00000000-0000'
         }
@@ -209,9 +217,9 @@ Describe 'Cumulative collection smoke runner' {
                     '00000000-0000-0000-0000-000000000010'
                 ) -OnProgress $callback | Out-Null
 
-            $lines.Count | Should -Be 11
+            $lines.Count | Should -Be 13
             $lines[3] | Should -Match 'Apis - Failed \(UNKNOWN_FAILURE\)'
-            $lines[8] | Should -Match 'Policies - Skipped'
+            $lines[10] | Should -Match 'Policies - Skipped'
             ($lines -join ' ') | Should -Not -Match 'synthetic-private'
         }
 
@@ -227,7 +235,8 @@ Describe 'Cumulative collection smoke runner' {
                 )
 
             @($script:smokeOrder) | Should -Be @(
-                'Service', 'Apis', 'Products', 'Subscriptions', 'Network'
+                'Service', 'Apis', 'Products', 'Subscriptions',
+                'SecurityAssets', 'Network'
             )
             $result.Status | Should -Be 'Partial'
             ($result.Checks | Where-Object Name -EQ Apis).Status |
@@ -268,7 +277,7 @@ Describe 'Cumulative collection smoke runner' {
             @($script:smokeOrder) | Should -Be @('Service')
             $result.Status | Should -Be 'Partial'
             @($result.Checks.Status | Where-Object { $_ -eq 'Skipped' }).Count |
-                Should -Be 5
+                Should -Be 6
             ($result.Checks | Where-Object Name -EQ Service).FailureCode |
                 Should -Be 'UNKNOWN_FAILURE'
             Should -Invoke Invoke-ApimNetworkCollector -Exactly -Times 0
@@ -294,7 +303,7 @@ Describe 'Cumulative collection smoke runner' {
             $service.Status | Should -Be 'Failed'
             $service.FailureCode | Should -Be "ARM_HTTP_$HttpStatus"
             @($result.Checks | Where-Object Status -EQ Skipped).Count |
-                Should -Be 5
+                Should -Be 6
             (ConvertTo-Json -InputObject $result -Depth 10) |
                 Should -Not -Match '00000000-0000'
         }
@@ -335,7 +344,7 @@ Describe 'Cumulative collection smoke runner' {
             ($result.Checks | Where-Object Name -EQ Service).FailureCode |
                 Should -Be $Code
             @($result.Checks | Where-Object Status -EQ Skipped).Count |
-                Should -Be 5
+                Should -Be 6
         }
 
         It 'distinguishes local I/O failures without printing a private path' {
@@ -403,7 +412,7 @@ Describe 'Cumulative collection smoke runner' {
             Get-ApimSmokeFailureCode -ErrorRecord $unmarkedRecord |
                 Should -Be 'UNKNOWN_FAILURE'
             Format-ApimSmokeConsoleLine -State Partial -Name Policies `
-                -Index 5 -Total 6 -FailureCode POLICY_XML_REJECTED |
+                -Index 6 -Total 7 -FailureCode POLICY_XML_REJECTED |
                 Should -Not -Match 'synthetic-private'
         }
 
