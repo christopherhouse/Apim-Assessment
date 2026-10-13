@@ -8,9 +8,9 @@ a guarded ARM transport, schema-validated run-folder/manifest persistence, and
 internal APIM service/API/product catalog collectors with bounded parallel child
 requests, an allowlisted subscription collector, plus restricted policy
 collection with normalized hashes and collection-time secret-candidate
-redaction, an allowlisted named-value/backend/certificate collector, and an
-internal network collector for Application Gateway/WAF and Resource Graph
-evidence. Private offline helpers now merge effective policies,
+redaction, allowlisted named-value/backend/certificate and logger/diagnostic
+collectors, and an internal network collector for Application Gateway/WAF and
+Resource Graph evidence. Private offline helpers now merge effective policies,
 normalize/hash them, and extract deterministic policy flags. Private offline
 builders create schema-validated API, operation, policy-matrix, subscription,
 network, and pre-telemetry exposure records from saved synthetic-equivalent
@@ -70,18 +70,22 @@ Analyze path, findings report, or model-safe promotion is available yet.
 `rules/SEC.rules.ps1` includes SEC-003/004/005/007/012/014/015/020. Rules with
 unknown applicable facts emit one Info/NotEvaluated finding unless other
 records already provide definitive positive evidence. SEC-014 remains
-NotEvaluated for ordinary saved models until diagnostics collection is
-implemented. Never pass restricted models or findings to Copilot.
+NotEvaluated for ordinary saved models until collected diagnostics are
+integrated into the API model. Never pass restricted models or findings to
+Copilot.
 
 ## Reusable collection smoke (Microsoft-owned test APIM only)
 
-The preparatory `scripts/Invoke-ApimSmoke.ps1` entry point exercises the seven
+The preparatory `scripts/Invoke-ApimSmoke.ps1` entry point exercises the eight
 implemented collectors in fixed dependency order: Service, Apis, Products,
-Subscriptions, SecurityAssets, Policies, Network. SecurityAssets writes only
-allowlisted metadata: named-value values are dropped after in-memory pattern
-detection, backend credential values are reduced to structural facts, and
-certificate data/private material is never stored. The same command will run
-newly registered checks after their synthetic acceptance. A failure is recorded in the manifest,
+Subscriptions, SecurityAssets, Diagnostics, Policies, Network. SecurityAssets
+writes only allowlisted metadata: named-value values are dropped after in-memory
+pattern detection, backend credential values are reduced to structural facts,
+and certificate data/private material is never stored. Diagnostics writes only
+allowlisted logger targets, header names, nullable body-byte counts, and bounded
+settings; it drops credentials, descriptions, samples, data-masking details,
+header values, and unknown fields. The same command will run newly registered
+checks after their synthetic acceptance. A failure is recorded in the manifest,
 independent checks continue, and dependent checks are Skipped; no false success
 is reported. Exit status is 0 when all registered collection checks complete, 1
 for configuration/preflight failure, 2 for Az module/context failure, 3 when
@@ -148,8 +152,8 @@ Restricted raw output, manifest, and logs stay under `Output.Root`. This is
 customer assessment: Analyze, rules, reports, and model-data promotion are not
 run. Do not pass live output, identifiers, errors, or logs to Copilot.
 The maintainer's previously reported live smoke covered the original six checks;
-the newly registered SecurityAssets check still requires a maintainer-only live
-run on the Microsoft-owned test environment.
+the newly registered SecurityAssets and Diagnostics checks still require a
+maintainer-only live run on the Microsoft-owned test environment.
 
 In Copilot CLI, these `!` commands are safe because they run only synthetic
 offline tests and automatically include all current/future unit tests:
@@ -206,6 +210,20 @@ product catalogs, discovers policy fragments, and writes restricted XML under
 instead of treated as failures. Potential hard-coded policy secrets are detected
 before persistence; the index records structural locations only and stored XML
 contains `***REDACTED***`, never the detected value.
+
+The internal diagnostics collector reads the previously collected API inventory,
+then calls the service logger and service diagnostic endpoints before issuing
+bounded per-API diagnostic GETs. It writes `raw/loggers.json`,
+`raw/diagnostics.json`, and one `raw/apiDiagnostics/<api>.json` file per API.
+Logger output is restricted to name, logger type, target resource ID, and
+buffering state. Diagnostic output is restricted to logger reference,
+always-log, sampling, verbosity, client-IP/correlation settings, sorted header
+names, and nullable body-byte counts. Missing sections remain `null`, while a
+known empty header list remains `[]`; neither is converted to a false or zero
+claim. Credentials, descriptions, payload samples, data-masking configuration,
+header values, and unknown ARM fields are never persisted. Root logger and
+service-diagnostic files are written before API children so a child failure
+retains useful sanitized evidence and records Diagnostics as Partial.
 
 The internal merge helper consumes only saved, redacted policy XML. It produces
 one effective policy per product membership (or one no-product path), replaces

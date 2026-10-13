@@ -1,0 +1,29 @@
+{
+  "value": [
+    {
+      "name": "applicationinsights",
+      "properties": {
+        "loggerId": "/loggers/application-insights",
+        "alwaysLog": null,
+        "sampling": {
+          "samplingType": "fixed",
+          "percentage": 50.0
+        },
+        "verbosity": "information",
+        "logClientIp": null,
+        "httpCorrelationProtocol": null,
+        "frontend": {
+          "request": {
+            "headers": [],
+            "bodyBytes": 0
+          },
+          "response": {
+            "headers": [],
+            "bodyBytes": 0
+          }
+        },
+        "backend": null
+      }
+    }
+  ]
+}

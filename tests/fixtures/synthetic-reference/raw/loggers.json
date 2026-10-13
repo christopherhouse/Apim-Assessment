@@ -1,0 +1,20 @@
+{
+  "value": [
+    {
+      "name": "application-insights",
+      "properties": {
+        "loggerType": "applicationInsights",
+        "resourceId": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-synthetic-observability/providers/Microsoft.Insights/components/appi-synthetic",
+        "isBuffered": true
+      }
+    },
+    {
+      "name": "event-hub",
+      "properties": {
+        "loggerType": "azureEventHub",
+        "resourceId": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-synthetic-observability/providers/Microsoft.EventHub/namespaces/evh-synthetic",
+        "isBuffered": false
+      }
+    }
+  ]
+}

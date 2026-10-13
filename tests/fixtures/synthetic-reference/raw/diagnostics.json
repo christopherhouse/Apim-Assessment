@@ -1,0 +1,41 @@
+{
+  "value": [
+    {
+      "name": "applicationinsights",
+      "properties": {
+        "loggerId": "/loggers/application-insights",
+        "alwaysLog": "allErrors",
+        "sampling": {
+          "samplingType": "fixed",
+          "percentage": 100.0
+        },
+        "verbosity": "information",
+        "logClientIp": false,
+        "httpCorrelationProtocol": "Legacy",
+        "frontend": {
+          "request": {
+            "headers": [
+              "Authorization",
+              "x-request-id"
+            ],
+            "bodyBytes": 0
+          },
+          "response": {
+            "headers": [],
+            "bodyBytes": 0
+          }
+        },
+        "backend": {
+          "request": {
+            "headers": [],
+            "bodyBytes": 0
+          },
+          "response": {
+            "headers": [],
+            "bodyBytes": 0
+          }
+        }
+      }
+    }
+  ]
+}
