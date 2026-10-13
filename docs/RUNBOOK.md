@@ -68,6 +68,10 @@ check the locally installed Az module. `ARM_NETWORK_ERROR` indicates a network
 exception; check local connectivity to Azure Resource Manager.
 `ARM_TIMEOUT` indicates a timeout/cancellation; check connectivity and retry
 policy locally. These codes never include exception text or raw responses.
+Earlier smoke versions could show `ARM_COMMAND_ERROR` because a bodyless GET
+passed an empty `-Payload` to `Invoke-AzRestMethod`. The current guarded
+transport omits that parameter; rerun from the updated bugfix branch or its
+merged successor before investigating a recurring command error.
 `LOCAL_IO_ERROR` means a local write/read failed; check restricted storage
 permissions and available space. `UNKNOWN_FAILURE` needs maintainer-only
 investigation and does not imply that Azure returned success. Do not paste

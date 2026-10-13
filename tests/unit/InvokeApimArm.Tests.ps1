@@ -5,6 +5,58 @@ AfterAll {
     Remove-Module -Name ApimAssessment -Force -ErrorAction SilentlyContinue
 }
 
+Describe 'Invoke-ApimArmRequest payload binding' {
+    InModuleScope ApimAssessment {
+        BeforeAll {
+            function Invoke-AzRestMethod {
+                [CmdletBinding()]
+                param(
+                    [string] $Path,
+                    [string] $Method,
+                    [ValidateNotNullOrEmpty()]
+                    [string] $Payload
+                )
+                return [pscustomobject]@{
+                    Path = $Path
+                    Method = $Method
+                    Payload = $Payload
+                }
+            }
+            Mock Invoke-AzRestMethod {
+                [pscustomobject]@{
+                    Payload = $Payload
+                }
+            }
+        }
+
+        It 'omits Payload for a GET without a body' {
+            $response = Invoke-ApimArmRequest -Method GET `
+                -Uri '/synthetic-service' -Body $null
+
+            $response.Payload | Should -BeNullOrEmpty
+            Should -Invoke Invoke-AzRestMethod -Exactly -Times 1 `
+                -ParameterFilter { $null -eq $Payload }
+        }
+
+        It 'passes a nonempty string payload for an allowed query POST' {
+            $response = Invoke-ApimArmRequest -Method POST `
+                -Uri '/synthetic-query' -Body '{"type":"ActualCost"}'
+
+            $response.Payload | Should -Be '{"type":"ActualCost"}'
+            Should -Invoke Invoke-AzRestMethod -Exactly -Times 1 `
+                -ParameterFilter { $Payload -eq '{"type":"ActualCost"}' }
+        }
+
+        It 'rejects an explicit empty payload before calling Az' {
+            {
+                Invoke-ApimArmRequest -Method POST `
+                    -Uri '/synthetic-query' -Body ''
+            } | Should -Throw '*payload must be a non-empty string*'
+            Should -Invoke Invoke-AzRestMethod -Exactly -Times 0
+        }
+    }
+}
+
 Describe 'Invoke-ApimArm safety and transport behavior' {
     InModuleScope ApimAssessment {
         BeforeEach {

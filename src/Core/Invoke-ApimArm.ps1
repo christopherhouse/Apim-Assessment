@@ -93,7 +93,7 @@ function Invoke-ApimArmRequest {
         [string] $Uri,
 
         [AllowNull()]
-        [string] $Body
+        [object] $Body
     )
 
     $parameters = @{
@@ -107,6 +107,9 @@ function Invoke-ApimArmRequest {
         $parameters.Path = $Uri
     }
     if ($null -ne $Body) {
+        if ($Body -isnot [string] -or [string]::IsNullOrEmpty($Body)) {
+            throw 'ARM request payload must be a non-empty string.'
+        }
         $parameters.Payload = $Body
     }
 

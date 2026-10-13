@@ -106,6 +106,8 @@ runspaces with a configurable `ThrottleLimit` (default 6). Policy 404 responses
 are indexed as absent, while detected hard-coded secret candidates are recorded
 by structural location and redacted before XML is persisted. No public command
 invokes the collectors yet and all automated tests mock Azure responses.
+The guarded transport omits `-Payload` entirely for bodyless GET requests;
+an explicitly empty payload fails before the Az cmdlet is called.
 
 Subscription collection uses one guarded list request and persists only an
 explicit metadata allowlist. It never calls `listSecrets`, drops key fields and
