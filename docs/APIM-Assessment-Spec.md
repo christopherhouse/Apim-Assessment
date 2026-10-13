@@ -706,6 +706,16 @@ publication; both remain NotEvaluated without corroboration (D-30/D-31).
 | APIM-SEC-019 | No managed identity on APIM | Low | IM-3 | Service | `identity` null |
 | APIM-SEC-020 | Mock or trace policies in production | Medium | n/a | Operation | `mockOrTrace` (env = Prod) |
 
+T-304 currently implements SEC-003/004/005/007/012/014/015/020 against the
+closed API, operation, and subscription models. Known positive evidence remains
+evaluated when another record has an unavailable fact; if all otherwise
+applicable evidence is unknown, the rule emits one Info/NotEvaluated finding.
+SEC-014 is implemented at the model/rule boundary but remains NotEvaluated for
+ordinary saved runs until diagnostics collection populates its fields. The
+remaining SEC rules stay deferred until their service/security,
+named-value/backend/certificate, product-classification, diagnostics, or
+authorization evidence is modeled (D-32).
+
 ### 11.3 Governance / Operational Excellence (GOV)
 | ID | Title | Sev | Logic |
 |---|---|---|---|

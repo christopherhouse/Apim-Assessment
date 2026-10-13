@@ -1,6 +1,6 @@
 # Assessment rule catalogs
 
-Planned catalogs: `SEC`, `GOV`, `REL`, `PERF`, `POR`, and `COST.rules.ps1`.
+Planned catalogs: `GOV`, `REL`, `PERF`, `POR`, and `COST.rules.ps1`.
 Use the hashtable contract in specification section 10 and stable catalog IDs in
 section 11. The private rule engine, closed `findings.json` schema, and restricted writer
 are implemented. `NET.rules.ps1` contains NET-001/002/004/006/007/008/009.
@@ -13,6 +13,14 @@ in `Requires` and every additional model it reads; rule callbacks receive the
 target and a context with `Config`, `Models`, and `Manifest`.
 NET-009's Route target is the allowlisted `network.auxiliaryRoutes` field,
 not an API route in `exposure.json`.
+`SEC.rules.ps1` contains SEC-003/004/005/007/012/014/015/020. These rules use
+only the implemented API, operation, and subscription models. Positive evidence
+is retained when another record is incomplete; otherwise unknown applicable
+facts produce one NotEvaluated finding. SEC-014 remains unavailable against
+ordinary saved models until diagnostics collection populates its two closed
+fields. The remaining SEC rules require future service/security,
+named-value/backend/certificate, product-classification, diagnostics, or
+authorization evidence and must not be approximated from partial fields.
 The current synthetic NET fixture has two API route records and one App
 Gateway. Focused tests add one attested edge/origin assessment and one
 attested public portal route: NET-001 and NET-009 each yield one evaluated
