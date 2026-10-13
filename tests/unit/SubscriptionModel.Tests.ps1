@@ -85,6 +85,21 @@ Describe 'APIM subscription model' {
                 scopeTarget | Should -Be 'orders-v1'
         }
 
+        It 'classifies documented relative scopes' -TestCases @(
+            @{ Scope = '/apis'; Kind = 'AllApis'; Target = $null }
+            @{ Scope = '/apis/synthetic-api'; Kind = 'Api'; Target = 'synthetic-api' }
+            @{ Scope = '/products/synthetic-product'; Kind = 'Product'; Target = 'synthetic-product' }
+        ) {
+            param($Scope, $Kind, $Target)
+            $payload = Read-SubscriptionTestJson $script:subscriptionRawPath
+            $payload.value[0].properties.scope = $Scope
+
+            $model = @(Get-ApimSubscriptionModel -SubscriptionsPayload $payload)
+            $record = $model | Where-Object subscriptionId -EQ 'api-client'
+            $record.scopeType | Should -Be $Kind
+            $record.scopeTarget | Should -Be $Target
+        }
+
         It 'detects the built-in master and stable flags' {
             $payload = Read-SubscriptionTestJson $script:subscriptionRawPath
             $model = @(Get-ApimSubscriptionModel `
@@ -142,9 +157,14 @@ Describe 'APIM subscription model' {
                 Should -BeTrue
         }
 
-        It 'rejects unsupported scopes' {
+        It 'rejects unsupported scopes' -TestCases @(
+            @{ Scope = '/apis/synthetic-api/operations/get' }
+            @{ Scope = '/products/' }
+            @{ Scope = '/wrong/providers/Microsoft.ApiManagement/service/apim-synthetic-prod' }
+        ) {
+            param($Scope)
             $payload = Read-SubscriptionTestJson $script:subscriptionRawPath
-            $payload.value[0].properties.scope += '/operations/get'
+            $payload.value[0].properties.scope = $Scope
 
             {
                 Get-ApimSubscriptionModel -SubscriptionsPayload $payload

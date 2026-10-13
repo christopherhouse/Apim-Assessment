@@ -99,6 +99,9 @@ Describe 'APIM network collector' {
             Mock Invoke-ApimResourceGraphQuery {
                 $script:networkQueries.Add($Query)
                 $relativePath = switch -Regex ($Query) {
+                    'backendTarget in~' {
+                        'raw/network/frontDoors.json'; break
+                    }
                     'mv-expand subnet = properties\.subnets' {
                         'raw/network/apimSubnet.json'; break
                     }
@@ -117,9 +120,6 @@ Describe 'APIM network collector' {
                     'microsoft\.network/routetables' {
                         'raw/network/routeTables.json'; break
                     }
-                    'microsoft\.network/frontdoors' {
-                        'raw/network/frontDoors.json'; break
-                    }
                     default {
                         throw 'Unexpected synthetic Resource Graph query.'
                     }
@@ -137,7 +137,7 @@ Describe 'APIM network collector' {
 
             $paths.Count | Should -Be 9
             Should -Invoke Invoke-ApimArm -Times 2 -Exactly
-            Should -Invoke Invoke-ApimResourceGraphQuery -Times 7 -Exactly
+            Should -Invoke Invoke-ApimResourceGraphQuery -Times 9 -Exactly
             $script:armUris[0] | Should -Be (
                 '/subscriptions/00000000-0000-0000-0000-000000000001/' +
                 'resourceGroups/rg-synthetic-network/providers/' +
@@ -168,17 +168,27 @@ Describe 'APIM network collector' {
                     Should -Be (ConvertTo-NetworkCollectorJson $expected)
             }
 
-            $frontDoorQuery = $script:networkQueries |
-                Where-Object { $_ -match 'microsoft\.network/frontdoors' }
-            $frontDoorQuery | Should -Match (
+            $frontDoorQueries = @($script:networkQueries |
+                Where-Object { $_ -match 'backendTarget in~' })
+            $frontDoorQueries.Count | Should -Be 3
+            @($frontDoorQueries | Where-Object {
+                    $_ -notmatch '^resources\s' -or
+                    $_ -match '(?m)^let\s|(?m)^union\s'
+                }) | Should -BeNullOrEmpty
+            ($frontDoorQueries -join "`n") | Should -Match (
                 'pool\.properties\.backendAddresses'
             )
-            $frontDoorQuery | Should -Match (
+            ($frontDoorQueries -join "`n") | Should -Match (
                 'backend\.properties\.address'
             )
-            $frontDoorQuery | Should -Not -Match 'propertiesText contains'
-            $frontDoorQuery | Should -Match 'api\.synthetic\.invalid'
-            $frontDoorQuery | Should -Match 'id !in~'
+            ($frontDoorQueries -join "`n") |
+                Should -Not -Match 'propertiesText contains'
+            @($frontDoorQueries | Where-Object {
+                    $_ -match 'api\.synthetic\.invalid'
+                }).Count | Should -Be 3
+            @($frontDoorQueries | Where-Object {
+                    $_ -match 'id !in~'
+                }).Count | Should -Be 1
 
             $subnetQuery = $script:networkQueries |
                 Where-Object { $_ -match 'mv-expand subnet' }
@@ -200,6 +210,59 @@ Describe 'APIM network collector' {
             $manifest.collectors[0].name | Should -Be 'Network'
             $manifest.collectors[0].status | Should -Be 'Completed'
             $manifest.collectors[0].items | Should -Be 9
+        }
+
+        It 'deduplicates matches across separate front-door queries' {
+            Mock Invoke-ApimResourceGraphQuery {
+                $ids = if ($Query -match 'microsoft\.network/frontdoors') {
+                    @('/synthetic/front-b', '/synthetic/front-b')
+                }
+                else {
+                    @('/synthetic/front-a')
+                }
+                return @(
+                    foreach ($id in $ids) {
+                        [pscustomobject]@{
+                            id = $id
+                            name = ($id -split '/')[-1]
+                            type = 'synthetic.frontdoor'
+                            resourceGroup = 'rg-synthetic-network'
+                            location = 'westus'
+                            properties = [pscustomobject]@{}
+                            targetsApim = $true
+                        }
+                    }
+                )
+            } -ParameterFilter { $Query -match 'backendTarget in~' }
+
+            Invoke-ApimNetworkCollector -RunPath $script:networkRun.Path `
+                -Environment $script:networkEnvironment | Out-Null
+
+            $payload = Get-Content -LiteralPath (
+                Join-Path $script:networkRun.Path 'raw/network/frontDoors.json'
+            ) -Raw | ConvertFrom-Json
+            @($payload.value.id) | Should -Be @(
+                '/synthetic/front-a', '/synthetic/front-b'
+            )
+        }
+
+        It 'rejects a front-door match without an ID before persisting evidence' {
+            Mock Invoke-ApimResourceGraphQuery {
+                return @([pscustomobject]@{
+                        name = 'synthetic-no-id'
+                    })
+            } -ParameterFilter { $Query -match 'backendTarget in~' }
+
+            {
+                Invoke-ApimNetworkCollector `
+                    -RunPath $script:networkRun.Path `
+                    -Environment $script:networkEnvironment
+            } | Should -Throw
+            Test-Path -LiteralPath (
+                Join-Path $script:networkRun.Path 'raw/network'
+            ) | Should -BeFalse
+            (Get-RunManifest -RunPath $script:networkRun.Path).
+                collectors[0].status | Should -Be 'Failed'
         }
 
         It 'stages collection before writing and records graph failures' {

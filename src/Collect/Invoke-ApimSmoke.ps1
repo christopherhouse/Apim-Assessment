@@ -72,7 +72,10 @@ function Invoke-ApimSmoke {
         [string] $TenantId,
 
         [ValidateRange(1, 64)]
-        [int] $ThrottleLimit = 6
+        [int] $ThrottleLimit = 6,
+
+        [AllowNull()]
+        [scriptblock] $OnProgress
     )
 
     $checks = @(
@@ -131,7 +134,8 @@ function Invoke-ApimSmoke {
     $statuses = [ordered]@{}
     $failureCodes = @{}
 
-    foreach ($check in $checks) {
+    for ($index = 0; $index -lt $checks.Count; $index++) {
+        $check = $checks[$index]
         $unmet = @($check.Requires | Where-Object {
                 $statuses[$_] -ne 'Completed'
             })
@@ -141,42 +145,62 @@ function Invoke-ApimSmoke {
             Add-RunWarning -RunPath $run.Path `
                 -Message "$($check.Name) smoke check skipped after a prerequisite failure."
             $statuses[$check.Name] = 'Skipped'
-            continue
         }
-
-        $arguments = @{
-            RunPath = $run.Path
-            Environment = $environment
-        }
-        if ($check.Throttled) {
-            $arguments.ThrottleLimit = $ThrottleLimit
-        }
-        try {
-            $null = & $check.Function @arguments
-            $record = @((
-                    Get-RunManifest -RunPath $run.Path
-                ).collectors | Where-Object { $_.name -eq $check.Name })
-            if ($record.Count -ne 1 -or $record[0].status -ne 'Completed') {
-                throw 'Smoke collector did not report completion.'
+        else {
+            if ($null -ne $OnProgress) {
+                $null = & $OnProgress ([pscustomobject]@{
+                        Phase = 'Running'
+                        Name = $check.Name
+                        Index = $index + 1
+                        Total = $checks.Count
+                        Status = $null
+                        FailureCode = $null
+                    })
             }
-            $statuses[$check.Name] = 'Completed'
+            $arguments = @{
+                RunPath = $run.Path
+                Environment = $environment
+            }
+            if ($check.Throttled) {
+                $arguments.ThrottleLimit = $ThrottleLimit
+            }
+            try {
+                $null = & $check.Function @arguments
+                $record = @((
+                        Get-RunManifest -RunPath $run.Path
+                    ).collectors | Where-Object { $_.name -eq $check.Name })
+                if ($record.Count -ne 1 -or $record[0].status -ne 'Completed') {
+                    throw 'Smoke collector did not report completion.'
+                }
+                $statuses[$check.Name] = 'Completed'
+            }
+            catch {
+                $failureCodes[$check.Name] = Get-ApimSmokeFailureCode -ErrorRecord $_
+                $record = @((
+                        Get-RunManifest -RunPath $run.Path
+                    ).collectors | Where-Object { $_.name -eq $check.Name })
+                if ($record.Count -ne 1 -or
+                    $record[0].status -notin @('Failed', 'Partial')) {
+                    Set-RunCollectorStatus -RunPath $run.Path -Name $check.Name `
+                        -Status Failed -Errors 1
+                    Add-RunWarning -RunPath $run.Path `
+                        -Message "$($check.Name) smoke check failed; see the restricted run log."
+                    $statuses[$check.Name] = 'Failed'
+                }
+                else {
+                    $statuses[$check.Name] = $record[0].status
+                }
+            }
         }
-        catch {
-            $failureCodes[$check.Name] = Get-ApimSmokeFailureCode -ErrorRecord $_
-            $record = @((
-                    Get-RunManifest -RunPath $run.Path
-                ).collectors | Where-Object { $_.name -eq $check.Name })
-            if ($record.Count -ne 1 -or
-                $record[0].status -notin @('Failed', 'Partial')) {
-                Set-RunCollectorStatus -RunPath $run.Path -Name $check.Name `
-                    -Status Failed -Errors 1
-                Add-RunWarning -RunPath $run.Path `
-                    -Message "$($check.Name) smoke check failed; see the restricted run log."
-                $statuses[$check.Name] = 'Failed'
-            }
-            else {
-                $statuses[$check.Name] = $record[0].status
-            }
+        if ($null -ne $OnProgress) {
+            $null = & $OnProgress ([pscustomobject]@{
+                    Phase = 'Finished'
+                    Name = $check.Name
+                    Index = $index + 1
+                    Total = $checks.Count
+                    Status = $statuses[$check.Name]
+                    FailureCode = $failureCodes[$check.Name]
+                })
         }
     }
 

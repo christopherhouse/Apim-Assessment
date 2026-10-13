@@ -285,7 +285,7 @@ Rules: a collector failure **never** aborts the run; it is recorded as `Failed/P
 | `products.json` | `{base}/products` | `state`, `subscriptionRequired`, `approvalRequired`, `subscriptionsLimit`, `description` |
 | `productApis/<product>.json` | `{base}/products/{p}/apis` | API membership |
 | `productGroups/<product>.json` | `{base}/products/{p}/groups` | visibility |
-| `subscriptions.json` | `{base}/subscriptions` | Allowlisted `name`, `scope`, `state`, derived non-identifying `ownerType`, `createdDate`, `expirationDate`, `allowTracing`, `displayName`. Drop `ownerId`, keys, and unknown fields; **never** call `listSecrets`. |
+| `subscriptions.json` | `{base}/subscriptions` | Allowlisted `name`, `scope`, `state`, derived non-identifying `ownerType`, `createdDate`, `expirationDate`, `allowTracing`, `displayName`. Absent optional display name/tracing/creation date remain null and downstream `missingInputs` records the gap; never infer false tracing. Models accept documented relative `/apis`, `/apis/{id}`, `/products/{id}` and full ARM scopes. Drop `ownerId`, keys, and unknown fields; **never** call `listSecrets`. |
 | `namedValues.json` | `{base}/namedValues` | `displayName`, `secret`, `keyVault.secretIdentifier`, `keyVault.lastStatus`, `tags`. Value is only returned for non-secret values — store it only for secret-pattern detection, then **drop it** (`RedactPolicySecrets`) |
 | `backends.json` | `{base}/backends` | `url`, `protocol`, `tls.validateCertificateChain`, `tls.validateCertificateName`, `credentials`, `circuitBreaker`, `type`, `pool` |
 | `certificates.json` | `{base}/certificates` | `expirationDate`, `keyVault` |
@@ -319,7 +319,7 @@ recorded, and stored policy XML replaces detected literals with
 | `network/appgw.<name>.json` | ARM GET App Gateway | `frontendIPConfigurations` (public vs private), `httpListeners` (hostName(s), frontend, protocol, sslCertificate), `requestRoutingRules` (ruleType Basic/PathBasedRouting, priority), `urlPathMaps`, `backendAddressPools`, `backendHttpSettingsCollection` (hostName override, pickHostNameFromBackendAddress, probe), `rewriteRuleSets`, `probes`, `sslPolicy`, `firewallPolicy` link, `webApplicationFirewallConfiguration` (legacy) |
 | `network/wafPolicy.<name>.json` | ARM GET WAF policy | `policySettings.state`, `policySettings.mode`, `managedRules`, `customRules` (IP match rules → edge allowlist) |
 | `network/apimSubnet.json`, `network/nsgs.json`, `network/publicIps.json`, `network/privateEndpoints.json`, `network/privateDnsZones.json`, `network/routeTables.json` | Resource Graph | APIM subnet NSG rules, App GW subnet, public IPs (detect any other path to APIM) |
-| `network/frontDoors.json` | Resource Graph | any Front Door / other App GW whose backend points at APIM hostnames or IPs |
+| `network/frontDoors.json` | Resource Graph | any Front Door / other App GW whose backend points at APIM hostnames or IPs; three separate single-type queries are deduplicated by resource ID before persistence |
 
 ### 7.5 Security posture (Resource Graph)
 - `security/defender.json`: `securityresources | where type == "microsoft.security/assessments"` filtered to APIM + App GW resource IDs (`displayName`, `status.code`, `metadata.severity`), plus Defender for APIs sub-assessments where available.
@@ -470,8 +470,9 @@ the deterministic `data-scope` and unresolved-fragment status attributes.
 | `portal.json` | single object | portal status, published revision, sign-in/sign-up settings, identity providers, custom domain, products visible to which groups |
 | `openApiQuality.json` | API | Spectral error/warn counts, score |
 
-Subscription scope is derived from the terminal APIM resource path: the service
-root is `AllApis`, `/products/{id}` is `Product`, and `/apis/{id}` is `Api`.
+Subscription scope is derived from a full ARM service resource path or the
+documented relative scope: the service root or `/apis` is `AllApis`,
+`/products/{id}` is `Product`, and `/apis/{id}` is `Api`.
 `scopeTarget` is null for AllApis and the decoded terminal ID otherwise.
 `subscriptionId=master` at AllApis scope is the built-in master. Collection
 derives `ownerType` in memory and drops `ownerId`; model flags are sorted from
@@ -845,7 +846,10 @@ Before the full live-smoke acceptance, a maintainer-only collection smoke entry
 point may exercise the implemented collectors using the same fixed, cumulative
 check list on a Microsoft-owned test instance (D-20). It requires existing
 matching Azure context and private external configuration/output, isolates
-collector failures, and prints only fixed statuses and bounded failure codes.
+collector failures, and streams numbered check transitions with fixed statuses,
+bounded failure codes, and fixed troubleshooting hints. Interactive color/icons
+fall back to readable ASCII when redirected or with `NO_COLOR`; no raw exception
+message, stack, identifier, or path enters progress output (D-25).
 Agents and CI run the synthetic/mocked tests, never live Azure collection. A
 passing collection smoke
 does not satisfy the full-run exit-0 check or G3 customer-run gate.

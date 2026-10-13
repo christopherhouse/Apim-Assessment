@@ -159,6 +159,104 @@ Describe 'APIM subscription collector' {
             $collector.errors | Should -Be 1
         }
 
+        It 'preserves missing optional metadata without inventing tracing controls' {
+            Mock Invoke-ApimArm {
+                [pscustomobject]@{
+                    value = @(
+                        [pscustomobject]@{
+                            name = 'synthetic-unnamed'
+                            properties = [pscustomobject]@{
+                                scope = (
+                                    '/subscriptions/00000000-0000-0000-0000-000000000001/' +
+                                    'resourceGroups/rg-synthetic-prod/providers/' +
+                                    'Microsoft.ApiManagement/service/apim-synthetic-prod'
+                                )
+                                state = 'active'
+                            }
+                        }
+                    )
+                }
+            }
+
+            $path = Invoke-ApimSubscriptionCollector `
+                -RunPath $script:run.Path -Environment $script:environment
+            $payload = Get-Content -LiteralPath $path -Raw |
+                ConvertFrom-Json -Depth 100
+            $subscription = $payload.value[0].properties
+            $subscription.displayName | Should -BeNullOrEmpty
+            $subscription.allowTracing | Should -BeNullOrEmpty
+            $subscription.createdDate | Should -BeNullOrEmpty
+
+            $model = @(Get-ApimSubscriptionModel -SubscriptionsPayload $payload)
+            $model.Count | Should -Be 1
+            $model[0].allowTracing | Should -BeNullOrEmpty
+            $model[0].flags | Should -Not -Contain 'AllowTracing'
+            $model[0].missingInputs | Should -Be @(
+                'allowTracing', 'createdDate', 'displayName', 'usage'
+            )
+            {
+                Write-ApimSubscriptionModel -RunPath $script:run.Path `
+                    -Records $model
+            } | Should -Not -Throw
+        }
+
+        It 'normalizes blank optional display name to unavailable metadata' {
+            $resource = [pscustomobject]@{
+                name = 'synthetic-blank'
+                properties = [pscustomobject]@{
+                    displayName = '  '
+                    scope = '/apis'
+                    state = 'active'
+                    allowTracing = $false
+                }
+            }
+            $collected = ConvertTo-ApimCollectedSubscription `
+                -Resource $resource
+
+            $collected.properties.displayName | Should -BeNullOrEmpty
+            $model = @(Get-ApimSubscriptionModel `
+                    -SubscriptionsPayload ([pscustomobject]@{
+                        value = @($collected)
+                    }))
+            $model[0].scopeType | Should -Be 'AllApis'
+            $model[0].missingInputs | Should -Contain 'displayName'
+            $model[0].allowTracing | Should -BeFalse
+        }
+
+        It 'rejects missing scope or malformed optional tracing before writing' `
+            -TestCases @(
+                @{ Field = 'scope'; Value = '' }
+                @{ Field = 'allowTracing'; Value = 'false' }
+            ) {
+            param($Field, $Value)
+            $script:invalidField = $Field
+            $script:invalidValue = $Value
+            Mock Invoke-ApimArm {
+                $properties = [pscustomobject]@{
+                    scope = '/apis'
+                    state = 'active'
+                    allowTracing = $false
+                }
+                $properties.$script:invalidField = $script:invalidValue
+                [pscustomobject]@{
+                    value = @(
+                        [pscustomobject]@{
+                            name = 'synthetic-invalid'
+                            properties = $properties
+                        }
+                    )
+                }
+            }
+
+            {
+                Invoke-ApimSubscriptionCollector `
+                    -RunPath $script:run.Path -Environment $script:environment
+            } | Should -Throw
+            Test-Path -LiteralPath (
+                Join-Path $script:run.Path 'raw/subscriptions.json'
+            ) | Should -BeFalse
+        }
+
         It 'rejects duplicate subscription names before persistence' {
             Mock Invoke-ApimArm {
                 [pscustomobject] @{

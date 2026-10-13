@@ -54,6 +54,13 @@ is reported. Exit status is 0 when all registered collection checks complete, 1
 for configuration/preflight failure, 2 for Az module/context failure, 3 when
 collection is Partial, and 4 for an unexpected run failure. Only these fixed
 statuses, check names, and bounded codes for failed checks appear on the console.
+The command shows preflight steps, a numbered start/result line for each
+registered check, and a final collection status. An interactive terminal
+supports colored symbols; redirected output and `NO_COLOR` use plain ASCII.
+The progress count covers checks, not individual APIs or operations; a check
+may take time after its `collecting...` line. A failed/partial result includes
+a fixed troubleshooting hint keyed to its bounded code, **not** an exception
+message or stack trace. Future registered checks join the same progress count.
 `ARM_HTTP_401`/`ARM_HTTP_403` indicate an ARM authorization response; check
 the maintainer's local Reader access to the test service.
 `ARM_HTTP_404` indicates the service request was not found; verify the APIM
@@ -76,6 +83,13 @@ merged successor before investigating a recurring command error.
 permissions and available space. `UNKNOWN_FAILURE` needs maintainer-only
 investigation and does not imply that Azure returned success. Do not paste
 private exception text, config, identifiers, logs, or raw output into Copilot.
+The collector now preserves missing optional subscription display/tracing/date
+metadata as null and runs separate Resource Graph queries for other front doors;
+an older version can fail subscription validation or reject a multi-statement
+graph query. A Partial policy check after an XML parse rejection is **not**
+repaired automatically: the authorized maintainer should inspect the affected
+policy locally in the Microsoft-owned test instance. Do not paste `$Error`,
+policy XML, or returned Resource Graph diagnostics into Copilot.
 Restricted raw output, manifest, and logs stay under `Output.Root`. This is
 **not** the full T-604 acceptance or a
 customer assessment: Analyze, rules, reports, and model-data promotion are not

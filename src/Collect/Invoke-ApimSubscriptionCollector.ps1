@@ -112,30 +112,38 @@ function ConvertTo-ApimCollectedSubscription {
     }
     $properties = Get-ApimSubscriptionProperty -InputObject $Resource `
         -Name properties -Context 'APIM subscription'
-    $displayName = [string] (Get-ApimSubscriptionProperty `
+    $displayValue = Get-ApimSubscriptionProperty `
             -InputObject $properties -Name displayName `
-            -Context 'APIM subscription properties')
+            -Context 'APIM subscription properties' -AllowMissing
+    if ($null -ne $displayValue -and $displayValue -isnot [string]) {
+        throw "APIM subscription field 'displayName' was not a string."
+    }
+    $displayName = if ([string]::IsNullOrWhiteSpace([string] $displayValue)) {
+        $null
+    }
+    else {
+        [string] $displayValue
+    }
     $scope = [string] (Get-ApimSubscriptionProperty -InputObject $properties `
             -Name scope -Context 'APIM subscription properties')
     $state = [string] (Get-ApimSubscriptionProperty -InputObject $properties `
             -Name state -Context 'APIM subscription properties')
-    if ([string]::IsNullOrWhiteSpace($displayName) -or
-        [string]::IsNullOrWhiteSpace($scope) -or
+    if ([string]::IsNullOrWhiteSpace($scope) -or
         [string]::IsNullOrWhiteSpace($state)) {
         throw 'APIM subscription contained an invalid required property.'
     }
 
     $allowTracing = Get-ApimSubscriptionProperty `
         -InputObject $properties -Name allowTracing `
-        -Context 'APIM subscription properties'
-    if ($allowTracing -isnot [bool]) {
+        -Context 'APIM subscription properties' -AllowMissing
+    if ($null -ne $allowTracing -and $allowTracing -isnot [bool]) {
         throw "APIM subscription field 'allowTracing' was not Boolean."
     }
     $createdValue = Get-ApimSubscriptionProperty `
             -InputObject $properties -Name createdDate `
-            -Context 'APIM subscription properties'
+            -Context 'APIM subscription properties' -AllowMissing
     $createdDate = ConvertTo-ApimCollectedSubscriptionDate `
-        -Value $createdValue -Context 'Subscription creation date'
+        -Value $createdValue -Context 'Subscription creation date' -AllowNull
     $expirationValue = Get-ApimSubscriptionProperty `
         -InputObject $properties -Name expirationDate `
         -Context 'APIM subscription properties' -AllowMissing
@@ -156,7 +164,7 @@ function ConvertTo-ApimCollectedSubscription {
                 -SubscriptionId $subscriptionId -OwnerId $ownerId
             createdDate = $createdDate
             expirationDate = $expirationDate
-            allowTracing = [bool] $allowTracing
+            allowTracing = $allowTracing
         }
     }
 }

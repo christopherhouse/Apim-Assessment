@@ -55,8 +55,28 @@ function Get-ApimSubscriptionScope {
     )
 
     $normalized = $Scope.Trim().TrimEnd('/')
+    if ($normalized -ieq '/apis') {
+        return [pscustomobject] @{
+            scopeType = 'AllApis'
+            scopeTarget = $null
+        }
+    }
+    if ($normalized -match '(?i)^/products/([^/]+)$') {
+        return [pscustomobject] @{
+            scopeType = 'Product'
+            scopeTarget = [System.Uri]::UnescapeDataString($Matches[1])
+        }
+    }
+    if ($normalized -match '(?i)^/apis/([^/]+)$') {
+        return [pscustomobject] @{
+            scopeType = 'Api'
+            scopeTarget = [System.Uri]::UnescapeDataString($Matches[1])
+        }
+    }
+    $servicePath = '(?i)^/subscriptions/[^/]+/resourceGroups/[^/]+' +
+        '/providers/Microsoft\.ApiManagement/service/[^/]+'
     if ($normalized -match (
-            '(?i)/providers/Microsoft\.ApiManagement/service/[^/]+$'
+            $servicePath + '$'
         )) {
         return [pscustomobject] @{
             scopeType = 'AllApis'
@@ -64,8 +84,7 @@ function Get-ApimSubscriptionScope {
         }
     }
     if ($normalized -match (
-            '(?i)/providers/Microsoft\.ApiManagement/service/[^/]+' +
-            '/products/([^/]+)$'
+            $servicePath + '/products/([^/]+)$'
         )) {
         return [pscustomobject] @{
             scopeType = 'Product'
@@ -73,8 +92,7 @@ function Get-ApimSubscriptionScope {
         }
     }
     if ($normalized -match (
-            '(?i)/providers/Microsoft\.ApiManagement/service/[^/]+' +
-            '/apis/([^/]+)$'
+            $servicePath + '/apis/([^/]+)$'
         )) {
         return [pscustomobject] @{
             scopeType = 'Api'
@@ -100,24 +118,29 @@ function Get-ApimSubscriptionModel {
                 -Context 'APIM subscription')
         $properties = Get-ApimModelValue -InputObject $subscription `
             -Name properties -Context 'APIM subscription'
-        $displayName = [string] (Get-ApimModelValue `
-                -InputObject $properties -Name displayName `
-                -Context 'APIM subscription properties')
+        $displayName = Get-ApimModelValue `
+            -InputObject $properties -Name displayName `
+            -Context 'APIM subscription properties'
         $state = [string] (Get-ApimModelValue -InputObject $properties `
                 -Name state -Context 'APIM subscription properties')
-        if ([string]::IsNullOrWhiteSpace($displayName) -or
-            $state -notin @(
-                'active',
-                'suspended',
-                'submitted',
-                'rejected',
-                'cancelled',
-                'expired'
-            )) {
+        if (($null -ne $displayName -and
+                    ($displayName -isnot [string] -or
+                    [string]::IsNullOrWhiteSpace($displayName))) -or
+                $state -notin @(
+                    'active',
+                    'suspended',
+                    'submitted',
+                    'rejected',
+                    'cancelled',
+                    'expired'
+                )) {
             throw 'APIM subscription contained an invalid model property.'
         }
-        $allowTracing = Get-ApimModelBoolean -InputObject $properties `
+        $allowTracing = Get-ApimModelValue -InputObject $properties `
             -Name allowTracing -Context 'APIM subscription properties'
+        if ($null -ne $allowTracing -and $allowTracing -isnot [bool]) {
+            throw 'APIM subscription tracing setting was not Boolean.'
+        }
         $ownerType = [string] (Get-ApimModelValue `
                 -InputObject $properties -Name ownerType `
                 -Context 'APIM subscription properties')
@@ -141,6 +164,22 @@ function Get-ApimSubscriptionModel {
         $expirationDate = ConvertTo-ApimSubscriptionDate `
             -Value $expirationValue -Context 'Subscription expiration date' `
             -AllowNull
+        $createdValue = Get-ApimModelValue -InputObject $properties `
+            -Name createdDate -Context 'APIM subscription properties'
+        $createdDate = ConvertTo-ApimSubscriptionDate `
+            -Value $createdValue -Context 'Subscription creation date' `
+            -AllowNull
+        $missingInputs = [System.Collections.Generic.List[string]]::new()
+        $missingInputs.Add('usage')
+        if ($null -eq $displayName) {
+            $missingInputs.Add('displayName')
+        }
+        if ($null -eq $allowTracing) {
+            $missingInputs.Add('allowTracing')
+        }
+        if ($null -eq $createdDate) {
+            $missingInputs.Add('createdDate')
+        }
         $flags = [System.Collections.Generic.List[string]]::new()
         if ($scope.scopeType -eq 'AllApis') {
             $flags.Add('AllApis')
@@ -170,11 +209,7 @@ function Get-ApimSubscriptionModel {
                 scopeTarget = $scope.scopeTarget
                 state = $state
                 ownerType = $ownerType
-                createdDate = ConvertTo-ApimSubscriptionDate `
-                    -Value (Get-ApimModelValue -InputObject $properties `
-                        -Name createdDate `
-                        -Context 'APIM subscription properties') `
-                    -Context 'Subscription creation date'
+                createdDate = $createdDate
                 expirationDate = $expirationDate
                 allowTracing = $allowTracing
                 calls90d = $null
@@ -182,7 +217,7 @@ function Get-ApimSubscriptionModel {
                 isBuiltInMaster = $isBuiltInMaster
                 flags = $sortedFlags
                 modelStatus = 'Partial'
-                missingInputs = @('usage')
+                missingInputs = @($missingInputs | Sort-Object)
             })
     }
     return @($records | Sort-Object subscriptionId)

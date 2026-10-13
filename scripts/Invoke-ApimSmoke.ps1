@@ -20,11 +20,19 @@ $WarningPreference = 'SilentlyContinue'
 $InformationPreference = 'SilentlyContinue'
 $ProgressPreference = 'SilentlyContinue'
 
+. (Join-Path $PSScriptRoot 'Format-ApimSmokeConsoleLine.ps1')
+$useColor = -not [Console]::IsOutputRedirected -and
+    -not (Test-Path Env:NO_COLOR) -and $Host.UI.SupportsVirtualTerminal
+
 if (-not $MicrosoftOwnedTestEnvironment) {
     [Console]::Error.WriteLine('SMOKE_CONFIG_ERROR: acknowledge a Microsoft-owned test environment.')
     exit 1
 }
 
+[Console]::Out.WriteLine((Format-ApimSmokeConsoleLine -State Header `
+            -Color:$useColor))
+[Console]::Out.WriteLine((Format-ApimSmokeConsoleLine -State Preparing `
+            -Name 'Private configuration' -Color:$useColor))
 $repoRoot = Split-Path $PSScriptRoot -Parent
 try {
     $module = Import-Module (Join-Path $repoRoot 'ApimAssessment.psd1') `
@@ -59,6 +67,10 @@ catch {
     exit 1
 }
 
+[Console]::Out.WriteLine((Format-ApimSmokeConsoleLine -State Ready `
+            -Name 'Private configuration' -Color:$useColor))
+[Console]::Out.WriteLine((Format-ApimSmokeConsoleLine -State Preparing `
+            -Name 'Az modules and context' -Color:$useColor))
 try {
     Import-Module Az.Accounts -ErrorAction Stop -WarningAction SilentlyContinue `
         -InformationAction SilentlyContinue
@@ -76,24 +88,44 @@ catch {
     exit 2
 }
 
+[Console]::Out.WriteLine((Format-ApimSmokeConsoleLine -State Ready `
+            -Name 'Az modules and context' -Color:$useColor))
+[Console]::Out.WriteLine((Format-ApimSmokeConsoleLine -State Preparing `
+            -Name 'Restricted run' -Color:$useColor))
+$formatSmokeLine = ${function:Format-ApimSmokeConsoleLine}
+$onProgress = {
+    param($update)
+
+    $parameters = @{
+        State = if ($update.Phase -eq 'Running') {
+            'Running'
+        }
+        else {
+            $update.Status
+        }
+        Name = $update.Name
+        Index = $update.Index
+        Total = $update.Total
+        Color = $useColor
+    }
+    if ($update.FailureCode) {
+        $parameters.FailureCode = $update.FailureCode
+    }
+    [Console]::Out.WriteLine((& $formatSmokeLine @parameters))
+}.GetNewClosure()
 try {
     $result = & $module {
-        param($configuration, $environmentName, $tenantId, $throttle)
+        param($configuration, $environmentName, $tenantId, $throttle,
+            $progressCallback)
 
         Invoke-ApimSmoke -Config $configuration `
             -EnvironmentName $environmentName -TenantId $tenantId `
-            -ThrottleLimit $throttle
-    } $prepared.Config $Environment $tenantId $ThrottleLimit `
+            -ThrottleLimit $throttle -OnProgress $progressCallback
+    } $prepared.Config $Environment $tenantId $ThrottleLimit $onProgress `
         2>$null 3>$null 4>$null 5>$null 6>$null
 
-    foreach ($check in $result.Checks) {
-        $line = "$($check.Name): $($check.Status)"
-        if ($check.FailureCode) {
-            $line += " ($($check.FailureCode))"
-        }
-        [Console]::Out.WriteLine($line)
-    }
-    [Console]::Out.WriteLine("Collection smoke: $($result.Status)")
+    [Console]::Out.WriteLine((Format-ApimSmokeConsoleLine -State Summary `
+                -SummaryStatus $result.Status -Color:$useColor))
     if ($result.Status -ne 'Completed') {
         exit 3
     }

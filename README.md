@@ -88,6 +88,10 @@ as capabilities are implemented:
 Do **not** run an Azure login, the live smoke command, or any command that reads
 restricted output using `!` or an assessment agent. The live command and
 maintainer-only setup are in [the runbook](docs/RUNBOOK.md).
+The collection smoke streams numbered preflight/check progress and a final
+status. Interactive terminals show colored symbols; redirected output or
+`NO_COLOR` uses plain ASCII. Errors show fixed troubleshooting hints, not raw
+Azure or policy exception messages.
 
 Develop only on `feature/<name>`, `chore/<name>`, or `bugfix/<name>` branches.
 Open a pull request to `main`; CI rejects other source-branch prefixes.
@@ -113,13 +117,18 @@ Subscription collection uses one guarded list request and persists only an
 explicit metadata allowlist. It never calls `listSecrets`, drops key fields and
 unknown response fields, derives only a non-identifying `ownerType`, and does not
 persist `ownerId` or user identifiers.
+Missing optional display name, tracing setting, or creation date remains `null`
+with model `missingInputs`; unavailable tracing never becomes a false control.
+The subscription model also recognizes documented relative API/product scopes.
 
 Network collection reads configured Application Gateways and linked WAF policies
 through the guarded GET transport, then runs fixed `Search-AzGraph` queries for
 the APIM subnet, NSGs, public IPs, private endpoints, private DNS zones, route
 tables, and other APIM-targeting front doors. The collector stages all responses
 before writing restricted raw files. It never invokes an Azure write operation,
-and automated tests mock both ARM and Resource Graph.
+and automated tests mock both ARM and Resource Graph. Front-door lookups use
+three independent, single-resource-type Resource Graph queries instead of
+unsupported multi-statement `let` queries.
 
 The private model helpers can merge saved, redacted policy XML completely
 offline. They produce one effective policy per product path, expand fragments
