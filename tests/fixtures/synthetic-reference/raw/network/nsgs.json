@@ -1,0 +1,52 @@
+{
+  "value": [
+    {
+      "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-synthetic-network/providers/Microsoft.Network/networkSecurityGroups/nsg-apim-synthetic-prod",
+      "name": "nsg-apim-synthetic-prod",
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "resourceGroup": "rg-synthetic-network",
+      "location": "eastus2",
+      "properties": {
+        "securityRules": [
+          {
+            "name": "allow-appgw-https",
+            "properties": {
+              "priority": 100,
+              "direction": "Inbound",
+              "access": "Allow",
+              "protocol": "Tcp",
+              "sourceAddressPrefix": "10.20.1.0/24",
+              "destinationAddressPrefix": "*",
+              "destinationPortRange": "443"
+            }
+          },
+          {
+            "name": "allow-apim-management",
+            "properties": {
+              "priority": 110,
+              "direction": "Inbound",
+              "access": "Allow",
+              "protocol": "Tcp",
+              "sourceAddressPrefix": "ApiManagement",
+              "destinationAddressPrefix": "*",
+              "destinationPortRange": "3443"
+            }
+          },
+          {
+            "name": "deny-other-inbound",
+            "properties": {
+              "priority": 4096,
+              "direction": "Inbound",
+              "access": "Deny",
+              "protocol": "*",
+              "sourceAddressPrefix": "*",
+              "destinationAddressPrefix": "*",
+              "destinationPortRange": "*"
+            }
+          }
+        ],
+        "defaultSecurityRules": []
+      }
+    }
+  ]
+}

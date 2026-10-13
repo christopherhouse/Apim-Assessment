@@ -1,0 +1,18 @@
+{
+  "value": [
+    {
+      "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-synthetic-network/providers/Microsoft.Network/publicIPAddresses/pip-agw-synthetic-prod",
+      "name": "pip-agw-synthetic-prod",
+      "type": "Microsoft.Network/publicIPAddresses",
+      "resourceGroup": "rg-synthetic-network",
+      "location": "eastus2",
+      "targetClassification": "KnownOther",
+      "properties": {
+        "publicIPAllocationMethod": "Static",
+        "ipConfiguration": {
+          "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-synthetic-network/providers/Microsoft.Network/applicationGateways/agw-synthetic-prod/frontendIPConfigurations/public"
+        }
+      }
+    }
+  ]
+}

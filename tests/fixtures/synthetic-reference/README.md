@@ -14,8 +14,11 @@ only allowlisted metadata with derived owner types, never keys or owner IDs. The
 policy fixture index covers eight scopes: five present policies, three absent
 policies, and two structural hard-coded-secret locations whose committed XML
 values are already redacted. API/product relationships contain three memberships so
-`orders-v1` exercises both the `internal` and `partner` policy paths. Other raw
-subdirectories remain empty until T-201 and subsequent collector/model tasks.
+`orders-v1` exercises both the `internal` and `partner` policy paths. The network
+fixture contains one public Application Gateway, one linked disabled
+Detection-mode WAF policy, one APIM subnet, one restricted NSG, one configured
+Gateway public IP, and empty private-endpoint, private-DNS, route-table, and
+other-front-door collections.
 The current model fixtures contain three effective policies: two product paths
 for `orders-v1|get-orders` and one inherited `status-v1|get-status` path. Both
 orders paths expand `common-auth`; the operation backend records one missing
@@ -33,8 +36,10 @@ subscription-required product, so its API caller-auth classification is
 backend, diagnostics, exposure, findings, Git, OpenAPI-quality, and usage inputs
 remain explicit `null`/Partial values. Record exact counts and expected outcomes
 here as each fixture surface is added.
-The target topology is Internal VNet APIM behind a public Basic/host-wide
-Application Gateway route, disabled WAF, and an assumed-reachable edge.
+The network model fixture proves that Internal VNet APIM behind a public
+Basic/host-wide Application Gateway route, with a restricted APIM-subnet NSG,
+is not directly public even though its configured App Gateway listener is
+public. WAF is disabled and the external edge remains assumed reachable.
 
 Planned T-201 counts: 60 APIs, four all-API subscriptions, 11 unused APIs,
 14 APIs without products, seven key-only external APIs, three missing `<base/>`

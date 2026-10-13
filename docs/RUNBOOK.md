@@ -8,12 +8,14 @@ a guarded ARM transport, schema-validated run-folder/manifest persistence, and
 internal APIM service/API/product catalog collectors with bounded parallel child
 requests, an allowlisted subscription collector, plus restricted policy
 collection with normalized hashes and collection-time secret-candidate
-redaction. Private offline helpers now merge effective policies, normalize/hash
-them, and extract deterministic policy flags. Private offline builders create
-schema-validated API, operation, policy-matrix, and subscription records from
-saved synthetic-equivalent inputs. Collection/analyze orchestration, remaining
-collectors and models, rules, the model-data airlock, Copilot operator workflow,
-reports/comparison, and Excel/HTML templates are not implemented.
+redaction, and an internal network collector for Application Gateway/WAF and
+Resource Graph evidence. Private offline helpers now merge effective policies,
+normalize/hash them, and extract deterministic policy flags. Private offline
+builders create schema-validated API, operation, policy-matrix, subscription,
+and network records from saved synthetic-equivalent inputs. Collection/analyze
+orchestration, remaining collectors and models, exposure classification, rules,
+the model-data airlock, Copilot operator workflow, reports/comparison, and
+Excel/HTML templates are not implemented.
 
 Do not run the planned commands in specification section 14 until their tasks
 are implemented, tested, and marked available in the root README.
@@ -107,6 +109,31 @@ The customer-neutral subscription path can be checked offline:
 ```powershell
 Invoke-Pester .\tests\unit\SubscriptionCollector.Tests.ps1,`
   .\tests\unit\SubscriptionModel.Tests.ps1 -Output Detailed
+```
+
+## Network evidence and direct reachability
+
+The internal network collector reads configured Application Gateways and their
+linked WAF policies through `Invoke-ApimArm` GET requests. It uses fixed
+`Search-AzGraph` queries for the APIM subnet, NSGs, public IPs, private
+endpoints, private DNS zones, route tables, and other configured-scope front
+doors whose properties target an APIM hostname or address. Every response is
+staged before restricted `raw/network/*.json` files are written; a failed ARM or
+Resource Graph call marks the collector Failed rather than emitting a complete
+success shape.
+
+The private network model writes one closed-schema `model/network.json` object.
+It honors NSG rule priority when deciding whether a broad Internet/any-source
+allow reaches TCP 443, records positive direct-public reasons, and aggregates
+multiple App Gateway TLS/WAF configurations conservatively. Missing subnet, NSG,
+public-IP, or front-door evidence leaves `directPublic=null` with
+`modelStatus=Partial`; it is never treated as restricted or safe by default.
+
+The customer-neutral network path can be checked offline:
+
+```powershell
+Invoke-Pester .\tests\unit\NetworkCollector.Tests.ps1,`
+  .\tests\unit\NetworkModel.Tests.ps1 -Output Detailed
 ```
 
 ## Future operator requirements

@@ -13,7 +13,14 @@
   "properties": {
     "platformVersion": "stv2",
     "virtualNetworkType": "Internal",
+    "virtualNetworkConfiguration": {
+      "subnetResourceId": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-synthetic-network/providers/Microsoft.Network/virtualNetworks/vnet-synthetic-prod/subnets/apim"
+    },
     "publicNetworkAccess": "Enabled",
+    "privateIPAddresses": [
+      "10.20.2.4"
+    ],
+    "publicIpAddresses": [],
     "disableGateway": false,
     "developerPortalStatus": "Enabled",
     "legacyPortalStatus": "Disabled",

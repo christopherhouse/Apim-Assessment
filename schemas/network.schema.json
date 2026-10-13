@@ -1,0 +1,145 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.invalid/apim-assessment/schemas/network.schema.json",
+  "title": "APIM Assessment Network Model",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "virtualNetworkType",
+    "publicNetworkAccess",
+    "apimSubnetId",
+    "nsgName",
+    "nsgEvaluation",
+    "directPublic",
+    "directPublicReasons",
+    "appGateways",
+    "appGatewayTlsPolicy",
+    "appGatewayTlsPolicyNames",
+    "wafState",
+    "wafMode",
+    "otherFrontDoors",
+    "otherPublicIpRoutes",
+    "modelStatus",
+    "missingInputs"
+  ],
+  "properties": {
+    "virtualNetworkType": {
+      "enum": [
+        "None",
+        "External",
+        "Internal"
+      ]
+    },
+    "publicNetworkAccess": {
+      "enum": [
+        "Enabled",
+        "Disabled",
+        null
+      ]
+    },
+    "apimSubnetId": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "nsgName": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "nsgEvaluation": {
+      "enum": [
+        "Broad",
+        "Restricted",
+        "Missing",
+        "Unknown"
+      ]
+    },
+    "directPublic": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "directPublicReasons": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "BroadNsg443",
+          "OtherFrontDoor",
+          "PublicIpRoute",
+          "PublicNetworkAccess",
+          "PublicVNetMode"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "appGateways": {
+      "$ref": "#/definitions/nullableStringArray"
+    },
+    "appGatewayTlsPolicy": {
+      "enum": [
+        "Strong",
+        "Weak",
+        "Unknown"
+      ]
+    },
+    "appGatewayTlsPolicyNames": {
+      "$ref": "#/definitions/stringArray"
+    },
+    "wafState": {
+      "enum": [
+        "Enabled",
+        "Disabled",
+        "Unknown"
+      ]
+    },
+    "wafMode": {
+      "enum": [
+        "Prevention",
+        "Detection",
+        "Unknown"
+      ]
+    },
+    "otherFrontDoors": {
+      "$ref": "#/definitions/nullableStringArray"
+    },
+    "otherPublicIpRoutes": {
+      "$ref": "#/definitions/nullableStringArray"
+    },
+    "modelStatus": {
+      "enum": [
+        "Complete",
+        "Partial"
+      ]
+    },
+    "missingInputs": {
+      "$ref": "#/definitions/stringArray"
+    }
+  },
+  "definitions": {
+    "stringArray": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "nullableStringArray": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    }
+  }
+}

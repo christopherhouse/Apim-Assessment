@@ -1,0 +1,17 @@
+{
+  "value": [
+    {
+      "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-synthetic-network/providers/Microsoft.Network/virtualNetworks/vnet-synthetic-prod/subnets/apim",
+      "name": "apim",
+      "type": "Microsoft.Network/virtualNetworks/subnets",
+      "resourceGroup": "rg-synthetic-network",
+      "location": "eastus2",
+      "properties": {
+        "addressPrefix": "10.20.2.0/24",
+        "networkSecurityGroup": {
+          "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-synthetic-network/providers/Microsoft.Network/networkSecurityGroups/nsg-apim-synthetic-prod"
+        }
+      }
+    }
+  ]
+}
