@@ -841,6 +841,14 @@ Collection, deterministic analysis, Excel, and HTML rendering remain runnable wi
 | Live smoke | Against a Microsoft-owned test APIM (Developer tier) before first customer run. |
 | Schema | Every model file and findings.json validated with `Test-Json -SchemaFile`. |
 
+Before the full live-smoke acceptance, a maintainer-only collection smoke entry
+point may exercise the implemented collectors using the same fixed, cumulative
+check list on a Microsoft-owned test instance (D-20). It requires existing
+matching Azure context and private external configuration/output, isolates
+collector failures, and prints only fixed statuses. Agents and CI run the
+synthetic/mocked tests, never live Azure collection. A passing collection smoke
+does not satisfy the full-run exit-0 check or G3 customer-run gate.
+
 ---
 
 ## 17. Acceptance criteria (v1)
