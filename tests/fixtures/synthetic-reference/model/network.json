@@ -1,0 +1,22 @@
+{
+  "virtualNetworkType": "Internal",
+  "publicNetworkAccess": "Enabled",
+  "apimSubnetId": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-synthetic-network/providers/Microsoft.Network/virtualNetworks/vnet-synthetic-prod/subnets/apim",
+  "nsgName": "nsg-apim-synthetic-prod",
+  "nsgEvaluation": "Restricted",
+  "directPublic": false,
+  "directPublicReasons": [],
+  "appGateways": [
+    "agw-synthetic-prod"
+  ],
+  "appGatewayTlsPolicy": "Strong",
+  "appGatewayTlsPolicyNames": [
+    "AppGwSslPolicy20220101"
+  ],
+  "wafState": "Disabled",
+  "wafMode": "Detection",
+  "otherFrontDoors": [],
+  "otherPublicIpRoutes": [],
+  "modelStatus": "Complete",
+  "missingInputs": []
+}

@@ -1,0 +1,16 @@
+{
+  "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-synthetic-network/providers/Microsoft.Network/ApplicationGatewayWebApplicationFirewallPolicies/waf-synthetic-prod",
+  "name": "waf-synthetic-prod",
+  "type": "Microsoft.Network/ApplicationGatewayWebApplicationFirewallPolicies",
+  "location": "eastus2",
+  "properties": {
+    "policySettings": {
+      "state": "Disabled",
+      "mode": "Detection"
+    },
+    "managedRules": {
+      "managedRuleSets": []
+    },
+    "customRules": []
+  }
+}

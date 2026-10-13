@@ -468,6 +468,19 @@ derives `ownerType` in memory and drops `ownerId`; model flags are sorted from
 Until usage telemetry is available, `calls90d` and `lastUsed` are null with
 `modelStatus=Partial` and `missingInputs=["usage"]`.
 
+`network.json` is a closed-schema single object. It records
+`virtualNetworkType`, `publicNetworkAccess`, APIM subnet/NSG identity,
+`nsgEvaluation` (`Broad`/`Restricted`/`Missing`/`Unknown`), nullable
+`directPublic`, stable `directPublicReasons[]`, configured App Gateways, aggregate
+TLS policy strength, aggregate WAF state/mode, other APIM-targeting public front
+doors/IP routes, and completeness metadata. NSG evaluation uses the
+highest-priority inbound rule matching TCP/any protocol, port 443, and a broad
+source (`Internet`, `*`, or an all-address CIDR). Multiple gateways aggregate
+conservatively: any weak TLS policy, disabled WAF, or Detection mode wins.
+Missing subnet, NSG, front-door, or public-IP routing evidence produces
+`directPublic=null` unless another positive condition proves direct reachability;
+it never becomes a false/safe default.
+
 ### 8.6 OpenAPI score (optional)
 If Spectral is available: run `spectral lint` with ruleset `spectral:oas` + `rulesets/apim-style.yaml` (naming, versioning, descriptions, error responses). Score = `max(0, 100 − 10×errors − 2×warnings)` (configurable). Otherwise `openApiScore=null` and a description-coverage metric from operations is used.
 

@@ -13,14 +13,15 @@ HTML executive presentation, and run comparisons.
 tool.** The
 module imports and contains private configuration validation, structured logging,
 a guarded ARM transport, schema-validated run persistence, and internal APIM
-service/API/product/subscription/policy collectors, but exports no assessment
-commands.
+service/API/product/subscription/policy/network collectors, but exports no
+assessment commands.
 Effective policy inheritance, fragment expansion, scope attribution, and
 normalized hashing plus deterministic policy-flag extraction are implemented as
 private offline model helpers. Private schema-validated builders now produce the
-API, operation, policy-matrix, and subscription model records from saved inputs.
-Remaining collectors and models, rules, the model-data airlock, Copilot operator
-workflow, CLI entry points, and report templates are not implemented.
+API, operation, policy-matrix, subscription, and network model records from saved
+inputs. Remaining collectors and models, exposure classification, rules, the
+model-data airlock, Copilot operator workflow, CLI entry points, and report
+templates are not implemented.
 
 | Available | Planned |
 |---|---|
@@ -28,8 +29,8 @@ workflow, CLI entry points, and report templates are not implemented.
 | Strict private configuration validation | Public assessment entry points |
 | Structured JSON-lines logging and progress | Run resume and persisted progress orchestration |
 | Guarded ARM transport with paging/retry | Excel report, carry-forward, and run comparison |
-| Versioned run manifest lifecycle and APIM service/API/product/subscription/policy collectors | Remaining APIM, network, telemetry, and cost collectors |
-| Effective policy merge/flags plus API, operation, policy-matrix, and subscription models | Remaining model builders, exposure model, and rule engine |
+| Versioned run manifest lifecycle and APIM service/API/product/subscription/policy/network collectors | Remaining APIM, telemetry, and cost collectors |
+| Effective policy merge/flags plus API, operation, policy-matrix, subscription, and network models | Remaining model builders, exposure model, and rule engine |
 | Synthetic-fixture scaffold | Populated fixtures and offline integration pipeline |
 | Windows/Linux lint and test CI | Model-data airlock and local Copilot broker |
 | Copilot development instructions, agents, and skills | Assessment analyst agents and operator skills |
@@ -84,6 +85,13 @@ explicit metadata allowlist. It never calls `listSecrets`, drops key fields and
 unknown response fields, derives only a non-identifying `ownerType`, and does not
 persist `ownerId` or user identifiers.
 
+Network collection reads configured Application Gateways and linked WAF policies
+through the guarded GET transport, then runs fixed `Search-AzGraph` queries for
+the APIM subnet, NSGs, public IPs, private endpoints, private DNS zones, route
+tables, and other APIM-targeting front doors. The collector stages all responses
+before writing restricted raw files. It never invokes an Azure write operation,
+and automated tests mock both ARM and Resource Graph.
+
 The private model helpers can merge saved, redacted policy XML completely
 offline. They produce one effective policy per product path, expand fragments
 with depth and cycle guards, retain unresolved markers, record missing
@@ -104,6 +112,14 @@ scope target, detects the built-in master subscription, and emits sorted
 risk/context flags. Usage-dependent `calls90d` and `lastUsed` remain `null` with
 `modelStatus=Partial` and `missingInputs=["usage"]` until telemetry is
 implemented. Its array is also closed-schema validated before persistence.
+
+The closed single-object network model evaluates the effective priority of broad
+inbound NSG rules on port 443, identifies positive direct-public paths, and
+aggregates App Gateway TLS and WAF posture conservatively. The synthetic Internal
+VNet fixture with an App Gateway-subnet allow and deny-all fallback evaluates
+`directPublic=false`. Missing reachability evidence produces
+`directPublic=null`, `modelStatus=Partial`, and sorted `missingInputs` rather than
+a success-shaped false result.
 
 The optional operator experience will use GitHub Copilot CLI repository agents
 and skills through a narrow local broker. The deterministic collection, analysis,

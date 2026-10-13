@@ -1,0 +1,84 @@
+{
+  "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-synthetic-network/providers/Microsoft.Network/applicationGateways/agw-synthetic-prod",
+  "name": "agw-synthetic-prod",
+  "type": "Microsoft.Network/applicationGateways",
+  "location": "eastus2",
+  "properties": {
+    "frontendIPConfigurations": [
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-synthetic-network/providers/Microsoft.Network/applicationGateways/agw-synthetic-prod/frontendIPConfigurations/public",
+        "name": "public",
+        "properties": {
+          "publicIPAddress": {
+            "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-synthetic-network/providers/Microsoft.Network/publicIPAddresses/pip-agw-synthetic-prod"
+          }
+        }
+      }
+    ],
+    "httpListeners": [
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-synthetic-network/providers/Microsoft.Network/applicationGateways/agw-synthetic-prod/httpListeners/public-https",
+        "name": "public-https",
+        "properties": {
+          "hostName": "api.synthetic.invalid",
+          "protocol": "Https",
+          "frontendIPConfiguration": {
+            "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-synthetic-network/providers/Microsoft.Network/applicationGateways/agw-synthetic-prod/frontendIPConfigurations/public"
+          }
+        }
+      }
+    ],
+    "requestRoutingRules": [
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-synthetic-network/providers/Microsoft.Network/applicationGateways/agw-synthetic-prod/requestRoutingRules/host-wide",
+        "name": "host-wide",
+        "properties": {
+          "ruleType": "Basic",
+          "priority": 100,
+          "httpListener": {
+            "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-synthetic-network/providers/Microsoft.Network/applicationGateways/agw-synthetic-prod/httpListeners/public-https"
+          },
+          "backendAddressPool": {
+            "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-synthetic-network/providers/Microsoft.Network/applicationGateways/agw-synthetic-prod/backendAddressPools/apim"
+          },
+          "backendHttpSettings": {
+            "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-synthetic-network/providers/Microsoft.Network/applicationGateways/agw-synthetic-prod/backendHttpSettingsCollection/apim-https"
+          }
+        }
+      }
+    ],
+    "backendAddressPools": [
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-synthetic-network/providers/Microsoft.Network/applicationGateways/agw-synthetic-prod/backendAddressPools/apim",
+        "name": "apim",
+        "properties": {
+          "backendAddresses": [
+            {
+              "fqdn": "api.synthetic.invalid"
+            }
+          ]
+        }
+      }
+    ],
+    "backendHttpSettingsCollection": [
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-synthetic-network/providers/Microsoft.Network/applicationGateways/agw-synthetic-prod/backendHttpSettingsCollection/apim-https",
+        "name": "apim-https",
+        "properties": {
+          "protocol": "Https",
+          "port": 443,
+          "hostName": "api.synthetic.invalid",
+          "pickHostNameFromBackendAddress": false
+        }
+      }
+    ],
+    "sslPolicy": {
+      "policyType": "Predefined",
+      "policyName": "AppGwSslPolicy20220101",
+      "minProtocolVersion": "TLSv1_2"
+    },
+    "firewallPolicy": {
+      "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-synthetic-network/providers/Microsoft.Network/ApplicationGatewayWebApplicationFirewallPolicies/waf-synthetic-prod"
+    }
+  }
+}
