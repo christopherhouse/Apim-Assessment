@@ -18,6 +18,10 @@ telemetry-based exposure refinement, rules, the model-data airlock, Copilot
 operator workflow, reports/comparison, and Excel/HTML templates are not
 implemented.
 
+All six implemented model contracts share a private schema gate for pending
+writes and complete saved-run loading. This does not add a public Analyze
+command or authorize model access to restricted run data.
+
 Do not run the planned commands in specification section 14 until their tasks
 are implemented, tested, and marked available in the root README.
 
@@ -88,6 +92,31 @@ The tests use only the customer-neutral synthetic fixture, exercise persisted
 `model/apis.json`, `model/operations.json`, and `model/policyMatrix.json` in a
 temporary test drive, and verify fail-closed schema handling. This is a
 development check, not an operator assessment command.
+
+## Shared model schema gate
+
+The private model writers serialize pending outputs once, validate every
+snapshot against its registered closed schema, check destinations for links, and
+only then persist those same snapshots. Schema failure leaves existing outputs
+unchanged; individual writes remain atomic, but a later I/O failure is not a
+multi-file transaction.
+
+The private saved-run loader requires `apis.json`, `operations.json`,
+`policyMatrix.json`, `subscriptions.json`, `network.json`, and `exposure.json`
+under `model`. It returns no models until all six validate. Missing/invalid
+files, unavailable schemas, and linked paths fail closed; other run artifacts
+are not loaded. Explicit null/Partial/missing-input metadata remains intact, as
+do empty and singleton arrays. Future model contracts join the gate with their
+builders.
+
+The shared gate can be checked offline with synthetic fixtures:
+
+```powershell
+.\scripts\Invoke-Checks.ps1 -TestPath .\tests\unit\ModelSchema.Tests.ps1
+```
+
+This runs repository lint plus focused gate acceptance tests, without Azure
+access. The helpers remain private until public orchestration is implemented.
 
 ## Subscription metadata boundary
 

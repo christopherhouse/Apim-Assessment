@@ -2,10 +2,6 @@
 
 Set-StrictMode -Version Latest
 
-$script:NetworkModelSchemaPath = Join-Path (
-    Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
-) 'schemas/network.schema.json'
-
 function Get-ApimNetworkPayloadItemCollection {
     [CmdletBinding()]
     param(
@@ -717,17 +713,6 @@ function Write-ApimNetworkModel {
         [object] $Record
     )
 
-    if (-not (Test-Path -LiteralPath $script:NetworkModelSchemaPath `
-            -PathType Leaf)) {
-        throw 'Network model schema was unavailable.'
-    }
-    $json = ConvertTo-Json -InputObject $Record -Depth 100
-    if (-not ($json | Test-Json `
-                -SchemaFile $script:NetworkModelSchemaPath `
-                -ErrorAction Stop)) {
-        throw 'Network model failed schema validation.'
-    }
-    return Write-RunFile -RunPath $RunPath `
-        -RelativePath 'model/network.json' `
-        -InputObject $Record -Depth 100
+    return Write-ApimModelSet -RunPath $RunPath `
+        -Models ([ordered]@{ network = $Record })
 }

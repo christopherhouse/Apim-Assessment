@@ -24,6 +24,12 @@ exposure refinement, rules, the
 model-data airlock, Copilot operator workflow, CLI entry points, and report
 templates are not implemented.
 
+All six implemented model contracts now share a fail-closed schema gate.
+Writers validate every pending serialized snapshot before writing any file, and
+the private saved-run loader requires all six files to validate before returning
+models for downstream analysis. Future model contracts remain deferred with their
+builders; this gate is not a public Analyze command or the model-data airlock.
+
 | Available | Planned |
 |---|---|
 | Module manifest and deterministic source loader | Remaining run orchestration and collectors |
@@ -31,7 +37,7 @@ templates are not implemented.
 | Structured JSON-lines logging and progress | Run resume and persisted progress orchestration |
 | Guarded ARM transport with paging/retry | Excel report, carry-forward, and run comparison |
 | Versioned run manifest lifecycle and APIM service/API/product/subscription/policy/network collectors | Remaining APIM, telemetry, and cost collectors |
-| Effective policy merge/flags plus API, operation, policy-matrix, subscription, network, and pre-telemetry exposure models | Remaining model builders, telemetry exposure refinement, and rule engine |
+| Effective policy merge/flags plus six implemented models with shared schema-gated persistence and saved-run loading | Remaining model builders, telemetry exposure refinement, and rule engine |
 | Synthetic-fixture scaffold | Populated fixtures and offline integration pipeline |
 | Windows/Linux lint and test CI | Model-data airlock and local Copilot broker |
 | Copilot development instructions, agents, and skills | Assessment analyst agents and operator skills |
@@ -108,6 +114,14 @@ while retaining detected failures. All three arrays are validated against closed
 schemas before any model file is written. Public analyze orchestration remains
 planned.
 
+The shared gate validates only explicitly registered model names and persists
+the exact JSON snapshots that passed validation. Saved-run loading validates the
+API, operation, policy-matrix, subscription, network, and exposure files as a
+complete set without returning partial output on failure. Empty model arrays
+remain arrays; missing files, invalid shapes/fields, unavailable schemas, and
+linked paths are rejected. Writes are atomic per file, not transactional across
+the set if an I/O failure occurs after validation.
+
 The subscription model classifies AllApis/Product/Api scope, extracts a stable
 scope target, detects the built-in master subscription, and emits sorted
 risk/context flags. Usage-dependent `calls90d` and `lastUsed` remain `null` with
@@ -170,13 +184,13 @@ ApimAssessment.psd1 / .psm1  Module metadata and source loader
 src/
   Core/                     Config, ARM guard, manifest persistence, logging, retries
   Collect/                  Isolated read-only collectors (service/catalog/subscription/policy)
-  Model/                    Policy merge/flags and API/subscription models implemented
+  Model/                    Policy merge/flags, six model builders, shared schema gate
   Rules/                    Rule engine and priority scoring
   Package/                  Model-safe package construction, validation and promotion (planned)
   Report/                   Excel/HTML export and tracking carry-forward
 rules/                      Rule catalogs (planned)
 queries/                    Log Analytics and Resource Graph KQL (planned)
-schemas/                    Versioned JSON contracts (manifest and initial models implemented)
+schemas/                    Versioned JSON contracts (manifest and six models implemented)
 template/                   Excel and HTML presentation templates (planned)
 config/                     Tracked sample; ignored local configurations
 tests/
