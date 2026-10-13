@@ -129,6 +129,17 @@ Describe 'Policy XML safety and hashing' {
                 Should -Throw 'Policy XML was invalid or used a prohibited document type.'
         }
 
+        It 'accepts XML-encoded quotes in a policy expression attribute' {
+            $xml = '<policies><inbound><set-variable name="synthetic" ' +
+                'value="@(context.Request.Headers.ContainsKey(&quot;jwt&quot;))" />' +
+                '</inbound></policies>'
+
+            $protected = Protect-ApimPolicyXml -Xml $xml
+
+            $protected.Xml | Should -Match '&quot;jwt&quot;'
+            $protected.SecretLocations | Should -BeNullOrEmpty
+        }
+
         It 'rejects XML that is not a policy or fragment document' {
             {
                 Protect-ApimPolicyXml -Xml '<configuration />'

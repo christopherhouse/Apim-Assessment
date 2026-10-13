@@ -54,12 +54,14 @@ is reported. Exit status is 0 when all registered collection checks complete, 1
 for configuration/preflight failure, 2 for Az module/context failure, 3 when
 collection is Partial, and 4 for an unexpected run failure. Only these fixed
 statuses, check names, and bounded codes for failed checks appear on the console.
-The command shows preflight steps, a numbered start/result line for each
-registered check, and a final collection status. An interactive terminal
-uses colored emoji and a block progress bar; the console output encoding is
-temporarily set to UTF-8 for each rich line and then restored. If glyphs still
+The command shows preflight steps, one numbered result row per registered
+check, and a final completed-check count. An interactive terminal uses a
+colored emoji scorecard that replaces its active `WORKING` row in place; the
+console output encoding is temporarily set to UTF-8 for each rich write and
+then restored. Redirected output and `NO_COLOR` keep the two-line ASCII event
+feed without terminal cursor controls. If glyphs still
 show as boxes, use an emoji-capable terminal/font (such as Windows Terminal)
-or set `NO_COLOR` for a clean ASCII fallback. Redirected output also uses ASCII.
+or set `NO_COLOR` for a clean ASCII fallback.
 To preview the rich banner without connecting to Azure, run this in the same
 ordinary PowerShell terminal from the repository root:
 
@@ -96,6 +98,11 @@ merged successor before investigating a recurring command error.
 permissions and available space. `UNKNOWN_FAILURE` needs maintainer-only
 investigation and does not imply that Azure returned success. Do not paste
 private exception text, config, identifiers, logs, or raw output into Copilot.
+`POLICY_XML_REJECTED` means the XML-encoded policy response still failed strict
+parsing or used a prohibited document type; inspect the policy locally on the
+Microsoft-owned test instance. Earlier sanitized policy files can exist while
+Policies is Partial, but no complete policy index is written. Neither the
+parser location nor policy content appears in smoke output.
 The collector now preserves missing optional subscription display/tracing/date
 metadata as null and runs separate Resource Graph queries for other front doors;
 an older version can fail subscription validation or reject a multi-statement

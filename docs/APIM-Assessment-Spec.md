@@ -297,13 +297,13 @@ Rules: a collector failure **never** aborts the run; it is recorded as `Failed/P
 
 ### 7.3 Policies
 
-| Scope | Endpoint (`?format=rawxml`) | File |
+| Scope | Endpoint (`?format=xml`) | File |
 |---|---|---|
 | Global | `{base}/policies/policy` | `policies/global.xml` |
 | Product | `{base}/products/{p}/policies/policy` | `policies/product.{p}.xml` |
 | API | `{base}/apis/{api}/policies/policy` | `policies/api.{api}.xml` |
 | Operation | `{base}/apis/{api}/operations/{op}/policies/policy` | `policies/op.{api}.{op}.xml` |
-| Fragment | `{base}/policyFragments/{f}?format=rawxml` | `policies/fragment.{f}.xml` |
+| Fragment | `{base}/policyFragments/{f}?format=xml` | `policies/fragment.{f}.xml` |
 
 404 = "no policy at this scope" (not an error). `policies/index.json` lists every
 scope with `scopeType`, `scope`, `file`, `exists`, `sha256` (of normalized,
@@ -311,6 +311,10 @@ redacted XML; see §8.4), and `hardcodedSecretLocations`. Secret detection occur
 before persistence; locations are structural XML paths only, values are never
 recorded, and stored policy XML replaces detected literals with
 `***REDACTED***`.
+The collector requests XML-encoded policy content for safe structural parsing.
+It rejects malformed XML or prohibited document types before storage. If a
+later policy fails after earlier sanitized files were written, collection is
+Partial and no complete policy index is written.
 
 ### 7.4 Network
 
@@ -848,10 +852,11 @@ check list on a Microsoft-owned test instance (D-20). It requires existing
 matching Azure context and private external configuration/output, isolates
 collector failures, and streams numbered check transitions with fixed statuses,
 bounded failure codes, and fixed troubleshooting hints. Interactive UTF-8 emoji
-and colored progress bars temporarily adjust console output encoding per line
-and restore it; readable ASCII is used when redirected or with `NO_COLOR`
-(D-26). No raw exception message, stack, identifier, or path enters progress
-output (D-25).
+and a compact scorecard replace the running row in place, restoring console
+output encoding per write; redirected output or `NO_COLOR` uses readable ASCII
+(D-26/D-28). Marked XML parser failures report `POLICY_XML_REJECTED` (D-27).
+No raw exception message, stack, identifier, or path enters progress output
+(D-25).
 Agents and CI run the synthetic/mocked tests, never live Azure collection. A
 passing collection smoke
 does not satisfy the full-run exit-0 check or G3 customer-run gate.
@@ -859,7 +864,8 @@ For a failed check, the maintainer smoke may also print a bounded failure code
 derived from a marked ARM wrapper exception (`ARM_HTTP_100` through
 `ARM_HTTP_599`, `ARM_AUTH_ERROR`, `ARM_COMMAND_ERROR`,
 `ARM_NETWORK_ERROR`, `ARM_TIMEOUT`, or `ARM_NO_RESPONSE`), a local I/O exception
-(`LOCAL_IO_ERROR`), or an unclassified exception (`UNKNOWN_FAILURE`).
+(`LOCAL_IO_ERROR`), a marked XML parser rejection (`POLICY_XML_REJECTED`),
+or an unclassified exception (`UNKNOWN_FAILURE`).
 Transport classifications use only known exception types and fixed PowerShell
 error categories; `ARM_NO_RESPONSE` alone does not prove a network issue.
 It never prints exception text, response content, paths, or identifiers (D-21/D-22).

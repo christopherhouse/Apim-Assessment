@@ -50,6 +50,11 @@ function Get-ApimSmokeFailureCode {
         }
         return 'ARM_NO_RESPONSE'
     }
+    if ($exception -is [System.InvalidOperationException] -and
+        $exception.Data['ApimPolicyXmlRejected'] -is [bool] -and
+        $exception.Data['ApimPolicyXmlRejected']) {
+        return 'POLICY_XML_REJECTED'
+    }
     if ($exception -is [System.IO.IOException] -or
         $exception -is [System.UnauthorizedAccessException]) {
         return 'LOCAL_IO_ERROR'

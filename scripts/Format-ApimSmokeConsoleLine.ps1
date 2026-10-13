@@ -17,11 +17,14 @@ function Format-ApimSmokeConsoleLine {
         [ValidateRange(0, 1000)]
         [int] $Total = 0,
 
-        [ValidatePattern('^(ARM_HTTP_[1-5][0-9]{2}|ARM_(NO_RESPONSE|AUTH_ERROR|COMMAND_ERROR|NETWORK_ERROR|TIMEOUT)|LOCAL_IO_ERROR|UNKNOWN_FAILURE)$')]
+        [ValidatePattern('^(ARM_HTTP_[1-5][0-9]{2}|ARM_(NO_RESPONSE|AUTH_ERROR|COMMAND_ERROR|NETWORK_ERROR|TIMEOUT)|LOCAL_IO_ERROR|POLICY_XML_REJECTED|UNKNOWN_FAILURE)$')]
         [string] $FailureCode,
 
         [ValidateSet('Completed', 'Partial')]
         [string] $SummaryStatus,
+
+        [ValidateRange(0, 1000)]
+        [int] $CompletedCount = 0,
 
         [switch] $Color
     )
@@ -54,47 +57,87 @@ function Format-ApimSmokeConsoleLine {
 
     $position = if ($Total -gt 0) {
         $filled = [int] [math]::Floor(10 * $Index / $Total)
-        $fill = if ($Color) { [string][char]0x2588 } else { '#' }
-        $empty = if ($Color) { [string][char]0x2591 } else { '-' }
-        "[{0}{1}] {2}/{3}" -f ($fill * $filled), ($empty * (10 - $filled)),
+        "[{0}{1}] {2}/{3}" -f ('#' * $filled), ('-' * (10 - $filled)),
             $Index, $Total
     }
     else {
         ''
     }
-    $description = switch ($State) {
-        'Header' { 'APIM COLLECTION SMOKE - read-only'; break }
-        'Preparing' { "Checking $Name..."; break }
-        'Ready' { "$Name ready."; break }
-        'Running' { "$position $Name - collecting..."; break }
-        'Skipped' { "$position $Name - Skipped (prerequisite not complete)."; break }
-        'Summary' { "Collection smoke: $SummaryStatus"; break }
-        default {
-            $detail = if ($FailureCode) {
-                $hint = switch -Regex ($FailureCode) {
-                    '^ARM_HTTP_(401|403)$' { 'Check test-resource access locally.'; break }
-                    '^ARM_HTTP_404$' { 'Verify the test target locally.'; break }
-                    '^ARM_HTTP_(429|5[0-9]{2})$' {
-                        'Retry later; inspect the restricted run locally.'; break
-                    }
-                    '^ARM_HTTP_' { 'Inspect the restricted run locally.'; break }
-                    '^ARM_AUTH_ERROR$' { 'Check the local Az login and Reader access.'; break }
-                    '^ARM_COMMAND_ERROR$' { 'Check the locally installed Az modules.'; break }
-                    '^ARM_NETWORK_ERROR$' { 'Check local ARM connectivity.'; break }
-                    '^ARM_TIMEOUT$' { 'Check connectivity and retry locally.'; break }
-                    '^ARM_NO_RESPONSE$' { 'Inspect the restricted run locally.'; break }
-                    '^LOCAL_IO_ERROR$' { 'Check restricted storage locally.'; break }
-                    '^UNKNOWN_FAILURE$' { 'Inspect the restricted run locally.'; break }
-                }
-                " ($FailureCode) - $hint"
+    $hint = if ($FailureCode) {
+        switch -Regex ($FailureCode) {
+            '^ARM_HTTP_(401|403)$' { 'Check test-resource access locally.'; break }
+            '^ARM_HTTP_404$' { 'Verify the test target locally.'; break }
+            '^ARM_HTTP_(429|5[0-9]{2})$' {
+                'Retry later; inspect the restricted run locally.'; break
             }
-            else {
-                ''
+            '^ARM_HTTP_' { 'Inspect the restricted run locally.'; break }
+            '^ARM_AUTH_ERROR$' { 'Check the local Az login and Reader access.'; break }
+            '^ARM_COMMAND_ERROR$' { 'Check the locally installed Az modules.'; break }
+            '^ARM_NETWORK_ERROR$' { 'Check local ARM connectivity.'; break }
+            '^ARM_TIMEOUT$' { 'Check connectivity and retry locally.'; break }
+            '^ARM_NO_RESPONSE$' { 'Inspect the restricted run locally.'; break }
+            '^LOCAL_IO_ERROR$' { 'Check restricted storage locally.'; break }
+            '^POLICY_XML_REJECTED$' {
+                'Policy content was not safe XML; inspect locally.'; break
             }
-            "$position $Name - $State$detail"
+            '^UNKNOWN_FAILURE$' { 'Inspect the restricted run locally.'; break }
         }
     }
-    $line = "$($symbols[$State]) $description"
+    if ($Color) {
+        $number = '{0:D2}/{1:D2}' -f $Index, $Total
+        $rule = [string][char]0x2501 * 46
+        $line = switch ($State) {
+            'Header' {
+                "  $rule`n  $($symbols.Header)  APIM / COLLECTION SMOKE  -  READ ONLY`n  $rule"
+            }
+            'Preparing' { "  $($symbols.Preparing)  Checking $Name..." }
+            'Ready' { "  $($symbols.Ready)  $Name ready" }
+            'Running' {
+                "  $number  $($symbols.Running)  $($Name.PadRight(15))  WORKING"
+            }
+            'Skipped' {
+                "  $number  $($symbols.Skipped)  $($Name.PadRight(15))  SKIPPED"
+            }
+            'Summary' {
+                "  $rule`n  $($symbols.Summary)  $CompletedCount/$Total checks complete  -  $($SummaryStatus.ToUpperInvariant())"
+            }
+            default {
+                $label = if ($State -eq 'Completed') {
+                    'DONE'
+                }
+                else {
+                    $State.ToUpperInvariant()
+                }
+                $result = "  $number  $($symbols[$State])  $($Name.PadRight(15))  $label"
+                if ($FailureCode) {
+                    $result += "  $FailureCode`n        $([char]0x21B3) $hint"
+                }
+                $result
+            }
+        }
+    }
+    else {
+        $description = switch ($State) {
+            'Header' { 'APIM COLLECTION SMOKE - read-only'; break }
+            'Preparing' { "Checking $Name..."; break }
+            'Ready' { "$Name ready."; break }
+            'Running' { "$position $Name - collecting..."; break }
+            'Skipped' {
+                "$position $Name - Skipped (prerequisite not complete)."; break
+            }
+            'Summary' { "Collection smoke: $SummaryStatus"; break }
+            default {
+                $detail = if ($FailureCode) {
+                    " ($FailureCode) - $hint"
+                }
+                else {
+                    ''
+                }
+                "$position $Name - $State$detail"
+            }
+        }
+        $line = "$($symbols[$State]) $description"
+    }
     if (-not $Color) {
         return $line
     }
@@ -126,6 +169,10 @@ function Write-ApimSmokeConsoleLine {
         [ValidateNotNullOrEmpty()]
         [string] $Line,
 
+        [switch] $Transient,
+
+        [switch] $ReplaceTransient,
+
         [switch] $Color
     )
 
@@ -137,7 +184,15 @@ function Write-ApimSmokeConsoleLine {
     $previousEncoding = [Console]::OutputEncoding
     try {
         [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
-        [Console]::Out.WriteLine($Line)
+        if ($ReplaceTransient) {
+            [Console]::Out.Write("`r$([char]0x1B)[2K")
+        }
+        if ($Transient) {
+            [Console]::Out.Write($Line)
+        }
+        else {
+            [Console]::Out.WriteLine($Line)
+        }
     }
     finally {
         [Console]::OutputEncoding = $previousEncoding

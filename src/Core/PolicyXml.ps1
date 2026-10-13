@@ -22,7 +22,11 @@ function ConvertTo-ApimPolicyXmlDocument {
         $document.Load($reader)
     }
     catch {
-        throw 'Policy XML was invalid or used a prohibited document type.'
+        $rejection = [System.InvalidOperationException]::new(
+            'Policy XML was invalid or used a prohibited document type.'
+        )
+        $rejection.Data['ApimPolicyXmlRejected'] = $true
+        throw $rejection
     }
     finally {
         if ($null -ne $reader) {

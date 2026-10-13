@@ -377,6 +377,36 @@ Describe 'Cumulative collection smoke runner' {
                 Should -Be 'ARM_NO_RESPONSE'
         }
 
+        It 'classifies only marked XML parser rejections without exposing source' {
+            . (Join-Path $script:smokeRepoRoot `
+                    'scripts/Format-ApimSmokeConsoleLine.ps1')
+            $invalidXml = '<policies><inbound><set-header ' +
+                'name="bad "synthetic-private"" /></inbound></policies>'
+            $errorRecord = $null
+            try {
+                Protect-ApimPolicyXml -Xml $invalidXml | Out-Null
+            }
+            catch {
+                $errorRecord = $_
+            }
+
+            Get-ApimSmokeFailureCode -ErrorRecord $errorRecord |
+                Should -Be 'POLICY_XML_REJECTED'
+            $unmarked = [System.InvalidOperationException]::new(
+                'synthetic-private'
+            )
+            $unmarkedRecord = [System.Management.Automation.ErrorRecord]::new(
+                $unmarked, 'Synthetic',
+                [System.Management.Automation.ErrorCategory]::NotSpecified,
+                $null
+            )
+            Get-ApimSmokeFailureCode -ErrorRecord $unmarkedRecord |
+                Should -Be 'UNKNOWN_FAILURE'
+            Format-ApimSmokeConsoleLine -State Partial -Name Policies `
+                -Index 5 -Total 6 -FailureCode POLICY_XML_REJECTED |
+                Should -Not -Match 'synthetic-private'
+        }
+
         It 'retains a collector Partial state and skips its dependents' {
             Mock Invoke-ApimApiCatalogCollector {
                 $script:smokeOrder.Add('Apis')
@@ -535,13 +565,21 @@ Describe 'Smoke progress presentation' {
         $colored = Format-ApimSmokeConsoleLine -State Completed `
             -Name Service -Index 1 -Total 6 -Color
         $colored | Should -Match '^\x1b\['
-        $colored | Should -Match 'Service - Completed'
+        $colored | Should -Match '01/06.*Service\s+DONE'
         $colored | Should -Match ([regex]::Escape(
                 [char]::ConvertFromUtf32(0x2705)
             ))
-        $colored | Should -Match ([regex]::Escape(
-                [string][char]0x2588
-            ))
+        $colored | Should -Not -Match '\[#'
+        $header = Format-ApimSmokeConsoleLine -State Header -Color
+        $header | Should -Match 'APIM / COLLECTION SMOKE'
+        $summary = Format-ApimSmokeConsoleLine -State Summary `
+            -SummaryStatus Partial -CompletedCount 5 -Total 6 -Color
+        $summary | Should -Match '5/6 checks complete.*PARTIAL'
+        $policy = Format-ApimSmokeConsoleLine -State Partial `
+            -Name Policies -Index 5 -Total 6 `
+            -FailureCode POLICY_XML_REJECTED -Color
+        $policy | Should -Match 'POLICY_XML_REJECTED'
+        $policy | Should -Not -Match 'synthetic-private'
         {
             Format-ApimSmokeConsoleLine -State Failed -Name Service `
                 -Index 1 -Total 6 -FailureCode 'synthetic-private-canary'
@@ -568,9 +606,34 @@ Write-ApimSmokeConsoleLine -Line $line -Color
         $output[0] | Should -Match ([regex]::Escape(
                 [char]::ConvertFromUtf32(0x2705)
             ))
-        $output[0] | Should -Match ([regex]::Escape(
-                [string][char]0x2588
-            ))
+        $output[0] | Should -Match '01/06.*DONE'
         $output[1] | Should -Be 'encoding:437'
+    }
+
+    It 'replaces a rich running row but preserves plain streamed lines' {
+        $probe = Join-Path $TestDrive 'synthetic-scorecard-probe.ps1'
+        @'
+param($FormatterPath)
+. $FormatterPath
+$running = Format-ApimSmokeConsoleLine -State Running -Name Service `
+    -Index 1 -Total 6 -Color
+$done = Format-ApimSmokeConsoleLine -State Completed -Name Service `
+    -Index 1 -Total 6 -Color
+Write-ApimSmokeConsoleLine -Line $running -Color -Transient
+Write-ApimSmokeConsoleLine -Line $done -Color -ReplaceTransient
+'@ | Set-Content -LiteralPath $probe -Encoding ascii
+
+        $output = @(& pwsh -NoProfile -File $probe (
+                Join-Path $repoRoot 'scripts/Format-ApimSmokeConsoleLine.ps1'
+            ))
+        $LASTEXITCODE | Should -Be 0
+        $output.Count | Should -Be 2
+        $output[0] | Should -Match '01/06.*WORKING'
+        $output[1] | Should -Match '\x1b\[2K.*01/06.*DONE'
+
+        $plain = Format-ApimSmokeConsoleLine -State Completed `
+            -Name Service -Index 1 -Total 6
+        $plain | Should -Not -Match '\x1b'
+        $plain | Should -Be '[OK] [#---------] 1/6 Service - Completed'
     }
 }
