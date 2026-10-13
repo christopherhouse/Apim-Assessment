@@ -7,11 +7,14 @@ customer data, even with a promise to anonymize it afterward.
 
 The implemented collector fixtures currently contain one APIM service, two APIs,
 three API revisions, two operations, two API-tag assignments, two products, two
-product/API memberships, and two product/group memberships. Other raw
-subdirectories remain empty until T-201 and subsequent collector/model tasks.
-Record exact counts and expected outcomes here as each fixture surface is added.
-The target topology is Internal VNet APIM behind a public Basic/host-wide
-Application Gateway route, disabled WAF, and an assumed-reachable edge.
+product/API memberships, and two product/group memberships. The policy fixture
+index covers eight scopes: five present policies, three absent policies, and two
+structural hard-coded-secret locations whose committed XML values are already
+redacted. Other raw subdirectories remain empty until T-201 and subsequent
+collector/model tasks. Record exact counts and expected outcomes here as each
+fixture surface is added. The target topology is Internal VNet APIM behind a
+public Basic/host-wide Application Gateway route, disabled WAF, and an
+assumed-reachable edge.
 
 Planned T-201 counts: 60 APIs, four all-API subscriptions, 11 unused APIs,
 14 APIs without products, seven key-only external APIs, three missing `<base/>`

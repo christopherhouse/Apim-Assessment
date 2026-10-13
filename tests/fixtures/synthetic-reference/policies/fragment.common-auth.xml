@@ -1,0 +1,5 @@
+<fragment>
+  <validate-jwt header-name="Authorization" failed-validation-httpcode="401">
+    <openid-config url="https://login.example.invalid/synthetic/.well-known/openid-configuration" />
+  </validate-jwt>
+</fragment>

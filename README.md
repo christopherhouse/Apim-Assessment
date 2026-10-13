@@ -12,9 +12,10 @@ HTML executive presentation, and run comparisons.
 **Core collection foundation only; not yet an operational assessment tool.** The
 module imports and contains private configuration validation, structured logging,
 a guarded ARM transport, schema-validated run persistence, and internal APIM
-service/API/product catalog collectors, but exports no assessment commands.
-Remaining collectors, models, rules, the model-data airlock, Copilot operator
-workflow, CLI entry points, and report templates are not implemented yet.
+service/API/product/policy collectors, but exports no assessment commands.
+Remaining collectors, policy merge/models, rules, the model-data airlock,
+Copilot operator workflow, CLI entry points, and report templates are not
+implemented yet.
 
 | Available | Planned |
 |---|---|
@@ -22,7 +23,7 @@ workflow, CLI entry points, and report templates are not implemented yet.
 | Strict private configuration validation | Public assessment entry points |
 | Structured JSON-lines logging and progress | Policy merge, exposure model, and rule engine |
 | Guarded ARM transport with paging/retry | Excel report, carry-forward, and run comparison |
-| Versioned run manifest lifecycle and APIM service/API/product collectors | Remaining APIM, network, telemetry, and cost collectors |
+| Versioned run manifest lifecycle and APIM service/API/product/policy collectors | Remaining APIM, network, telemetry, and cost collectors |
 | Synthetic-fixture scaffold | Populated fixtures and offline integration pipeline |
 | Windows/Linux lint and test CI | Model-data airlock and local Copilot broker |
 | Copilot development instructions, agents, and skills | Assessment analyst agents and operator skills |
@@ -66,9 +67,11 @@ The full collection runtime will use `Az.Accounts`,
 `Az.ResourceGraph`, `Az.OperationalInsights`, `Az.Monitor`, and `ImportExcel`.
 Optional OpenAPI linting will use Node.js and Spectral. They are not needed to
 import or validate the current core module. The implemented collectors call the
-guarded ARM transport; API/product child requests use bounded parallel runspaces
-with a configurable `ThrottleLimit` (default 6). No public command invokes them
-yet and all automated tests mock Azure responses.
+guarded ARM transport; API/product/policy child requests use bounded parallel
+runspaces with a configurable `ThrottleLimit` (default 6). Policy 404 responses
+are indexed as absent, while detected hard-coded secret candidates are recorded
+by structural location and redacted before XML is persisted. No public command
+invokes the collectors yet and all automated tests mock Azure responses.
 
 The optional operator experience will use GitHub Copilot CLI repository agents
 and skills through a narrow local broker. The deterministic collection, analysis,
@@ -117,7 +120,7 @@ zone, Azure credentials, collection output, or arbitrary paths.
 ApimAssessment.psd1 / .psm1  Module metadata and source loader
 src/
   Core/                     Config, ARM guard, manifest persistence, logging, retries
-  Collect/                  Isolated read-only collectors (service/API/product implemented)
+  Collect/                  Isolated read-only collectors (service/API/product/policy implemented)
   Model/                    Normalization, policy merge, exposure and drift
   Rules/                    Rule engine and priority scoring
   Package/                  Model-safe package construction, validation and promotion (planned)

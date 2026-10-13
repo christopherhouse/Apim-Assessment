@@ -262,7 +262,11 @@ Rules: a collector failure **never** aborts the run; it is recorded as `Failed/P
 - **Paging**: follow `nextLink` until exhausted.
 - **Retry**: on 429/5xx, honour `Retry-After`; exponential backoff (2, 4, 8, 16, 32 s), max 6 attempts.
 - **Concurrency**: per-API/per-operation calls use `ForEach-Object -Parallel` with configurable `ThrottleLimit` (default 6).
-- **Output**: raw responses written unchanged (`ConvertTo-Json -Depth 50`), one file per call type; policies stored as `.xml` plus `policies/index.json`.
+- **Output**: JSON raw responses are written unchanged (`ConvertTo-Json -Depth
+  50`), one file per call type. Policy response envelopes are not persisted;
+  policy XML is checked for hard-coded secret candidates, locations are recorded,
+  values are redacted, and the sanitized XML plus `policies/index.json` are
+  stored.
 - **Idempotent**: `-Resume` skips collectors whose output already exists and is valid.
 - **Logging**: structured log lines `{ts, level, collector, message, url?}`; known
   credential patterns are redacted and URL query/fragment values are removed;
@@ -301,7 +305,12 @@ Rules: a collector failure **never** aborts the run; it is recorded as `Failed/P
 | Operation | `{base}/apis/{api}/operations/{op}/policies/policy` | `policies/op.{api}.{op}.xml` |
 | Fragment | `{base}/policyFragments/{f}?format=rawxml` | `policies/fragment.{f}.xml` |
 
-404 = "no policy at this scope" (not an error). `policies/index.json` lists every scope with `exists`, `sha256` (of normalized XML; see §8.4).
+404 = "no policy at this scope" (not an error). `policies/index.json` lists every
+scope with `scopeType`, `scope`, `file`, `exists`, `sha256` (of normalized,
+redacted XML; see §8.4), and `hardcodedSecretLocations`. Secret detection occurs
+before persistence; locations are structural XML paths only, values are never
+recorded, and stored policy XML replaces detected literals with
+`***REDACTED***`.
 
 ### 7.4 Network
 

@@ -6,9 +6,11 @@ The toolkit is **not ready for customer assessment runs**. It has an importable
 module foundation, strict private configuration validation, structured logging,
 a guarded ARM transport, schema-validated run-folder/manifest persistence, and
 internal APIM service/API/product catalog collectors with bounded parallel child
-requests. Collection orchestration and remaining collectors, models/rules, the
-model-data airlock, Copilot operator workflow, reports/comparison, and Excel/HTML
-templates are not implemented.
+requests, plus restricted policy collection with normalized hashes and
+collection-time secret-candidate redaction. Collection orchestration and
+remaining collectors, policy merge/models/rules, the model-data airlock,
+Copilot operator workflow, reports/comparison, and Excel/HTML templates are not
+implemented.
 
 Do not run the planned commands in specification section 14 until their tasks
 are implemented, tested, and marked available in the root README.
@@ -30,6 +32,13 @@ commands. ARM and collector behavior, including parallel throttle enforcement, i
 exercised through mocked or synthetic offline tests only. Missing development
 modules are installed into the current user's module path; Pester results go to
 ignored `artifacts`.
+
+The internal policy collector reads the previously collected API, operation, and
+product catalogs, discovers policy fragments, and writes restricted XML under
+`policies/`. Missing policy scopes are represented in `policies/index.json`
+instead of treated as failures. Potential hard-coded policy secrets are detected
+before persistence; the index records structural locations only and stored XML
+contains `***REDACTED***`, never the detected value.
 
 ## Future operator requirements
 
