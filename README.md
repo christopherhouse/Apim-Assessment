@@ -21,9 +21,10 @@ private offline model helpers. Private schema-validated builders now produce the
 API, operation, policy-matrix, subscription, network, and pre-telemetry exposure
 model records from saved inputs. A private offline rule engine now loads rule
 definitions, evaluates available model-backed scopes, and validates deterministic
-findings against a closed schema before restricted persistence. No production
-rule catalogs exist yet. Remaining collectors and models, telemetry-based
-exposure refinement, rule catalogs, the
+findings against a closed schema before restricted persistence. Five
+evidence-backed NET rules are implemented privately; origin-authentication
+and portal/management publication checks still lack required inputs. Remaining
+collectors and models, telemetry-based exposure refinement, other rule catalogs, the
 model-data airlock, Copilot operator workflow, assessment CLI entry points, and report
 templates are not implemented.
 
@@ -49,7 +50,7 @@ builders; this gate is not a public Analyze command or the model-data airlock.
 | Versioned run manifest lifecycle and APIM service/API/product/subscription/policy/network collectors | Remaining APIM, telemetry, and cost collectors |
 | Maintainer-only cumulative collection smoke script (service, APIs, products, subscriptions, policies, network) | Full assessment orchestration and live acceptance |
 | Effective policy merge/flags plus six implemented models with shared schema-gated persistence and saved-run loading | Remaining model builders and telemetry exposure refinement |
-| Private offline rule engine, configurable priority scoring, and schema-gated findings | SEC/NET/GOV/REL catalogs and public Analyze orchestration |
+| Private offline rule engine, five evidence-backed NET checks, configurable priority scoring, and schema-gated findings | Remaining NET/SEC/GOV/REL catalog entries and public Analyze orchestration |
 | Synthetic-fixture scaffold | Populated fixtures and offline integration pipeline |
 | Windows/Linux lint and test CI | Model-data airlock and local Copilot broker |
 | Copilot development instructions, agents, and skills | Assessment analyst agents and operator skills |
@@ -169,13 +170,19 @@ The private rule engine accepts validated model inputs and a validated manifest,
 loads only implemented `rules/*.rules.ps1` catalogs, applies each rule's target
 filter/test/evidence callbacks, and emits stable findings sorted by descending
 priority, then rule ID and scope. Missing or explicitly failed required model
-inputs produce exactly one `Info`/`NotEvaluated` finding per affected rule;
-malformed available models or invalid callback output fail closed. A null
+inputs, or declared unavailable facts in an otherwise valid model, produce
+exactly one `Info`/`NotEvaluated` finding per affected rule; malformed available
+models or invalid callback output fail closed. A null
 usage value stays unknown with a neutral scoring multiplier, never an inferred
 zero-use result. `findings.json` has a closed top-level schema and is validated
-before any restricted write. There are no implemented rule catalog entries,
-public evaluation command, report, or model-safe promotion yet; do not expose
-these private findings or models to an agent.
+before any restricted write. The five private NET checks assess observed App
+Gateway WAF/TLS posture, public host-wide forwarding, direct public APIM paths,
+and broad APIM-subnet inbound NSG rules. A known empty gateway inventory is
+not a WAF/TLS failure; an unavailable inventory is NotEvaluated. NET-001 and
+NET-009 are **not** implemented because their origin-authentication and
+portal/management need evidence is not collected. There is no public evaluation
+command, report, or model-safe promotion yet; do not expose these private
+findings or models to an agent.
 
 The subscription model classifies AllApis/Product/Api scope, extracts a stable
 scope target, detects the built-in master subscription, and emits sorted

@@ -50,6 +50,8 @@ function Assert-ApimRule {
         $Rule.EvidenceText -isnot [scriptblock] -or
         ($Rule.Contains('Applies') -and $null -ne $Rule.Applies -and
             $Rule.Applies -isnot [scriptblock]) -or
+        ($Rule.Contains('DataGaps') -and $null -ne $Rule.DataGaps -and
+            $Rule.DataGaps -isnot [scriptblock]) -or
         $Rule.Enabled -isnot [bool] -or
         $Rule.Requires -isnot [array] -or
         $Rule.SourceFiles -isnot [array] -or
@@ -315,6 +317,19 @@ function Invoke-ApimRuleEngine {
                 throw 'Rule definition must require its target model.'
             }
         }
+        if ($missing.Count -eq 0 -and $rule.Contains('DataGaps') -and
+            $null -ne $rule.DataGaps) {
+            foreach ($gap in @(& $rule.DataGaps $ctx)) {
+                if ($gap -isnot [string] -or
+                    $gap -cnotmatch '^(model/[A-Za-z]+\.json)#[A-Za-z][A-Za-z0-9]*$' -or
+                    $Matches[1] -cnotin $rule.Requires) {
+                    throw 'Rule data gap referenced an undeclared model field.'
+                }
+                if (-not $missing.Contains($gap)) {
+                    $missing.Add($gap)
+                }
+            }
+        }
 
         if ($missing.Count -gt 0) {
             $missingFiles = @($missing.ToArray() | Sort-Object -Unique)
@@ -336,7 +351,7 @@ function Invoke-ApimRuleEngine {
                     priorityScore = Get-ApimRulePriority -Severity $severity `
                         -Exposure $exposure -Usage $usage -Config $Config
                     evidence = [ordered]@{ missingInputs = $missingFiles }
-                    evidenceText = 'Required model input was unavailable.'
+                    evidenceText = 'Required assessment evidence was unavailable.'
                     recommendation = $rule.Recommendation
                     effort = $rule.Effort
                     sourceFiles = @($rule.SourceFiles)

@@ -150,6 +150,44 @@ Describe 'Private offline rule engine and findings contract' {
             $finding.evidence.missingInputs | Should -Be @('model/network.json')
         }
 
+        It 'marks an unavailable fact in a valid model NotEvaluated rather than a pass' {
+            $rule = Get-SyntheticRule
+            $rule.DataGaps = {
+                param($ctx)
+                if ($null -eq $ctx.Models.apis[0].calls90d) {
+                    'model/apis.json#calls90d'
+                }
+            }
+            $result = @(Invoke-ApimRuleEngine -Rules @($rule) `
+                    -Models $script:ruleModels -Manifest $script:ruleManifest `
+                    -Config $script:ruleConfig)
+            $result.Count | Should -Be 1
+            $result[0].evaluation | Should -Be 'NotEvaluated'
+            $result[0].severity | Should -Be 'Info'
+            $result[0].evidence.missingInputs |
+                Should -Be @('model/apis.json#calls90d')
+            $path = Write-ApimFindingSet -RunPath (
+                Join-Path $TestDrive 'fact-gap'
+            ) -Findings $result
+            Test-Path -LiteralPath $path -PathType Leaf | Should -BeTrue
+        }
+
+        It 'rejects undeclared or malformed fact-gap references' {
+            $rule = Get-SyntheticRule
+            $rule.DataGaps = { param($ctx) $null = $ctx; 'model/network.json#wafState' }
+            {
+                Invoke-ApimRuleEngine -Rules @($rule) `
+                    -Models $script:ruleModels -Manifest $script:ruleManifest `
+                    -Config $script:ruleConfig
+            } | Should -Throw 'Rule data gap referenced an undeclared model field.'
+            $rule.DataGaps = { param($ctx) $null = $ctx; '../private' }
+            {
+                Invoke-ApimRuleEngine -Rules @($rule) `
+                    -Models $script:ruleModels -Manifest $script:ruleManifest `
+                    -Config $script:ruleConfig
+            } | Should -Throw 'Rule data gap referenced an undeclared model field.'
+        }
+
         It 'rejects malformed available model data instead of marking it missing or passing' {
             $models = [ordered]@{ apis = @([pscustomobject]@{ apiId = 'bad' }) }
             {

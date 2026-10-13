@@ -586,6 +586,10 @@ Until additional model contracts exist, the private engine evaluates only
 Service, Api, Operation, Subscription, Route, and Network targets; catalog
 entries for other scopes are deferred (D-29). Rules must declare their target
 model and any additional model they use in `Requires`.
+An optional `DataGaps = { param($ctx) ... }` callback declares unavailable
+required facts within valid models using `model/<name>.json#<field>` references
+to declared `Requires` files. The engine emits one Info/NotEvaluated finding
+per rule for these gaps; undeclared paths fail closed (D-30).
 
 ### 10.2 Findings schema (`findings.json`, one record per rule × target)
 ```json
@@ -658,6 +662,12 @@ Severity defaults; all thresholds configurable. "Data" = model inputs.
 | APIM-NET-007 | APIM subnet NSG allows broader inbound than App Gateway + internal | Medium | NS-1 | Network | NSG evaluation |
 | APIM-NET-008 | Weak App Gateway TLS policy | Medium | DP-3 | Network | sslPolicy predefined older than `AppGwSslPolicy20220101` or min protocol < TLS1.2 |
 | APIM-NET-009 | Developer portal / management hostname published publicly without need | Low | NS-2 | Route | portal/management hostname behind public listener |
+
+NET-002/004/006/007/008 have model-backed private catalog entries. NET-001
+requires edge-restriction and effective origin-authentication evidence not
+yet modeled; NET-009 requires portal/management publication and owner-confirmed
+need, which the route-by-API model does not establish. Both remain pending
+instead of being inferred from absent evidence (D-30).
 
 ### 11.2 Security (SEC)
 | ID | Title | Sev | MCSB | Scope | Logic |
