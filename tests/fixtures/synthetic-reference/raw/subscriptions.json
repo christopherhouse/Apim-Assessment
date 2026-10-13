@@ -1,0 +1,76 @@
+{
+  "value": [
+    {
+      "name": "api-client",
+      "properties": {
+        "displayName": "API Client",
+        "scope": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-synthetic-prod/providers/Microsoft.ApiManagement/service/apim-synthetic-prod/apis/orders-v1",
+        "state": "active",
+        "ownerType": "None",
+        "createdDate": "2026-04-01T00:00:00.0000000+00:00",
+        "expirationDate": null,
+        "allowTracing": true
+      }
+    },
+    {
+      "name": "master",
+      "properties": {
+        "displayName": "Built-in all-access subscription",
+        "scope": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-synthetic-prod/providers/Microsoft.ApiManagement/service/apim-synthetic-prod",
+        "state": "active",
+        "ownerType": "BuiltIn",
+        "createdDate": "2025-01-01T00:00:00.0000000+00:00",
+        "expirationDate": null,
+        "allowTracing": true
+      }
+    },
+    {
+      "name": "migration-access",
+      "properties": {
+        "displayName": "Migration Access",
+        "scope": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-synthetic-prod/providers/Microsoft.ApiManagement/service/apim-synthetic-prod",
+        "state": "active",
+        "ownerType": "User",
+        "createdDate": "2026-03-01T00:00:00.0000000+00:00",
+        "expirationDate": "2027-03-01T00:00:00.0000000+00:00",
+        "allowTracing": false
+      }
+    },
+    {
+      "name": "platform-shared",
+      "properties": {
+        "displayName": "Platform Shared",
+        "scope": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-synthetic-prod/providers/Microsoft.ApiManagement/service/apim-synthetic-prod",
+        "state": "active",
+        "ownerType": "User",
+        "createdDate": "2026-02-01T00:00:00.0000000+00:00",
+        "expirationDate": null,
+        "allowTracing": false
+      }
+    },
+    {
+      "name": "product-client",
+      "properties": {
+        "displayName": "Product Client",
+        "scope": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-synthetic-prod/providers/Microsoft.ApiManagement/service/apim-synthetic-prod/products/internal",
+        "state": "active",
+        "ownerType": "Unknown",
+        "createdDate": "2026-05-01T00:00:00.0000000+00:00",
+        "expirationDate": null,
+        "allowTracing": false
+      }
+    },
+    {
+      "name": "suspended-all",
+      "properties": {
+        "displayName": "Suspended All APIs",
+        "scope": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-synthetic-prod/providers/Microsoft.ApiManagement/service/apim-synthetic-prod",
+        "state": "suspended",
+        "ownerType": "User",
+        "createdDate": "2026-01-01T00:00:00.0000000+00:00",
+        "expirationDate": null,
+        "allowTracing": false
+      }
+    }
+  ]
+}
