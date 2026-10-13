@@ -1,0 +1,177 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.invalid/apim-assessment/schemas/exposure.schema.json",
+  "title": "APIM Assessment Exposure Model",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "routeKey",
+      "gateway",
+      "listener",
+      "listenerHost",
+      "backendHost",
+      "frontendType",
+      "ruleType",
+      "pattern",
+      "wafState",
+      "wafMode",
+      "edge",
+      "apiId",
+      "reachability",
+      "restriction",
+      "exposure",
+      "callsViaAppGw",
+      "callsInternal",
+      "confidence",
+      "baseMissingBypass",
+      "restrictedOperations",
+      "modelStatus",
+      "missingInputs"
+    ],
+    "properties": {
+      "routeKey": {
+        "type": "string",
+        "minLength": 1
+      },
+      "gateway": {
+        "type": "string",
+        "minLength": 1
+      },
+      "listener": {
+        "type": "string",
+        "minLength": 1
+      },
+      "listenerHost": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "minLength": 1
+      },
+      "backendHost": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "minLength": 1
+      },
+      "frontendType": {
+        "enum": [
+          "Public",
+          "Private"
+        ]
+      },
+      "ruleType": {
+        "enum": [
+          "Basic",
+          "PathBasedRouting",
+          "DirectPublic",
+          "None"
+        ]
+      },
+      "pattern": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "pattern": "^/"
+      },
+      "wafState": {
+        "enum": [
+          "Enabled",
+          "Disabled",
+          "Unknown"
+        ]
+      },
+      "wafMode": {
+        "enum": [
+          "Prevention",
+          "Detection",
+          "Unknown"
+        ]
+      },
+      "edge": {
+        "enum": [
+          "Cloudflare-Assumed",
+          "NotApplicable"
+        ]
+      },
+      "apiId": {
+        "type": "string",
+        "minLength": 1
+      },
+      "reachability": {
+        "enum": [
+          "Reachable",
+          "NotRoutable",
+          "Unknown"
+        ]
+      },
+      "restriction": {
+        "enum": [
+          "None",
+          "IpFilter",
+          "HostCheck",
+          "Unknown"
+        ]
+      },
+      "exposure": {
+        "enum": [
+          "DirectPublic",
+          "ExternalInUse",
+          "ExternalUnintended",
+          "Restricted",
+          "Internal",
+          "Unknown"
+        ]
+      },
+      "callsViaAppGw": {
+        "$ref": "#/definitions/nullableNumber"
+      },
+      "callsInternal": {
+        "$ref": "#/definitions/nullableNumber"
+      },
+      "confidence": {
+        "enum": [
+          "High",
+          "Medium",
+          "Low"
+        ]
+      },
+      "baseMissingBypass": {
+        "type": "boolean"
+      },
+      "restrictedOperations": {
+        "$ref": "#/definitions/stringArray"
+      },
+      "modelStatus": {
+        "enum": [
+          "Complete",
+          "Partial"
+        ]
+      },
+      "missingInputs": {
+        "$ref": "#/definitions/stringArray"
+      }
+    }
+  },
+  "definitions": {
+    "nullableNumber": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "stringArray": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    }
+  }
+}

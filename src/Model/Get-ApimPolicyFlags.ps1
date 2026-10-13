@@ -172,6 +172,42 @@ function Get-ApimPolicyIpFilterDetail {
     return @($details | Sort-Object location)
 }
 
+function Get-ApimPolicyHostRestrictionDetail {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [System.Xml.XmlDocument] $Document
+    )
+
+    $details = [System.Collections.Generic.List[object]]::new()
+    foreach ($when in @($Document.SelectNodes(
+                "//*[local-name()='choose']/*[local-name()='when']"
+            ))) {
+        $condition = ([System.Xml.XmlElement] $when).
+            GetAttribute('condition')
+        if (-not (Test-ApimPolicyHostCondition -Condition $condition)) {
+            continue
+        }
+        foreach ($status in @($when.SelectNodes(
+                    ".//*[local-name()='return-response']" +
+                    "//*[local-name()='set-status']"
+                ))) {
+            $statusCode = ([System.Xml.XmlElement] $status).
+                GetAttribute('code')
+            if ($statusCode -notin @('403', '404')) {
+                continue
+            }
+            $details.Add([pscustomobject] [ordered]@{
+                    location   = Get-ApimPolicyNodeLocation -Node $when
+                    scope      = Get-ApimPolicySourceScope -Node $when
+                    condition  = $condition
+                    statusCode = $statusCode
+                })
+        }
+    }
+    return @($details | Sort-Object location, statusCode)
+}
+
 function Get-ApimPolicySecretLocation {
     [CmdletBinding()]
     param(
@@ -281,6 +317,8 @@ function Get-ApimPolicyFlags {
     $unresolvedFragments = @(Get-ApimPolicyUnresolvedFragment `
             -Document $document)
     $ipFilters = @(Get-ApimPolicyIpFilterDetail -Document $document)
+    $hostRestrictions = @(Get-ApimPolicyHostRestrictionDetail `
+            -Document $document)
     $hardcodedSecretLocations = @(Get-ApimPolicySecretLocation `
             -Document $document)
     $backendOverrides = @(Get-ApimPolicyBackendOverrideDetail `
@@ -313,30 +351,6 @@ function Get-ApimPolicyFlags {
         "local-name()='llm-token-limit' or " +
         "local-name()='azure-openai-token-limit']"
     )
-
-    $hostRestriction = $false
-    foreach ($when in @($document.SelectNodes(
-                "//*[local-name()='choose']/*[local-name()='when']"
-            ))) {
-        $condition = ([System.Xml.XmlElement] $when).
-            GetAttribute('condition')
-        if (-not (Test-ApimPolicyHostCondition -Condition $condition)) {
-            continue
-        }
-        foreach ($status in @($when.SelectNodes(
-                    ".//*[local-name()='return-response']" +
-                    "//*[local-name()='set-status']"
-                ))) {
-            if (([System.Xml.XmlElement] $status).GetAttribute('code') `
-                -in @('403', '404')) {
-                $hostRestriction = $true
-                break
-            }
-        }
-        if ($hostRestriction) {
-            break
-        }
-    }
 
     $corsUnsafe = $false
     foreach ($cors in @($document.SelectNodes(
@@ -386,7 +400,7 @@ function Get-ApimPolicyFlags {
         callerAuthMtls         = $callerAuthMtls
         throttling             = $throttling
         ipFilter               = $ipFilters.Count -gt 0
-        hostRestriction        = $hostRestriction
+        hostRestriction        = $hostRestrictions.Count -gt 0
         corsUnsafe             = $corsUnsafe
         backendAuth            = $backendAuth
         hardcodedSecret        = $hardcodedSecretLocations.Count -gt 0
@@ -397,6 +411,7 @@ function Get-ApimPolicyFlags {
         returnsWithoutBackend  = $returnsWithoutBackend
         baseMissing            = $baseMissingDetails.Count -gt 0
         ipFilters              = $ipFilters
+        hostRestrictions       = $hostRestrictions
         hardcodedSecretLocations = $hardcodedSecretLocations
         backendOverrides       = $backendOverrides
         baseMissingDetails     = $baseMissingDetails

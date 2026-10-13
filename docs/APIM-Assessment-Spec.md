@@ -426,11 +426,13 @@ aggregation consumes the per-product flag records produced by §8.4.
 
 The flag result contains `evaluationStatus` (`Complete` or `Partial`), the
 Boolean flags above, `backendOverrideHttp`, and deterministic structural detail
-arrays for IP filters, backend overrides, hard-coded-secret locations, missing
-base inheritance, and unresolved fragments. An unresolved fragment makes the
-result Partial; consumers must not interpret undetected flags as authoritative
-negative results on that path. Backend-entity credentials may be supplied as a
-separate collected input and set `backendAuth=true`.
+arrays for IP filters, 403/404 host restrictions, backend overrides,
+hard-coded-secret locations, missing base inheritance, and unresolved fragments.
+Host-restriction evidence contains only location, source scope, condition, and
+status code. An unresolved fragment makes the result Partial; consumers must not
+interpret undetected flags as authoritative negative results on that path.
+Backend-entity credentials may be supplied as a separate collected input and set
+`backendAuth=true`.
 
 Hard-coded-secret detection supports both pre-redaction policy XML and stored
 sanitized XML. In sanitized XML, `***REDACTED***` in a secret-bearing policy
@@ -450,7 +452,7 @@ the deterministic `data-scope` and unresolved-fragment status attributes.
 |---|---|---|
 | `policyMatrix.json` | API | `apiId` + one column per control: `callerAuth`, `rateLimit`, `ipFilter`, `corsSafe`, `backendAuth`, `noHardcodedSecret`, `basePresent`, `noMockTrace` with values `Pass`/`Fail`/`NA` |
 | `subscriptions.json` | subscription | `subscriptionId`, `displayName`, `scopeType` (`AllApis`/`Product`/`Api`), `scopeTarget`, `state`, `ownerType`, `createdDate`, `expirationDate`, `allowTracing`, `calls90d`, `lastUsed`, `isBuiltInMaster`, `flags[]` |
-| `exposure.json` | route × API | `listener`, `listenerHost`, `frontendType` (Public/Private), `ruleType`, `pattern`, `wafState`, `wafMode`, `edge` (`Cloudflare-Assumed`), `apiId`, `reachability`, `restriction`, `exposure`, `callsViaAppGw`, `callsInternal`, `confidence` |
+| `exposure.json` | route × API | stable `routeKey`, `gateway`, `listener`, `listenerHost`, `backendHost`, `frontendType` (Public/Private), `ruleType`, `pattern`, `wafState`, `wafMode`, `edge` (`Cloudflare-Assumed`), `apiId`, `reachability`, `restriction`, `exposure`, `callsViaAppGw`, `callsInternal`, `confidence`, `baseMissingBypass`, `restrictedOperations[]`, completeness metadata |
 | `network.json` | single object | APIM VNet mode, public access, NSG evaluation result, other front doors, App GW TLS policy, WAF state |
 | `usage.json` | API × month | calls; plus top-N table |
 | `cost.json` | resource × month (and day) | `resourceId`, `resourceType`, `meterCategory`, `cost`, `currency`; derived `costPerMillionCalls` (APIM + App GW) |
@@ -511,6 +513,20 @@ For each App GW **public** listener → routing rule → backend pool targeting 
 
 ### 9.5 Step 5 — Observed route
 From `usageByRoute`: `callsViaAppGw`, `callsInternal`. If App GW also has **private** listeners targeting APIM, `ViaAppGw` is ambiguous → use `appgwByListener` to apportion by `ListenerName` frontend type; else record `confidence=Medium`.
+
+Before route usage is available, reachable unrestricted routes retain
+`callsViaAppGw=null`, `callsInternal=null`, `exposure=Unknown`,
+`confidence=Medium`, and `missingInputs=["usage"]`; missing telemetry must not
+be treated as zero calls. The classifier back-fills each API's aggregate
+`reachability` and `exposure` while preserving unrelated missing inputs. Route
+records and the updated API array must both pass their closed schemas before
+either model file is written.
+
+The pre-telemetry hook consumes complete normalized rows with `apiId`, `route`
+(`ViaAppGw` or `Internal`), and non-negative `calls`; operation/product rows are
+summed by API and route. The caller must separately attest that the telemetry
+query completed before absent rows can be interpreted as zero. Partial query
+results remain unavailable and cannot produce `ExternalUnintended`.
 
 ### 9.6 Final label
 | Condition | `exposure` |
