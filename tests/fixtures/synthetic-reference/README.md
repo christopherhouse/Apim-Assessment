@@ -16,10 +16,13 @@ subdirectories remain empty until T-201 and subsequent collector/model tasks.
 The current model fixtures contain three effective policies: two product paths
 for `orders-v1|get-orders` and one inherited `status-v1|get-status` path. Both
 orders paths expand `common-auth`; the operation backend records one missing
-`<base/>`. Record exact counts and expected outcomes here as each fixture surface
-is added. The target topology is Internal VNet APIM behind a public
-Basic/host-wide Application Gateway route, disabled WAF, and an
-assumed-reachable edge.
+`<base/>`. `model/policyFlags.json` records expected flags for those three saved,
+sanitized effective policies: both orders paths require JWT, retain two
+hard-coded-secret locations, and report missing backend inheritance; only the
+partner path is throttled. The status path has no policy risks or controls.
+Record exact counts and expected outcomes here as each fixture surface is added.
+The target topology is Internal VNet APIM behind a public Basic/host-wide
+Application Gateway route, disabled WAF, and an assumed-reachable edge.
 
 Planned T-201 counts: 60 APIs, four all-API subscriptions, 11 unused APIs,
 14 APIs without products, seven key-only external APIs, three missing `<base/>`
