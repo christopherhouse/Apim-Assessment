@@ -87,7 +87,11 @@ try {
         2>$null 3>$null 4>$null 5>$null 6>$null
 
     foreach ($check in $result.Checks) {
-        [Console]::Out.WriteLine("$($check.Name): $($check.Status)")
+        $line = "$($check.Name): $($check.Status)"
+        if ($check.FailureCode) {
+            $line += " ($($check.FailureCode))"
+        }
+        [Console]::Out.WriteLine($line)
     }
     [Console]::Out.WriteLine("Collection smoke: $($result.Status)")
     if ($result.Status -ne 'Completed') {

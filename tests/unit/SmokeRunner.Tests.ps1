@@ -158,8 +158,12 @@ Describe 'Cumulative collection smoke runner' {
             $result.Status | Should -Be 'Partial'
             ($result.Checks | Where-Object Name -EQ Apis).Status |
                 Should -Be 'Failed'
+            ($result.Checks | Where-Object Name -EQ Apis).FailureCode |
+                Should -Be 'UNKNOWN_FAILURE'
             ($result.Checks | Where-Object Name -EQ Policies).Status |
                 Should -Be 'Skipped'
+            ($result.Checks | Where-Object Name -EQ Policies).FailureCode |
+                Should -BeNullOrEmpty
             ($result.Checks | Where-Object Name -EQ Network).Status |
                 Should -Be 'Completed'
             (ConvertTo-Json -InputObject $result -Depth 10) |
@@ -191,7 +195,84 @@ Describe 'Cumulative collection smoke runner' {
             $result.Status | Should -Be 'Partial'
             @($result.Checks.Status | Where-Object { $_ -eq 'Skipped' }).Count |
                 Should -Be 5
+            ($result.Checks | Where-Object Name -EQ Service).FailureCode |
+                Should -Be 'UNKNOWN_FAILURE'
             Should -Invoke Invoke-ApimNetworkCollector -Exactly -Times 0
+        }
+
+        It 'reports only a bounded HTTP code for an ARM failure' -TestCases @(
+            @{ HttpStatus = 403 }
+            @{ HttpStatus = 404 }
+            @{ HttpStatus = 503 }
+        ) {
+            param($HttpStatus)
+
+            Mock Invoke-ApimServiceCollector {
+                throw (Get-ApimArmFailure -StatusCode $HttpStatus -Attempts 1)
+            }
+
+            $result = Invoke-ApimSmoke -Config $script:smokeConfig `
+                -EnvironmentName Prod -TenantId (
+                    '00000000-0000-0000-0000-000000000010'
+                )
+
+            $service = $result.Checks | Where-Object Name -EQ Service
+            $service.Status | Should -Be 'Failed'
+            $service.FailureCode | Should -Be "ARM_HTTP_$HttpStatus"
+            @($result.Checks | Where-Object Status -EQ Skipped).Count |
+                Should -Be 5
+            (ConvertTo-Json -InputObject $result -Depth 10) |
+                Should -Not -Match '00000000-0000'
+        }
+
+        It 'distinguishes an ARM transport failure without a response' {
+            Mock Invoke-ApimServiceCollector {
+                throw (Get-ApimArmFailure -StatusCode $null -Attempts 1)
+            }
+
+            $result = Invoke-ApimSmoke -Config $script:smokeConfig `
+                -EnvironmentName Prod -TenantId (
+                    '00000000-0000-0000-0000-000000000010'
+                )
+
+            ($result.Checks | Where-Object Name -EQ Service).FailureCode |
+                Should -Be 'ARM_NO_RESPONSE'
+        }
+
+        It 'distinguishes local I/O failures without printing a private path' {
+            Mock Invoke-ApimServiceCollector {
+                throw [System.IO.IOException]::new(
+                    'synthetic-private-output-path'
+                )
+            }
+
+            $result = Invoke-ApimSmoke -Config $script:smokeConfig `
+                -EnvironmentName Prod -TenantId (
+                    '00000000-0000-0000-0000-000000000010'
+                )
+
+            ($result.Checks | Where-Object Name -EQ Service).FailureCode |
+                Should -Be 'LOCAL_IO_ERROR'
+            (ConvertTo-Json -InputObject $result -Depth 10) |
+                Should -Not -Match 'synthetic-private-output-path'
+        }
+
+        It 'does not trust unmarked or invalid HTTP statuses' {
+            $unmarked = [System.Exception]::new('synthetic-private-error')
+            $unmarked.Data['StatusCode'] = 403
+            $invalid = Get-ApimArmFailure -StatusCode 700 -Attempts 1
+            $unmarkedRecord = [System.Management.Automation.ErrorRecord]::new(
+                $unmarked, 'Synthetic',
+                [System.Management.Automation.ErrorCategory]::NotSpecified, $null
+            )
+            $invalidRecord = [System.Management.Automation.ErrorRecord]::new(
+                $invalid, 'Synthetic',
+                [System.Management.Automation.ErrorCategory]::NotSpecified, $null
+            )
+            Get-ApimSmokeFailureCode -ErrorRecord $unmarkedRecord |
+                Should -Be 'UNKNOWN_FAILURE'
+            Get-ApimSmokeFailureCode -ErrorRecord $invalidRecord |
+                Should -Be 'ARM_NO_RESPONSE'
         }
 
         It 'retains a collector Partial state and skips its dependents' {

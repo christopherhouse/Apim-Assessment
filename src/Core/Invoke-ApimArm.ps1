@@ -278,6 +278,7 @@ function Get-ApimArmFailure {
         "ARM request failed with HTTP status $StatusCode after $Attempts attempt(s)."
     }
     $exception = [System.InvalidOperationException]::new($message)
+    $exception.Data['ApimArmFailure'] = $true
     if ($null -ne $StatusCode) {
         $exception.Data['StatusCode'] = [int] $StatusCode
     }

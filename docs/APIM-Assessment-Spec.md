@@ -845,9 +845,15 @@ Before the full live-smoke acceptance, a maintainer-only collection smoke entry
 point may exercise the implemented collectors using the same fixed, cumulative
 check list on a Microsoft-owned test instance (D-20). It requires existing
 matching Azure context and private external configuration/output, isolates
-collector failures, and prints only fixed statuses. Agents and CI run the
+collector failures, and prints only fixed statuses and bounded failure codes.
+Agents and CI run the
 synthetic/mocked tests, never live Azure collection. A passing collection smoke
 does not satisfy the full-run exit-0 check or G3 customer-run gate.
+For a failed check, the maintainer smoke may also print a bounded failure code
+derived from a marked ARM wrapper exception (`ARM_HTTP_100` through
+`ARM_HTTP_599` or `ARM_NO_RESPONSE`), a local I/O exception
+(`LOCAL_IO_ERROR`), or an unclassified exception (`UNKNOWN_FAILURE`).
+It never prints exception text, response content, paths, or identifiers (D-21).
 
 ---
 

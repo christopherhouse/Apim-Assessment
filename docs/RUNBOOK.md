@@ -53,8 +53,20 @@ independent checks continue, and dependent checks are Skipped; no false success
 is reported. Exit status is 0 when all registered collection checks complete, 1
 for configuration/preflight failure, 2 for Az module/context failure, 3 when
 collection is Partial, and 4 for an unexpected run failure. Only these fixed
-statuses and check names appear on the console. Restricted raw output, manifest,
-and logs stay under `Output.Root`. This is **not** the full T-604 acceptance or a
+statuses, check names, and bounded codes for failed checks appear on the console.
+`ARM_HTTP_401`/`ARM_HTTP_403` indicate an ARM authorization response; check
+the maintainer's local Reader access to the test service.
+`ARM_HTTP_404` indicates the service request was not found; verify the APIM
+name and resource group locally against the selected subscription.
+Other `ARM_HTTP_<status>` codes report only the numeric status (429 and 5xx
+are reported after retries). `ARM_NO_RESPONSE` means the guarded request
+received no usable HTTP response; check local connectivity and Az setup.
+`LOCAL_IO_ERROR` means a local write/read failed; check restricted storage
+permissions and available space. `UNKNOWN_FAILURE` needs maintainer-only
+investigation and does not imply that Azure returned success. Do not paste
+private exception text, config, identifiers, logs, or raw output into Copilot.
+Restricted raw output, manifest, and logs stay under `Output.Root`. This is
+**not** the full T-604 acceptance or a
 customer assessment: Analyze, rules, reports, and model-data promotion are not
 run. Do not pass live output, identifiers, errors, or logs to Copilot.
 

@@ -28,6 +28,29 @@ function Test-ApimSmokeContext {
     return [string] $Context.Tenant.Id
 }
 
+function Get-ApimSmokeFailureCode {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [System.Management.Automation.ErrorRecord] $ErrorRecord
+    )
+
+    $exception = $ErrorRecord.Exception
+    if ($exception.Data['ApimArmFailure'] -is [bool] -and
+        $exception.Data['ApimArmFailure']) {
+        $status = $exception.Data['StatusCode']
+        if ($status -is [int] -and $status -ge 100 -and $status -le 599) {
+            return "ARM_HTTP_$status"
+        }
+        return 'ARM_NO_RESPONSE'
+    }
+    if ($exception -is [System.IO.IOException] -or
+        $exception -is [System.UnauthorizedAccessException]) {
+        return 'LOCAL_IO_ERROR'
+    }
+    return 'UNKNOWN_FAILURE'
+}
+
 function Invoke-ApimSmoke {
     [CmdletBinding()]
     param(
@@ -100,6 +123,7 @@ function Invoke-ApimSmoke {
     $environment = Get-ApimEnvironmentConfig -Config $Config `
         -EnvironmentName $EnvironmentName
     $statuses = [ordered]@{}
+    $failureCodes = @{}
 
     foreach ($check in $checks) {
         $unmet = @($check.Requires | Where-Object {
@@ -132,6 +156,7 @@ function Invoke-ApimSmoke {
             $statuses[$check.Name] = 'Completed'
         }
         catch {
+            $failureCodes[$check.Name] = Get-ApimSmokeFailureCode -ErrorRecord $_
             $record = @((
                     Get-RunManifest -RunPath $run.Path
                 ).collectors | Where-Object { $_.name -eq $check.Name })
@@ -165,6 +190,7 @@ function Invoke-ApimSmoke {
                 [pscustomobject]@{
                     Name = $check.Name
                     Status = $statuses[$check.Name]
+                    FailureCode = $failureCodes[$check.Name]
                 }
             }
         )
