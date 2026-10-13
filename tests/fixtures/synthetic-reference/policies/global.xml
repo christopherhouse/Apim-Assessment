@@ -1,14 +1,12 @@
 <policies>
   <inbound>
-    <base />
+    <set-header name="x-global-marker" exists-action="override">
+      <value>synthetic</value>
+    </set-header>
   </inbound>
   <backend>
-    <base />
+    <forward-request />
   </backend>
-  <outbound>
-    <base />
-  </outbound>
-  <on-error>
-    <base />
-  </on-error>
+  <outbound />
+  <on-error />
 </policies>

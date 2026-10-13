@@ -4,7 +4,6 @@
   </inbound>
   <backend>
     <authentication-basic username="{{backend-user}}" password="***REDACTED***" />
-    <base />
   </backend>
   <outbound>
     <base />

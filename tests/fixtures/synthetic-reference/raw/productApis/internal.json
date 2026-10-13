@@ -2,6 +2,9 @@
   "value": [
     {
       "name": "status-v1"
+    },
+    {
+      "name": "orders-v1"
     }
   ]
 }

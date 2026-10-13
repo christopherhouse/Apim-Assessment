@@ -1,0 +1,12 @@
+<policies>
+  <inbound data-scope="global">
+    <set-header data-scope="global" exists-action="override" name="x-global-marker">
+      <value data-scope="global">synthetic</value>
+    </set-header>
+  </inbound>
+  <backend data-scope="global">
+    <forward-request data-scope="global" />
+  </backend>
+  <outbound data-scope="global" />
+  <on-error data-scope="global" />
+</policies>

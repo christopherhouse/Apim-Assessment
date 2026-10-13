@@ -7,8 +7,9 @@ module foundation, strict private configuration validation, structured logging,
 a guarded ARM transport, schema-validated run-folder/manifest persistence, and
 internal APIM service/API/product catalog collectors with bounded parallel child
 requests, plus restricted policy collection with normalized hashes and
-collection-time secret-candidate redaction. Collection orchestration and
-remaining collectors, policy merge/models/rules, the model-data airlock,
+collection-time secret-candidate redaction. Private offline helpers now merge
+effective policies and normalize/hash them. Collection/analyze orchestration,
+remaining collectors, policy flags/models/rules, the model-data airlock,
 Copilot operator workflow, reports/comparison, and Excel/HTML templates are not
 implemented.
 
@@ -39,6 +40,14 @@ product catalogs, discovers policy fragments, and writes restricted XML under
 instead of treated as failures. Potential hard-coded policy secrets are detected
 before persistence; the index records structural locations only and stored XML
 contains `***REDACTED***`, never the detected value.
+
+The internal merge helper consumes only saved, redacted policy XML. It produces
+one effective policy per product membership (or one no-product path), replaces
+section-level `<base/>`, records missing-base scope and section, expands policy
+fragments to depth five with cycle/missing guards, and retains structural
+`data-scope` attribution. Unresolved fragment includes remain in the effective
+XML with a `data-fragment-status` marker and a structured issue; they are not
+silently treated as expanded. There is still no public analyze command.
 
 ## Future operator requirements
 

@@ -1,0 +1,18 @@
+<policies>
+  <inbound data-scope="operation:orders-v1|get-orders">
+    <set-header data-scope="global" exists-action="override" name="x-global-marker">
+      <value data-scope="global">synthetic</value>
+    </set-header>
+    <validate-jwt data-scope="fragment:common-auth" failed-validation-httpcode="401" header-name="Authorization">
+      <openid-config data-scope="fragment:common-auth" url="https://login.example.invalid/synthetic/.well-known/openid-configuration" />
+    </validate-jwt>
+    <set-header data-scope="api:orders-v1" exists-action="override" name="x-api-key">
+      <value data-scope="api:orders-v1">***REDACTED***</value>
+    </set-header>
+  </inbound>
+  <backend data-scope="operation:orders-v1|get-orders">
+    <authentication-basic data-scope="operation:orders-v1|get-orders" password="***REDACTED***" username="{{backend-user}}" />
+  </backend>
+  <outbound data-scope="operation:orders-v1|get-orders" />
+  <on-error data-scope="operation:orders-v1|get-orders" />
+</policies>

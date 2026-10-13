@@ -1,6 +1,7 @@
 <policies>
   <inbound>
     <base />
+    <include-fragment fragment-id="common-auth" />
     <set-header name="x-api-key" exists-action="override">
       <value>***REDACTED***</value>
     </set-header>

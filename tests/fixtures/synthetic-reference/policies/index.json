@@ -6,7 +6,7 @@
       "scope": "global",
       "file": "policies/global.xml",
       "exists": true,
-      "sha256": "13858b006d90d35ca752ba01557e44b797c050321644206b88862a5f1e999d7d",
+      "sha256": "28cffb365197f221450b28f44de06f5ad697568a3042dd81deb13d4eaddf5881",
       "hardcodedSecretLocations": []
     },
     {
@@ -30,7 +30,7 @@
       "scope": "orders-v1",
       "file": "policies/api.orders-v1.xml",
       "exists": true,
-      "sha256": "512afec3381bf0e1633235991c901d323511b90813c494642a3e49e8e123f2c5",
+      "sha256": "4127a89fd68b0b50b1f8e0fb047e89deafa130c936b1a507db1483aeb7332897",
       "hardcodedSecretLocations": [
         "/policies[1]/inbound[1]/set-header[1]/value[1]"
       ]
@@ -40,7 +40,7 @@
       "scope": "orders-v1|get-orders",
       "file": "policies/op.orders-v1.get-orders.xml",
       "exists": true,
-      "sha256": "41d431dacd487251edcb64a9f5b994d24009beec9e71c38dd25660887493d38b",
+      "sha256": "184af6652a8774729e4cd2c6272e78c6092ea510ad9ede8b13599b38e1221c45",
       "hardcodedSecretLocations": [
         "/policies[1]/backend[1]/authentication-basic[1]/@password"
       ]

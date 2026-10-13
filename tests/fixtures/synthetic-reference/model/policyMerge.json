@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "1.0",
+  "effectivePolicies": [
+    {
+      "product": "internal",
+      "apiId": "orders-v1",
+      "operationId": "get-orders",
+      "file": "model/effectivePolicies/orders-v1.get-orders.internal.xml",
+      "sha256": "c1f93d47bbfc1e1428c2a9394075a11071791d6cecd62f1ca716a183e097f403",
+      "baseMissing": [
+        {
+          "scope": "operation:orders-v1|get-orders",
+          "section": "backend"
+        }
+      ],
+      "fragmentIssues": []
+    },
+    {
+      "product": "partner",
+      "apiId": "orders-v1",
+      "operationId": "get-orders",
+      "file": "model/effectivePolicies/orders-v1.get-orders.partner.xml",
+      "sha256": "dc719ca3f4b11284ec6523addee019508e830f59bd7e4964c24ef4d2a883eabd",
+      "baseMissing": [
+        {
+          "scope": "operation:orders-v1|get-orders",
+          "section": "backend"
+        }
+      ],
+      "fragmentIssues": []
+    },
+    {
+      "product": "internal",
+      "apiId": "status-v1",
+      "operationId": "get-status",
+      "file": "model/effectivePolicies/status-v1.get-status.internal.xml",
+      "sha256": "fda067216750ad27beb301def20d056a986ffb8b3196dd09ecd265b50ec18ca1",
+      "baseMissing": [],
+      "fragmentIssues": []
+    }
+  ]
+}
