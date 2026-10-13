@@ -118,14 +118,29 @@ function Invoke-ApimParallelArmRequest {
                     index        = [int] $request.Index
                     relativePath = [string] $request.RelativePath
                     success      = $true
+                    notFound     = $false
                     payload      = $payload
                 }
             }
             catch {
+                $allowNotFound = $false
+                $allowProperty = $request.PSObject.Properties['AllowNotFound']
+                if ($null -ne $allowProperty) {
+                    $allowNotFound = [bool] $allowProperty.Value
+                }
+                $statusCode = 0
+                $isNotFound = $allowNotFound -and
+                    $_.Exception.Data.Contains('StatusCode') -and
+                    [int]::TryParse(
+                        [string] $_.Exception.Data['StatusCode'],
+                        [ref] $statusCode
+                    ) -and
+                    $statusCode -eq 404
                 [pscustomobject]@{
                     index        = [int] $request.Index
                     relativePath = [string] $request.RelativePath
-                    success      = $false
+                    success      = $isNotFound
+                    notFound     = $isNotFound
                     payload      = $null
                 }
             }

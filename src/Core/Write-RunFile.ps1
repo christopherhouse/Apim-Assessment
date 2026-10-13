@@ -79,7 +79,8 @@ function Write-RunFile {
     else {
         [string] $InputObject
     }
-    if (-not $content.EndsWith([Environment]::NewLine)) {
+    if (-not $content.EndsWith("`n") -and
+        -not $content.EndsWith("`r")) {
         $content += [Environment]::NewLine
     }
 

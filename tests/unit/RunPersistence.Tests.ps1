@@ -75,6 +75,16 @@ Describe 'Run persistence and manifest lifecycle' {
             Should -BeNullOrEmpty
     }
 
+    It 'does not append a second newline to text that already has one' {
+        $path = & $script:module {
+            param($RunPath)
+            Write-RunFile -RunPath $RunPath -RelativePath 'policies/example.xml' `
+                -InputObject "<policies />`n" -Format Text
+        } $script:run.Path
+
+        Get-Content -LiteralPath $path -Raw | Should -Be "<policies />`n"
+    }
+
     It 'rejects paths that escape the run folder' {
         {
             & $script:module {

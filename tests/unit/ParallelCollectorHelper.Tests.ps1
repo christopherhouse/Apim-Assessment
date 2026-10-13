@@ -16,6 +16,11 @@ function Invoke-ApimArm {
     if ($Uri -like '*failure*') {
         throw 'synthetic.private.identifier.invalid'
     }
+    if ($Uri -like '*missing*') {
+        $exception = [System.InvalidOperationException]::new('not found')
+        $exception.Data['StatusCode'] = 404
+        throw $exception
+    }
     [pscustomobject]@{
         uri        = $Uri
         runspaceId = [runspace]::DefaultRunspace.Id
@@ -57,6 +62,24 @@ function Invoke-ApimArm {
                     -ThrottleLimit 1 -LogPath (Join-Path $TestDrive 'run.log') `
                     -ModulePath $script:parallelProbePath
             } | Should -Throw '*parallel ARM requests failed*'
+        }
+
+        It 'returns allowed 404 responses as explicit missing results' {
+            $request = [pscustomobject]@{
+                Index = 0
+                Uri = '/synthetic/missing'
+                RelativePath = 'policies/missing.xml'
+                AllowNotFound = $true
+            }
+
+            $result = @(Invoke-ApimParallelArmRequest -Requests @($request) `
+                    -ThrottleLimit 1 -LogPath (Join-Path $TestDrive 'run.log') `
+                    -ModulePath $script:parallelProbePath)
+
+            $result.Count | Should -Be 1
+            $result[0].success | Should -BeTrue
+            $result[0].notFound | Should -BeTrue
+            $result[0].payload | Should -BeNullOrEmpty
         }
 
         It 'encodes ARM and file path segments safely' {

@@ -1,0 +1,73 @@
+{
+  "schemaVersion": "1.0",
+  "policies": [
+    {
+      "scopeType": "Global",
+      "scope": "global",
+      "file": "policies/global.xml",
+      "exists": true,
+      "sha256": "13858b006d90d35ca752ba01557e44b797c050321644206b88862a5f1e999d7d",
+      "hardcodedSecretLocations": []
+    },
+    {
+      "scopeType": "Product",
+      "scope": "internal",
+      "file": "policies/product.internal.xml",
+      "exists": false,
+      "sha256": null,
+      "hardcodedSecretLocations": []
+    },
+    {
+      "scopeType": "Product",
+      "scope": "partner",
+      "file": "policies/product.partner.xml",
+      "exists": true,
+      "sha256": "eaa97ab525b32332987bb8733853b393fd4c824e8fbfe5a6b48de328dd15fa06",
+      "hardcodedSecretLocations": []
+    },
+    {
+      "scopeType": "Api",
+      "scope": "orders-v1",
+      "file": "policies/api.orders-v1.xml",
+      "exists": true,
+      "sha256": "512afec3381bf0e1633235991c901d323511b90813c494642a3e49e8e123f2c5",
+      "hardcodedSecretLocations": [
+        "/policies[1]/inbound[1]/set-header[1]/value[1]"
+      ]
+    },
+    {
+      "scopeType": "Operation",
+      "scope": "orders-v1|get-orders",
+      "file": "policies/op.orders-v1.get-orders.xml",
+      "exists": true,
+      "sha256": "41d431dacd487251edcb64a9f5b994d24009beec9e71c38dd25660887493d38b",
+      "hardcodedSecretLocations": [
+        "/policies[1]/backend[1]/authentication-basic[1]/@password"
+      ]
+    },
+    {
+      "scopeType": "Api",
+      "scope": "status-v1",
+      "file": "policies/api.status-v1.xml",
+      "exists": false,
+      "sha256": null,
+      "hardcodedSecretLocations": []
+    },
+    {
+      "scopeType": "Operation",
+      "scope": "status-v1|get-status",
+      "file": "policies/op.status-v1.get-status.xml",
+      "exists": false,
+      "sha256": null,
+      "hardcodedSecretLocations": []
+    },
+    {
+      "scopeType": "Fragment",
+      "scope": "common-auth",
+      "file": "policies/fragment.common-auth.xml",
+      "exists": true,
+      "sha256": "9b52bca041bad55c743f35027aac7e6c5da718375470dc23edc6871b60fdfe05",
+      "hardcodedSecretLocations": []
+    }
+  ]
+}
