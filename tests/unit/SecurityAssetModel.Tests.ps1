@@ -67,7 +67,8 @@ Describe 'APIM security asset models' {
                         "model/$name.json"
                 ) -Raw
                 $actual = ConvertTo-Json -InputObject $model.$name -Depth 100
-                $actual.Trim() | Should -Be $expected.Trim()
+                ($actual -replace "`r`n?", "`n").Trim() |
+                    Should -Be (($expected -replace "`r`n?", "`n").Trim())
             }
         }
 
