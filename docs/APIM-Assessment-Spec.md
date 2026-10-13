@@ -847,9 +847,11 @@ point may exercise the implemented collectors using the same fixed, cumulative
 check list on a Microsoft-owned test instance (D-20). It requires existing
 matching Azure context and private external configuration/output, isolates
 collector failures, and streams numbered check transitions with fixed statuses,
-bounded failure codes, and fixed troubleshooting hints. Interactive color/icons
-fall back to readable ASCII when redirected or with `NO_COLOR`; no raw exception
-message, stack, identifier, or path enters progress output (D-25).
+bounded failure codes, and fixed troubleshooting hints. Interactive UTF-8 emoji
+and colored progress bars temporarily adjust console output encoding per line
+and restore it; readable ASCII is used when redirected or with `NO_COLOR`
+(D-26). No raw exception message, stack, identifier, or path enters progress
+output (D-25).
 Agents and CI run the synthetic/mocked tests, never live Azure collection. A
 passing collection smoke
 does not satisfy the full-run exit-0 check or G3 customer-run gate.

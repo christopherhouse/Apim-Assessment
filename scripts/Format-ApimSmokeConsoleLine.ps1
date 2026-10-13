@@ -33,15 +33,15 @@ function Format-ApimSmokeConsoleLine {
 
     $symbols = if ($Color) {
         @{
-            Header = [char]0x25C6
-            Preparing = [char]::ConvertFromUtf32(0x1F50E)
-            Ready = [char]0x2713
-            Running = [char]0x25B6
-            Completed = [char]0x2713
-            Partial = [char]0x26A0
-            Failed = [char]0x2715
-            Skipped = [char]0x21B7
-            Summary = [char]0x25C6
+            Header = [char]::ConvertFromUtf32(0x1F680)
+            Preparing = [char]::ConvertFromUtf32(0x1F50D)
+            Ready = [char]::ConvertFromUtf32(0x2705)
+            Running = [char]::ConvertFromUtf32(0x1F504)
+            Completed = [char]::ConvertFromUtf32(0x2705)
+            Partial = ([string][char]0x26A0 + [char]0xFE0F)
+            Failed = [char]::ConvertFromUtf32(0x274C)
+            Skipped = ([string][char]0x23ED + [char]0xFE0F)
+            Summary = [char]::ConvertFromUtf32(0x1F3C1)
         }
     }
     else {
@@ -54,7 +54,9 @@ function Format-ApimSmokeConsoleLine {
 
     $position = if ($Total -gt 0) {
         $filled = [int] [math]::Floor(10 * $Index / $Total)
-        "[{0}{1}] {2}/{3}" -f ('#' * $filled), ('-' * (10 - $filled)),
+        $fill = if ($Color) { [string][char]0x2588 } else { '#' }
+        $empty = if ($Color) { [string][char]0x2591 } else { '-' }
+        "[{0}{1}] {2}/{3}" -f ($fill * $filled), ($empty * (10 - $filled)),
             $Index, $Total
     }
     else {
@@ -115,4 +117,29 @@ function Format-ApimSmokeConsoleLine {
         }
     }
     return "$shade$line$($PSStyle.Reset)"
+}
+
+function Write-ApimSmokeConsoleLine {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string] $Line,
+
+        [switch] $Color
+    )
+
+    if (-not $Color) {
+        [Console]::Out.WriteLine($Line)
+        return
+    }
+
+    $previousEncoding = [Console]::OutputEncoding
+    try {
+        [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+        [Console]::Out.WriteLine($Line)
+    }
+    finally {
+        [Console]::OutputEncoding = $previousEncoding
+    }
 }

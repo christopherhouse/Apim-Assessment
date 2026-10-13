@@ -536,9 +536,41 @@ Describe 'Smoke progress presentation' {
             -Name Service -Index 1 -Total 6 -Color
         $colored | Should -Match '^\x1b\['
         $colored | Should -Match 'Service - Completed'
+        $colored | Should -Match ([regex]::Escape(
+                [char]::ConvertFromUtf32(0x2705)
+            ))
+        $colored | Should -Match ([regex]::Escape(
+                [string][char]0x2588
+            ))
         {
             Format-ApimSmokeConsoleLine -State Failed -Name Service `
                 -Index 1 -Total 6 -FailureCode 'synthetic-private-canary'
         } | Should -Throw
+    }
+
+    It 'emits real emoji under a legacy code page and restores the encoding' {
+        $probe = Join-Path $TestDrive 'synthetic-console-probe.ps1'
+        @'
+param($FormatterPath)
+. $FormatterPath
+[Console]::OutputEncoding = [System.Text.Encoding]::GetEncoding(437)
+$line = Format-ApimSmokeConsoleLine -State Completed -Name Service `
+    -Index 1 -Total 6 -Color
+Write-ApimSmokeConsoleLine -Line $line -Color
+[Console]::Out.WriteLine("encoding:$([Console]::OutputEncoding.CodePage)")
+'@ | Set-Content -LiteralPath $probe -Encoding ascii
+
+        $output = @(& pwsh -NoProfile -File $probe (
+                Join-Path $repoRoot 'scripts/Format-ApimSmokeConsoleLine.ps1'
+            ))
+        $LASTEXITCODE | Should -Be 0
+        $output.Count | Should -Be 2
+        $output[0] | Should -Match ([regex]::Escape(
+                [char]::ConvertFromUtf32(0x2705)
+            ))
+        $output[0] | Should -Match ([regex]::Escape(
+                [string][char]0x2588
+            ))
+        $output[1] | Should -Be 'encoding:437'
     }
 }

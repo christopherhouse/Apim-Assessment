@@ -56,7 +56,20 @@ collection is Partial, and 4 for an unexpected run failure. Only these fixed
 statuses, check names, and bounded codes for failed checks appear on the console.
 The command shows preflight steps, a numbered start/result line for each
 registered check, and a final collection status. An interactive terminal
-supports colored symbols; redirected output and `NO_COLOR` use plain ASCII.
+uses colored emoji and a block progress bar; the console output encoding is
+temporarily set to UTF-8 for each rich line and then restored. If glyphs still
+show as boxes, use an emoji-capable terminal/font (such as Windows Terminal)
+or set `NO_COLOR` for a clean ASCII fallback. Redirected output also uses ASCII.
+To preview the rich banner without connecting to Azure, run this in the same
+ordinary PowerShell terminal from the repository root:
+
+```powershell
+. .\scripts\Format-ApimSmokeConsoleLine.ps1
+Write-ApimSmokeConsoleLine -Line (
+    Format-ApimSmokeConsoleLine -State Header -Color
+) -Color
+```
+
 The progress count covers checks, not individual APIs or operations; a check
 may take time after its `collecting...` line. A failed/partial result includes
 a fixed troubleshooting hint keyed to its bounded code, **not** an exception

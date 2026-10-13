@@ -89,9 +89,11 @@ Do **not** run an Azure login, the live smoke command, or any command that reads
 restricted output using `!` or an assessment agent. The live command and
 maintainer-only setup are in [the runbook](docs/RUNBOOK.md).
 The collection smoke streams numbered preflight/check progress and a final
-status. Interactive terminals show colored symbols; redirected output or
-`NO_COLOR` uses plain ASCII. Errors show fixed troubleshooting hints, not raw
-Azure or policy exception messages.
+status. Interactive terminals show UTF-8 emoji and colored progress bars without
+changing the caller's console encoding; redirected output or `NO_COLOR` uses
+plain ASCII. An emoji-capable terminal/font is required for glyph rendering.
+Errors show fixed troubleshooting hints, not raw Azure or policy exception
+messages.
 
 Develop only on `feature/<name>`, `chore/<name>`, or `bugfix/<name>` branches.
 Open a pull request to `main`; CI rejects other source-branch prefixes.

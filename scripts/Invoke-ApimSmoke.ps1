@@ -29,10 +29,11 @@ if (-not $MicrosoftOwnedTestEnvironment) {
     exit 1
 }
 
-[Console]::Out.WriteLine((Format-ApimSmokeConsoleLine -State Header `
-            -Color:$useColor))
-[Console]::Out.WriteLine((Format-ApimSmokeConsoleLine -State Preparing `
-            -Name 'Private configuration' -Color:$useColor))
+Write-ApimSmokeConsoleLine -Line (Format-ApimSmokeConsoleLine `
+        -State Header -Color:$useColor) -Color:$useColor
+Write-ApimSmokeConsoleLine -Line (Format-ApimSmokeConsoleLine `
+        -State Preparing -Name 'Private configuration' `
+        -Color:$useColor) -Color:$useColor
 $repoRoot = Split-Path $PSScriptRoot -Parent
 try {
     $module = Import-Module (Join-Path $repoRoot 'ApimAssessment.psd1') `
@@ -67,10 +68,12 @@ catch {
     exit 1
 }
 
-[Console]::Out.WriteLine((Format-ApimSmokeConsoleLine -State Ready `
-            -Name 'Private configuration' -Color:$useColor))
-[Console]::Out.WriteLine((Format-ApimSmokeConsoleLine -State Preparing `
-            -Name 'Az modules and context' -Color:$useColor))
+Write-ApimSmokeConsoleLine -Line (Format-ApimSmokeConsoleLine `
+        -State Ready -Name 'Private configuration' `
+        -Color:$useColor) -Color:$useColor
+Write-ApimSmokeConsoleLine -Line (Format-ApimSmokeConsoleLine `
+        -State Preparing -Name 'Az modules and context' `
+        -Color:$useColor) -Color:$useColor
 try {
     Import-Module Az.Accounts -ErrorAction Stop -WarningAction SilentlyContinue `
         -InformationAction SilentlyContinue
@@ -88,11 +91,14 @@ catch {
     exit 2
 }
 
-[Console]::Out.WriteLine((Format-ApimSmokeConsoleLine -State Ready `
-            -Name 'Az modules and context' -Color:$useColor))
-[Console]::Out.WriteLine((Format-ApimSmokeConsoleLine -State Preparing `
-            -Name 'Restricted run' -Color:$useColor))
+Write-ApimSmokeConsoleLine -Line (Format-ApimSmokeConsoleLine `
+        -State Ready -Name 'Az modules and context' `
+        -Color:$useColor) -Color:$useColor
+Write-ApimSmokeConsoleLine -Line (Format-ApimSmokeConsoleLine `
+        -State Preparing -Name 'Restricted run' `
+        -Color:$useColor) -Color:$useColor
 $formatSmokeLine = ${function:Format-ApimSmokeConsoleLine}
+$writeSmokeLine = ${function:Write-ApimSmokeConsoleLine}
 $onProgress = {
     param($update)
 
@@ -111,7 +117,8 @@ $onProgress = {
     if ($update.FailureCode) {
         $parameters.FailureCode = $update.FailureCode
     }
-    [Console]::Out.WriteLine((& $formatSmokeLine @parameters))
+    & $writeSmokeLine -Line (& $formatSmokeLine @parameters) `
+        -Color:$useColor
 }.GetNewClosure()
 try {
     $result = & $module {
@@ -124,8 +131,9 @@ try {
     } $prepared.Config $Environment $tenantId $ThrottleLimit $onProgress `
         2>$null 3>$null 4>$null 5>$null 6>$null
 
-    [Console]::Out.WriteLine((Format-ApimSmokeConsoleLine -State Summary `
-                -SummaryStatus $result.Status -Color:$useColor))
+    Write-ApimSmokeConsoleLine -Line (Format-ApimSmokeConsoleLine `
+            -State Summary -SummaryStatus $result.Status `
+            -Color:$useColor) -Color:$useColor
     if ($result.Status -ne 'Completed') {
         exit 3
     }
