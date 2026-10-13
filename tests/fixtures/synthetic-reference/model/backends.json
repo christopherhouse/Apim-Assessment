@@ -1,0 +1,24 @@
+[
+  {
+    "backendId": "orders-backend",
+    "scheme": "https",
+    "tlsValidationChain": true,
+    "tlsValidationName": true,
+    "credentialConfigured": true,
+    "circuitBreakerConfigured": true,
+    "poolConfigured": true,
+    "modelStatus": "Complete",
+    "missingInputs": []
+  },
+  {
+    "backendId": "status-backend",
+    "scheme": "http",
+    "tlsValidationChain": null,
+    "tlsValidationName": null,
+    "credentialConfigured": false,
+    "circuitBreakerConfigured": false,
+    "poolConfigured": false,
+    "modelStatus": "Complete",
+    "missingInputs": []
+  }
+]

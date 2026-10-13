@@ -13,8 +13,9 @@ collectors, and an internal network collector for Application Gateway/WAF and
 Resource Graph evidence. Private offline helpers now merge effective policies,
 normalize/hash them, and extract deterministic policy flags. Private offline
 builders create schema-validated API, operation, policy-matrix, subscription,
-network, and pre-telemetry exposure records from saved synthetic-equivalent
-inputs. A private rule engine, seven NET catalog entries, eight model-backed
+named-value, backend, certificate, network, and pre-telemetry exposure records
+from saved synthetic-equivalent inputs. A private rule engine, seven NET catalog
+entries, ten model-backed
 SEC catalog entries, and a
 closed findings schema are available for offline synthetic testing. Full
 collection/analyze orchestration, remaining collectors and models,
@@ -22,7 +23,7 @@ telemetry-based exposure refinement, rule catalogs, the model-data airlock, Copi
 operator workflow, reports/comparison, and Excel/HTML templates are not
 implemented.
 
-All six implemented model contracts share a private schema gate for pending
+All nine implemented model contracts share a private schema gate for pending
 writes and complete saved-run loading. Private findings are validated against
 `schemas/findings.schema.json` before restricted persistence. This does not add
 a public Analyze command or authorize model/findings access to an agent.
@@ -67,12 +68,17 @@ NET-001 and NET-009 need operator-corroborated facts in the closed network
 model. With no attestation, both emit Info/NotEvaluated rather than asserting
 absent authentication or unnecessary publication. No full saved-run
 Analyze path, findings report, or model-safe promotion is available yet.
-`rules/SEC.rules.ps1` includes SEC-003/004/005/007/012/014/015/020. Rules with
+`rules/SEC.rules.ps1` includes
+SEC-003/004/005/007/008/010/012/014/015/020. Rules with
 unknown applicable facts emit one Info/NotEvaluated finding unless other
 records already provide definitive positive evidence. SEC-014 consumes
 model-derived diagnostic body and sensitive-request-header facts; incomplete
 normalized settings remain null and can still produce NotEvaluated rather than a
-false pass. Never pass restricted models or findings to Copilot.
+false pass. SEC-008 uses only structural named-value locations and never secret
+values. SEC-010 evaluates only HTTPS backends, ignores non-applicable HTTP TLS
+flags, and emits NotEvaluated when no positive finding exists but an HTTPS
+validation fact is missing. Never pass restricted models or findings to
+Copilot.
 
 ## Reusable collection smoke (Microsoft-owned test APIM only)
 
@@ -289,12 +295,12 @@ unchanged; individual writes remain atomic, but a later I/O failure is not a
 multi-file transaction.
 
 The private saved-run loader requires `apis.json`, `operations.json`,
-`policyMatrix.json`, `subscriptions.json`, `network.json`, and `exposure.json`
-under `model`. It returns no models until all six validate. Missing/invalid
-files, unavailable schemas, and linked paths fail closed; other run artifacts
-are not loaded. Explicit null/Partial/missing-input metadata remains intact, as
-do empty and singleton arrays. Future model contracts join the gate with their
-builders.
+`policyMatrix.json`, `subscriptions.json`, `namedValues.json`, `backends.json`,
+`certificates.json`, `network.json`, and `exposure.json` under `model`. It
+returns no models until all nine validate. Missing/invalid files, unavailable
+schemas, and linked paths fail closed; other run artifacts are not loaded.
+Explicit null/Partial/missing-input metadata remains intact, as do empty and
+singleton arrays. Future model contracts join the gate with their builders.
 
 The shared gate can be checked offline with synthetic fixtures:
 
@@ -304,6 +310,24 @@ The shared gate can be checked offline with synthetic fixtures:
 
 This runs repository lint plus focused gate acceptance tests, without Azure
 access. The helpers remain private until public orchestration is implemented.
+
+## Security asset models
+
+The private security-asset model helper transforms the allowlisted collected
+payloads into three sorted, closed arrays. `model/namedValues.json` contains
+secret classification, Key Vault status, structural secret-pattern locations,
+and a derived plain-text risk flag; named-value values are never present.
+`model/backends.json` contains only scheme, nullable HTTPS certificate
+validation facts, credential presence, and resilience flags. HTTP backend TLS
+facts are normalized to null because certificate validation is not applicable.
+`model/certificates.json` contains normalized expiry, Key Vault-backed status,
+and completeness metadata without certificate bytes or private material.
+
+The customer-neutral security model path can be checked offline:
+
+```powershell
+.\scripts\Invoke-Checks.ps1 -TestPath .\tests\unit\SecurityAssetModel.Tests.ps1
+```
 
 ## Subscription metadata boundary
 

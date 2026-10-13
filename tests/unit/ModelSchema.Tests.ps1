@@ -19,7 +19,8 @@ Describe 'Shared model schema gate' {
                 $models = [ordered]@{}
                 foreach ($name in @(
                         'apis', 'operations', 'policyMatrix',
-                        'subscriptions', 'network', 'exposure'
+                        'subscriptions', 'namedValues', 'backends',
+                        'certificates', 'network', 'exposure'
                     )) {
                     $fileName = if ($name -eq 'apis') {
                         'apis.exposure.json'
@@ -39,7 +40,7 @@ Describe 'Shared model schema gate' {
             $models = Get-SchemaGateFixture
             $runPath = Join-Path $TestDrive 'complete'
             $paths = @(Write-ApimModelSet -RunPath $runPath -Models $models)
-            $paths.Count | Should -Be 6
+            $paths.Count | Should -Be 9
             $before = @($paths | ForEach-Object {
                     (Get-FileHash -LiteralPath $_ -Algorithm SHA256).Hash
                 })
@@ -68,6 +69,9 @@ Describe 'Shared model schema gate' {
             $models.operations = @()
             $models.policyMatrix = @()
             $models.subscriptions = @()
+            $models.namedValues = @()
+            $models.backends = @()
+            $models.certificates = @()
             $models.exposure = @()
             $runPath = Join-Path $TestDrive 'array-shapes'
             $null = Write-ApimModelSet -RunPath $runPath -Models $models
@@ -76,7 +80,8 @@ Describe 'Shared model schema gate' {
             $loaded.apis -is [array] | Should -BeTrue
             $loaded.apis.Count | Should -Be 1
             foreach ($name in @(
-                    'operations', 'policyMatrix', 'subscriptions', 'exposure'
+                    'operations', 'policyMatrix', 'subscriptions',
+                    'namedValues', 'backends', 'certificates', 'exposure'
                 )) {
                 $loaded[$name] -is [array] | Should -BeTrue
                 $loaded[$name].Count | Should -Be 0
@@ -90,6 +95,9 @@ Describe 'Shared model schema gate' {
                 @{ Name = 'operations' }
                 @{ Name = 'policyMatrix' }
                 @{ Name = 'subscriptions' }
+                @{ Name = 'namedValues' }
+                @{ Name = 'backends' }
+                @{ Name = 'certificates' }
                 @{ Name = 'network' }
                 @{ Name = 'exposure' }
             ) {
@@ -117,6 +125,9 @@ Describe 'Shared model schema gate' {
             @{ Name = 'operations' }
             @{ Name = 'policyMatrix' }
             @{ Name = 'subscriptions' }
+            @{ Name = 'namedValues' }
+            @{ Name = 'backends' }
+            @{ Name = 'certificates' }
             @{ Name = 'network' }
             @{ Name = 'exposure' }
         ) {
@@ -206,7 +217,7 @@ Describe 'Shared model schema gate' {
 
             $script:schemaGateSnapshots[(Join-Path 'model' 'exposure.json')] |
                 Should -Be $expected
-            Should -Invoke Write-RunFile -Times 6 -Exactly `
+            Should -Invoke Write-RunFile -Times 9 -Exactly `
                 -ParameterFilter { $Format -eq 'Text' }
         }
 
@@ -299,7 +310,7 @@ Describe 'Shared model schema gate' {
                 -InputObject @{ unexpected = 'synthetic-private-canary' }
 
             $loaded = Get-ApimModelSet -RunPath $runPath
-            $loaded.Count | Should -Be 6
+            $loaded.Count | Should -Be 9
             $loaded.Contains('unregistered') | Should -BeFalse
         }
     }

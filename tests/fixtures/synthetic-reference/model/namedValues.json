@@ -1,0 +1,38 @@
+[
+  {
+    "namedValueId": "key-vault-reference",
+    "secret": true,
+    "keyVaultBacked": true,
+    "keyVaultStatus": "Success",
+    "secretPatternLocations": [
+      "displayName",
+      "value"
+    ],
+    "plainTextSecretLike": false,
+    "modelStatus": "Complete",
+    "missingInputs": []
+  },
+  {
+    "namedValueId": "partner-api-key",
+    "secret": false,
+    "keyVaultBacked": false,
+    "keyVaultStatus": null,
+    "secretPatternLocations": [
+      "displayName",
+      "value"
+    ],
+    "plainTextSecretLike": true,
+    "modelStatus": "Complete",
+    "missingInputs": []
+  },
+  {
+    "namedValueId": "public-label",
+    "secret": false,
+    "keyVaultBacked": false,
+    "keyVaultStatus": null,
+    "secretPatternLocations": [],
+    "plainTextSecretLike": false,
+    "modelStatus": "Complete",
+    "missingInputs": []
+  }
+]
