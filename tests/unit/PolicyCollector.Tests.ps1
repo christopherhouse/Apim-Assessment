@@ -112,7 +112,7 @@ Describe 'APIM policy collector' {
                     -not $_.AllowNotFound
                 }) | Should -BeNullOrEmpty
             @($script:policyRequests | Where-Object {
-                    $_.Uri -notmatch '[?&]format=rawxml(?:&|$)'
+                    $_.Uri -notmatch '[?&]format=xml(?:&|$)'
                 }) | Should -BeNullOrEmpty
             $script:fragmentListUri | Should -Be (
                 '/subscriptions/00000000-0000-0000-0000-000000000001/' +
@@ -124,7 +124,7 @@ Describe 'APIM policy collector' {
                 '/subscriptions/00000000-0000-0000-0000-000000000001/' +
                 'resourceGroups/rg-synthetic-prod/providers/' +
                 'Microsoft.ApiManagement/service/apim-synthetic-prod/' +
-                'policies/policy?format=rawxml&api-version=2024-05-01'
+                'policies/policy?format=xml&api-version=2024-05-01'
             )
 
             foreach ($fixture in Get-ChildItem -LiteralPath (
@@ -207,6 +207,60 @@ Describe 'APIM policy collector' {
                 Where-Object name -EQ 'Policies'
             $collector.status | Should -Be 'Failed'
             $collector.errors | Should -Be 2
+        }
+
+        It 'keeps only previously sanitized XML when a later policy is rejected' {
+            Mock Invoke-ApimParallelArmRequest {
+                @(
+                    [pscustomobject]@{
+                        index = 0
+                        notFound = $false
+                        payload = [pscustomobject]@{
+                            properties = [pscustomobject]@{
+                                value = '<policies><inbound><base /></inbound></policies>'
+                            }
+                        }
+                    }
+                    [pscustomobject]@{
+                        index = 1
+                        notFound = $false
+                        payload = [pscustomobject]@{
+                            properties = [pscustomobject]@{
+                                value = '<policies><inbound><set-variable ' +
+                                    'value="bad "synthetic-private"" /></inbound></policies>'
+                            }
+                        }
+                    }
+                )
+            }
+
+            $rejection = $null
+            try {
+                Invoke-ApimPolicyCollector -RunPath $script:run.Path `
+                    -Environment $script:environment | Out-Null
+            }
+            catch {
+                $rejection = $_
+            }
+
+            Get-ApimSmokeFailureCode -ErrorRecord $rejection |
+                Should -Be 'POLICY_XML_REJECTED'
+            Test-Path -LiteralPath (
+                Join-Path $script:run.Path 'policies/global.xml'
+            ) | Should -BeTrue
+            Test-Path -LiteralPath (
+                Join-Path $script:run.Path 'policies/product.internal.xml'
+            ) | Should -BeFalse
+            Test-Path -LiteralPath (
+                Join-Path $script:run.Path 'policies/index.json'
+            ) | Should -BeFalse
+            $manifest = Get-RunManifest -RunPath $script:run.Path
+            $collector = $manifest.collectors |
+                Where-Object name -EQ Policies
+            $collector.status | Should -Be 'Partial'
+            $collector.errors | Should -Be 1
+            (Get-Content -LiteralPath $script:run.LogPath -Raw) |
+                Should -Not -Match 'synthetic-private'
         }
     }
 }

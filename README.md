@@ -88,6 +88,13 @@ as capabilities are implemented:
 Do **not** run an Azure login, the live smoke command, or any command that reads
 restricted output using `!` or an assessment agent. The live command and
 maintainer-only setup are in [the runbook](docs/RUNBOOK.md).
+The collection smoke streams numbered preflight/check progress and a final
+status. Interactive terminals show a compact emoji scorecard that updates its
+active row in place without changing the caller's console encoding; redirected
+output or `NO_COLOR` uses plain ASCII. An emoji-capable terminal/font is
+required for glyph rendering. Errors show fixed troubleshooting hints, not raw
+Azure or policy exception messages. Rejected policy XML gets a bounded
+`POLICY_XML_REJECTED` code.
 
 Develop only on `feature/<name>`, `chore/<name>`, or `bugfix/<name>` branches.
 Open a pull request to `main`; CI rejects other source-branch prefixes.
@@ -106,18 +113,29 @@ runspaces with a configurable `ThrottleLimit` (default 6). Policy 404 responses
 are indexed as absent, while detected hard-coded secret candidates are recorded
 by structural location and redacted before XML is persisted. No public command
 invokes the collectors yet and all automated tests mock Azure responses.
+The guarded transport omits `-Payload` entirely for bodyless GET requests;
+an explicitly empty payload fails before the Az cmdlet is called.
+Policy collection requests XML-encoded policy content, parses it strictly,
+redacts secret candidates before storage, and remains Partial if any policy
+cannot be safely parsed. Previously sanitized policies may already be stored;
+an incomplete run has no complete policy index.
 
 Subscription collection uses one guarded list request and persists only an
 explicit metadata allowlist. It never calls `listSecrets`, drops key fields and
 unknown response fields, derives only a non-identifying `ownerType`, and does not
 persist `ownerId` or user identifiers.
+Missing optional display name, tracing setting, or creation date remains `null`
+with model `missingInputs`; unavailable tracing never becomes a false control.
+The subscription model also recognizes documented relative API/product scopes.
 
 Network collection reads configured Application Gateways and linked WAF policies
 through the guarded GET transport, then runs fixed `Search-AzGraph` queries for
 the APIM subnet, NSGs, public IPs, private endpoints, private DNS zones, route
 tables, and other APIM-targeting front doors. The collector stages all responses
 before writing restricted raw files. It never invokes an Azure write operation,
-and automated tests mock both ARM and Resource Graph.
+and automated tests mock both ARM and Resource Graph. Front-door lookups use
+three independent, single-resource-type Resource Graph queries instead of
+unsupported multi-statement `let` queries.
 
 The private model helpers can merge saved, redacted policy XML completely
 offline. They produce one effective policy per product path, expand fragments
@@ -165,10 +183,13 @@ service, API catalog, product, subscription, policy, and network collectors with
 an existing matching `Az.Accounts` context and `Az.ResourceGraph`. It requires
 an explicit Microsoft-owned test-environment acknowledgement. Private config
 and restricted output must be outside the repository and all Copilot
-trusted/allowed directories. Only fixed check statuses appear on the console;
-the manifest and raw results stay in restricted local storage. Check failures
-are recorded as Failed/Partial and dependent checks as Skipped. Future
-implemented capabilities join this fixed check list after synthetic acceptance
+trusted/allowed directories. Only registered check/status names and, for failed
+checks, a bounded ARM HTTP, transport-category, or local/unknown failure code
+appear on the console,
+never exception text, paths, or response content. The manifest and raw results
+stay in restricted local storage. Check failures are recorded as Failed/Partial
+and dependent checks as Skipped. Future implemented capabilities join this fixed
+check list after synthetic acceptance
 without changing the maintainer's invocation. A passing collection smoke
 does **not** imply analysis, reports, full-run acceptance, or customer readiness.
 

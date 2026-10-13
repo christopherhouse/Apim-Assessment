@@ -338,7 +338,7 @@ function Get-ApimPublicIpResourceQuery {
     ) -join [Environment]::NewLine
 }
 
-function Get-ApimFrontDoorResourceQuery {
+function Get-ApimFrontDoorResourceQuerySet {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
@@ -379,44 +379,59 @@ function Get-ApimFrontDoorResourceQuery {
         $null
     }
 
-    $query = @(
-        'let appGateways = resources'
-        "| where resourceGroup in~ ($($groups -join ', '))"
-        "| where type =~ 'microsoft.network/applicationgateways'"
+    $sources = @(
+        [pscustomobject]@{
+            Type = 'microsoft.network/applicationgateways'
+            Expand = @(
+                '| mv-expand pool = properties.backendAddressPools'
+                '| mv-expand backend = pool.properties.backendAddresses'
+                (
+                    '| extend backendTarget = tolower(coalesce(' +
+                    'tostring(backend.fqdn), tostring(backend.ipAddress)))'
+                )
+            )
+            ExcludeConfigured = $true
+        }
+        [pscustomobject]@{
+            Type = 'microsoft.network/frontdoors'
+            Expand = @(
+                '| mv-expand pool = properties.backendPools'
+                '| mv-expand backend = pool.properties.backends'
+                '| extend backendTarget = tolower(tostring(backend.properties.address))'
+            )
+            ExcludeConfigured = $false
+        }
+        [pscustomobject]@{
+            Type = 'microsoft.cdn/profiles/origingroups/origins'
+            Expand = @(
+                '| extend backendTarget = tolower(tostring(properties.hostName))'
+            )
+            ExcludeConfigured = $false
+        }
     )
-    if ($null -ne $excludedClause) {
-        $query += $excludedClause
-    }
-    $query += @(
-        '| mv-expand pool = properties.backendAddressPools'
-        '| mv-expand backend = pool.properties.backendAddresses'
-        (
-            '| extend backendTarget = tolower(coalesce(' +
-            'tostring(backend.fqdn), tostring(backend.ipAddress)))'
-        )
-        ';'
-        'let classicFrontDoors = resources'
-        "| where resourceGroup in~ ($($groups -join ', '))"
-        "| where type =~ 'microsoft.network/frontdoors'"
-        '| mv-expand pool = properties.backendPools'
-        '| mv-expand backend = pool.properties.backends'
-        '| extend backendTarget = tolower(tostring(backend.properties.address))'
-        ';'
-        'let afdOrigins = resources'
-        "| where resourceGroup in~ ($($groups -join ', '))"
-        "| where type =~ 'microsoft.cdn/profiles/origingroups/origins'"
-        '| extend backendTarget = tolower(tostring(properties.hostName))'
-        ';'
-        'union appGateways, classicFrontDoors, afdOrigins'
-        "| where backendTarget in~ ($($targets -join ', '))"
-        '| extend targetsApim = true'
-        (
-            '| project id, name, type, resourceGroup, location, properties, ' +
-            'targetsApim'
-        )
-        '| order by tolower(id) asc'
+    return @(
+        foreach ($source in $sources) {
+            $query = @(
+                'resources'
+                "| where resourceGroup in~ ($($groups -join ', '))"
+                "| where type =~ '$($source.Type)'"
+            )
+            if ($source.ExcludeConfigured -and $null -ne $excludedClause) {
+                $query += $excludedClause
+            }
+            $query += @($source.Expand)
+            $query += @(
+                "| where backendTarget in~ ($($targets -join ', '))"
+                '| extend targetsApim = true'
+                (
+                    '| project id, name, type, resourceGroup, location, ' +
+                    'properties, targetsApim'
+                )
+                '| order by tolower(id) asc'
+            )
+            $query -join [Environment]::NewLine
+        }
     )
-    return $query -join [Environment]::NewLine
 }
 
 function Get-ApimNetworkWafPolicyId {
@@ -647,13 +662,36 @@ function Invoke-ApimNetworkCollector {
             }
         }
         else {
-            $frontDoorQuery = Get-ApimFrontDoorResourceQuery `
+            $frontDoorQueries = @(Get-ApimFrontDoorResourceQuerySet `
                 -ResourceGroups $networkGroups `
                 -ApimTargets (Get-ApimNetworkTargetSet -Service $service) `
-                -ExcludedResourceIds $appGatewayIds.ToArray()
-            $filePayloads['raw/network/frontDoors.json'] = `
-                ConvertTo-ApimResourceGraphPayload -Query $frontDoorQuery `
-                -SubscriptionId $subscriptionId
+                -ExcludedResourceIds $appGatewayIds.ToArray())
+            $frontDoorResources = [System.Collections.Generic.Dictionary[
+                string,
+                object
+            ]]::new([System.StringComparer]::OrdinalIgnoreCase)
+            foreach ($query in $frontDoorQueries) {
+                foreach ($item in @(Invoke-ApimResourceGraphQuery `
+                            -Query $query -SubscriptionId $subscriptionId)) {
+                    $id = [string] (Get-ApimNetworkObjectValue `
+                            -InputObject $item -Name id)
+                    if ([string]::IsNullOrWhiteSpace($id)) {
+                        throw 'Front-door query returned an invalid resource ID.'
+                    }
+                    if (-not $frontDoorResources.ContainsKey($id)) {
+                        $frontDoorResources.Add($id, $item)
+                    }
+                }
+            }
+            [string[]] $sortedIds = @($frontDoorResources.Keys)
+            [System.Array]::Sort(
+                $sortedIds, [System.StringComparer]::OrdinalIgnoreCase
+            )
+            $filePayloads['raw/network/frontDoors.json'] = [pscustomobject]@{
+                value = @(foreach ($id in $sortedIds) {
+                        $frontDoorResources[$id]
+                    })
+            }
         }
 
         $paths = [System.Collections.Generic.List[string]]::new()

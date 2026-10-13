@@ -95,7 +95,7 @@ function Invoke-ApimPolicyCollector {
         $requests.Add([pscustomobject]@{
                 Index         = $requestIndex
                 Uri           = "${resourcePath}/policies/policy" +
-                    '?format=rawxml&api-version=2024-05-01'
+                    '?format=xml&api-version=2024-05-01'
                 RelativePath  = 'policies/global.xml'
                 ScopeType     = 'Global'
                 Scope         = 'global'
@@ -108,7 +108,7 @@ function Invoke-ApimPolicyCollector {
             $requests.Add([pscustomobject]@{
                     Index         = $requestIndex
                     Uri           = "${resourcePath}/products/${segment}/" +
-                        'policies/policy?format=rawxml&api-version=2024-05-01'
+                        'policies/policy?format=xml&api-version=2024-05-01'
                     RelativePath  = "policies/product.${segment}.xml"
                     ScopeType     = 'Product'
                     Scope         = $productName
@@ -122,7 +122,7 @@ function Invoke-ApimPolicyCollector {
             $requests.Add([pscustomobject]@{
                     Index         = $requestIndex
                     Uri           = "${resourcePath}/apis/${apiSegment}/" +
-                        'policies/policy?format=rawxml&api-version=2024-05-01'
+                        'policies/policy?format=xml&api-version=2024-05-01'
                     RelativePath  = "policies/api.${apiSegment}.xml"
                     ScopeType     = 'Api'
                     Scope         = $apiName
@@ -142,7 +142,7 @@ function Invoke-ApimPolicyCollector {
                         Index         = $requestIndex
                         Uri           = "${resourcePath}/apis/${apiSegment}/" +
                             "operations/${operationSegment}/policies/policy" +
-                            '?format=rawxml&api-version=2024-05-01'
+                            '?format=xml&api-version=2024-05-01'
                         RelativePath  = (
                             "policies/op.${apiSegment}.${operationSegment}.xml"
                         )
@@ -159,7 +159,7 @@ function Invoke-ApimPolicyCollector {
             $requests.Add([pscustomobject]@{
                     Index         = $requestIndex
                     Uri           = "${resourcePath}/policyFragments/${segment}" +
-                        '?api-version=2024-05-01&format=rawxml'
+                        '?api-version=2024-05-01&format=xml'
                     RelativePath  = "policies/fragment.${segment}.xml"
                     ScopeType     = 'Fragment'
                     Scope         = $fragmentName

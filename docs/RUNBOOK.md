@@ -53,8 +53,65 @@ independent checks continue, and dependent checks are Skipped; no false success
 is reported. Exit status is 0 when all registered collection checks complete, 1
 for configuration/preflight failure, 2 for Az module/context failure, 3 when
 collection is Partial, and 4 for an unexpected run failure. Only these fixed
-statuses and check names appear on the console. Restricted raw output, manifest,
-and logs stay under `Output.Root`. This is **not** the full T-604 acceptance or a
+statuses, check names, and bounded codes for failed checks appear on the console.
+The command shows preflight steps, one numbered result row per registered
+check, and a final completed-check count. An interactive terminal uses a
+colored emoji scorecard that replaces its active `WORKING` row in place; the
+console output encoding is temporarily set to UTF-8 for each rich write and
+then restored. Redirected output and `NO_COLOR` keep the two-line ASCII event
+feed without terminal cursor controls. If glyphs still
+show as boxes, use an emoji-capable terminal/font (such as Windows Terminal)
+or set `NO_COLOR` for a clean ASCII fallback.
+To preview the rich banner without connecting to Azure, run this in the same
+ordinary PowerShell terminal from the repository root:
+
+```powershell
+. .\scripts\Format-ApimSmokeConsoleLine.ps1
+Write-ApimSmokeConsoleLine -Line (
+    Format-ApimSmokeConsoleLine -State Header -Color
+) -Color
+```
+
+The progress count covers checks, not individual APIs or operations; a check
+may take time after its `collecting...` line. A failed/partial result includes
+a fixed troubleshooting hint keyed to its bounded code, **not** an exception
+message or stack trace. Future registered checks join the same progress count.
+`ARM_HTTP_401`/`ARM_HTTP_403` indicate an ARM authorization response; check
+the maintainer's local Reader access to the test service.
+`ARM_HTTP_404` indicates the service request was not found; verify the APIM
+name and resource group locally against the selected subscription.
+Other `ARM_HTTP_<status>` codes report only the numeric status (429 and 5xx
+are reported after retries). `ARM_NO_RESPONSE` means the guarded request
+received no usable HTTP response **and** the underlying error did not match a
+known category; it does not prove a network outage. `ARM_AUTH_ERROR` indicates
+an Az authentication/permission error; check the local login and test-resource
+access. `ARM_COMMAND_ERROR` indicates a missing cmdlet or invalid parameter;
+check the locally installed Az module. `ARM_NETWORK_ERROR` indicates a network
+exception; check local connectivity to Azure Resource Manager.
+`ARM_TIMEOUT` indicates a timeout/cancellation; check connectivity and retry
+policy locally. These codes never include exception text or raw responses.
+Earlier smoke versions could show `ARM_COMMAND_ERROR` because a bodyless GET
+passed an empty `-Payload` to `Invoke-AzRestMethod`. The current guarded
+transport omits that parameter; rerun from the updated bugfix branch or its
+merged successor before investigating a recurring command error.
+`LOCAL_IO_ERROR` means a local write/read failed; check restricted storage
+permissions and available space. `UNKNOWN_FAILURE` needs maintainer-only
+investigation and does not imply that Azure returned success. Do not paste
+private exception text, config, identifiers, logs, or raw output into Copilot.
+`POLICY_XML_REJECTED` means the XML-encoded policy response still failed strict
+parsing or used a prohibited document type; inspect the policy locally on the
+Microsoft-owned test instance. Earlier sanitized policy files can exist while
+Policies is Partial, but no complete policy index is written. Neither the
+parser location nor policy content appears in smoke output.
+The collector now preserves missing optional subscription display/tracing/date
+metadata as null and runs separate Resource Graph queries for other front doors;
+an older version can fail subscription validation or reject a multi-statement
+graph query. A Partial policy check after an XML parse rejection is **not**
+repaired automatically: the authorized maintainer should inspect the affected
+policy locally in the Microsoft-owned test instance. Do not paste `$Error`,
+policy XML, or returned Resource Graph diagnostics into Copilot.
+Restricted raw output, manifest, and logs stay under `Output.Root`. This is
+**not** the full T-604 acceptance or a
 customer assessment: Analyze, rules, reports, and model-data promotion are not
 run. Do not pass live output, identifiers, errors, or logs to Copilot.
 

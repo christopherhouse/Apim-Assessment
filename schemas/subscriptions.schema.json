@@ -29,7 +29,7 @@
         "minLength": 1
       },
       "displayName": {
-        "type": "string",
+        "type": ["string", "null"],
         "minLength": 1
       },
       "scopeType": {
@@ -65,7 +65,7 @@
         ]
       },
       "createdDate": {
-        "type": "string",
+        "type": ["string", "null"],
         "format": "date-time"
       },
       "expirationDate": {
@@ -76,7 +76,7 @@
         "format": "date-time"
       },
       "allowTracing": {
-        "type": "boolean"
+        "type": ["boolean", "null"]
       },
       "calls90d": {
         "type": [

@@ -285,7 +285,7 @@ Rules: a collector failure **never** aborts the run; it is recorded as `Failed/P
 | `products.json` | `{base}/products` | `state`, `subscriptionRequired`, `approvalRequired`, `subscriptionsLimit`, `description` |
 | `productApis/<product>.json` | `{base}/products/{p}/apis` | API membership |
 | `productGroups/<product>.json` | `{base}/products/{p}/groups` | visibility |
-| `subscriptions.json` | `{base}/subscriptions` | Allowlisted `name`, `scope`, `state`, derived non-identifying `ownerType`, `createdDate`, `expirationDate`, `allowTracing`, `displayName`. Drop `ownerId`, keys, and unknown fields; **never** call `listSecrets`. |
+| `subscriptions.json` | `{base}/subscriptions` | Allowlisted `name`, `scope`, `state`, derived non-identifying `ownerType`, `createdDate`, `expirationDate`, `allowTracing`, `displayName`. Absent optional display name/tracing/creation date remain null and downstream `missingInputs` records the gap; never infer false tracing. Models accept documented relative `/apis`, `/apis/{id}`, `/products/{id}` and full ARM scopes. Drop `ownerId`, keys, and unknown fields; **never** call `listSecrets`. |
 | `namedValues.json` | `{base}/namedValues` | `displayName`, `secret`, `keyVault.secretIdentifier`, `keyVault.lastStatus`, `tags`. Value is only returned for non-secret values — store it only for secret-pattern detection, then **drop it** (`RedactPolicySecrets`) |
 | `backends.json` | `{base}/backends` | `url`, `protocol`, `tls.validateCertificateChain`, `tls.validateCertificateName`, `credentials`, `circuitBreaker`, `type`, `pool` |
 | `certificates.json` | `{base}/certificates` | `expirationDate`, `keyVault` |
@@ -297,13 +297,13 @@ Rules: a collector failure **never** aborts the run; it is recorded as `Failed/P
 
 ### 7.3 Policies
 
-| Scope | Endpoint (`?format=rawxml`) | File |
+| Scope | Endpoint (`?format=xml`) | File |
 |---|---|---|
 | Global | `{base}/policies/policy` | `policies/global.xml` |
 | Product | `{base}/products/{p}/policies/policy` | `policies/product.{p}.xml` |
 | API | `{base}/apis/{api}/policies/policy` | `policies/api.{api}.xml` |
 | Operation | `{base}/apis/{api}/operations/{op}/policies/policy` | `policies/op.{api}.{op}.xml` |
-| Fragment | `{base}/policyFragments/{f}?format=rawxml` | `policies/fragment.{f}.xml` |
+| Fragment | `{base}/policyFragments/{f}?format=xml` | `policies/fragment.{f}.xml` |
 
 404 = "no policy at this scope" (not an error). `policies/index.json` lists every
 scope with `scopeType`, `scope`, `file`, `exists`, `sha256` (of normalized,
@@ -311,6 +311,10 @@ redacted XML; see §8.4), and `hardcodedSecretLocations`. Secret detection occur
 before persistence; locations are structural XML paths only, values are never
 recorded, and stored policy XML replaces detected literals with
 `***REDACTED***`.
+The collector requests XML-encoded policy content for safe structural parsing.
+It rejects malformed XML or prohibited document types before storage. If a
+later policy fails after earlier sanitized files were written, collection is
+Partial and no complete policy index is written.
 
 ### 7.4 Network
 
@@ -319,7 +323,7 @@ recorded, and stored policy XML replaces detected literals with
 | `network/appgw.<name>.json` | ARM GET App Gateway | `frontendIPConfigurations` (public vs private), `httpListeners` (hostName(s), frontend, protocol, sslCertificate), `requestRoutingRules` (ruleType Basic/PathBasedRouting, priority), `urlPathMaps`, `backendAddressPools`, `backendHttpSettingsCollection` (hostName override, pickHostNameFromBackendAddress, probe), `rewriteRuleSets`, `probes`, `sslPolicy`, `firewallPolicy` link, `webApplicationFirewallConfiguration` (legacy) |
 | `network/wafPolicy.<name>.json` | ARM GET WAF policy | `policySettings.state`, `policySettings.mode`, `managedRules`, `customRules` (IP match rules → edge allowlist) |
 | `network/apimSubnet.json`, `network/nsgs.json`, `network/publicIps.json`, `network/privateEndpoints.json`, `network/privateDnsZones.json`, `network/routeTables.json` | Resource Graph | APIM subnet NSG rules, App GW subnet, public IPs (detect any other path to APIM) |
-| `network/frontDoors.json` | Resource Graph | any Front Door / other App GW whose backend points at APIM hostnames or IPs |
+| `network/frontDoors.json` | Resource Graph | any Front Door / other App GW whose backend points at APIM hostnames or IPs; three separate single-type queries are deduplicated by resource ID before persistence |
 
 ### 7.5 Security posture (Resource Graph)
 - `security/defender.json`: `securityresources | where type == "microsoft.security/assessments"` filtered to APIM + App GW resource IDs (`displayName`, `status.code`, `metadata.severity`), plus Defender for APIs sub-assessments where available.
@@ -470,8 +474,9 @@ the deterministic `data-scope` and unresolved-fragment status attributes.
 | `portal.json` | single object | portal status, published revision, sign-in/sign-up settings, identity providers, custom domain, products visible to which groups |
 | `openApiQuality.json` | API | Spectral error/warn counts, score |
 
-Subscription scope is derived from the terminal APIM resource path: the service
-root is `AllApis`, `/products/{id}` is `Product`, and `/apis/{id}` is `Api`.
+Subscription scope is derived from a full ARM service resource path or the
+documented relative scope: the service root or `/apis` is `AllApis`,
+`/products/{id}` is `Product`, and `/apis/{id}` is `Api`.
 `scopeTarget` is null for AllApis and the decoded terminal ID otherwise.
 `subscriptionId=master` at AllApis scope is the built-in master. Collection
 derives `ownerType` in memory and drops `ownerId`; model flags are sorted from
@@ -845,9 +850,25 @@ Before the full live-smoke acceptance, a maintainer-only collection smoke entry
 point may exercise the implemented collectors using the same fixed, cumulative
 check list on a Microsoft-owned test instance (D-20). It requires existing
 matching Azure context and private external configuration/output, isolates
-collector failures, and prints only fixed statuses. Agents and CI run the
-synthetic/mocked tests, never live Azure collection. A passing collection smoke
+collector failures, and streams numbered check transitions with fixed statuses,
+bounded failure codes, and fixed troubleshooting hints. Interactive UTF-8 emoji
+and a compact scorecard replace the running row in place, restoring console
+output encoding per write; redirected output or `NO_COLOR` uses readable ASCII
+(D-26/D-28). Marked XML parser failures report `POLICY_XML_REJECTED` (D-27).
+No raw exception message, stack, identifier, or path enters progress output
+(D-25).
+Agents and CI run the synthetic/mocked tests, never live Azure collection. A
+passing collection smoke
 does not satisfy the full-run exit-0 check or G3 customer-run gate.
+For a failed check, the maintainer smoke may also print a bounded failure code
+derived from a marked ARM wrapper exception (`ARM_HTTP_100` through
+`ARM_HTTP_599`, `ARM_AUTH_ERROR`, `ARM_COMMAND_ERROR`,
+`ARM_NETWORK_ERROR`, `ARM_TIMEOUT`, or `ARM_NO_RESPONSE`), a local I/O exception
+(`LOCAL_IO_ERROR`), a marked XML parser rejection (`POLICY_XML_REJECTED`),
+or an unclassified exception (`UNKNOWN_FAILURE`).
+Transport classifications use only known exception types and fixed PowerShell
+error categories; `ARM_NO_RESPONSE` alone does not prove a network issue.
+It never prints exception text, response content, paths, or identifiers (D-21/D-22).
 
 ---
 
