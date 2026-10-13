@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.invalid/apim-assessment/schemas/certificates.schema.json",
+  "title": "APIM Assessment Certificate Model",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "certificateId",
+      "expirationDate",
+      "keyVaultBacked",
+      "modelStatus",
+      "missingInputs"
+    ],
+    "properties": {
+      "certificateId": {
+        "type": "string",
+        "minLength": 1
+      },
+      "expirationDate": {
+        "type": ["string", "null"],
+        "format": "date-time"
+      },
+      "keyVaultBacked": {
+        "type": ["boolean", "null"]
+      },
+      "modelStatus": {
+        "enum": ["Complete", "Partial"]
+      },
+      "missingInputs": {
+        "type": "array",
+        "items": {
+          "enum": ["expirationDate", "keyVaultReference"]
+        },
+        "uniqueItems": true
+      }
+    }
+  }
+}

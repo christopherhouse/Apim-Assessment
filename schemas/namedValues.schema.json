@@ -1,0 +1,56 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.invalid/apim-assessment/schemas/namedValues.schema.json",
+  "title": "APIM Assessment Named Value Model",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "namedValueId",
+      "secret",
+      "keyVaultBacked",
+      "keyVaultStatus",
+      "secretPatternLocations",
+      "plainTextSecretLike",
+      "modelStatus",
+      "missingInputs"
+    ],
+    "properties": {
+      "namedValueId": {
+        "type": "string",
+        "minLength": 1
+      },
+      "secret": {
+        "type": "boolean"
+      },
+      "keyVaultBacked": {
+        "type": ["boolean", "null"]
+      },
+      "keyVaultStatus": {
+        "type": ["string", "null"],
+        "minLength": 1
+      },
+      "secretPatternLocations": {
+        "type": "array",
+        "items": {
+          "enum": ["displayName", "value"]
+        },
+        "uniqueItems": true
+      },
+      "plainTextSecretLike": {
+        "type": "boolean"
+      },
+      "modelStatus": {
+        "enum": ["Complete", "Partial"]
+      },
+      "missingInputs": {
+        "type": "array",
+        "items": {
+          "enum": ["keyVaultReference", "keyVaultStatus"]
+        },
+        "uniqueItems": true
+      }
+    }
+  }
+}

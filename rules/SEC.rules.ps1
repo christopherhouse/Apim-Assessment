@@ -193,6 +193,101 @@ Set-StrictMode -Version Latest
         Enabled = $true
     }
     @{
+        Id = 'APIM-SEC-008'
+        Title = 'Secret-like named value is stored as plain text'
+        Pillar = 'Security'
+        Mcsb = 'DP-7'
+        Severity = 'Medium'
+        Scope = 'NamedValue'
+        Requires = @('model/namedValues.json')
+        Test = {
+            param($x, $ctx)
+            $null = $ctx
+            $x.plainTextSecretLike
+        }
+        Evidence = {
+            param($x, $ctx)
+            $null = $ctx
+            [ordered]@{
+                secret = $x.secret
+                plainTextSecretLike = $x.plainTextSecretLike
+                secretPatternLocations = @($x.secretPatternLocations)
+            }
+        }
+        EvidenceText = {
+            param($x, $ctx)
+            $null = $ctx
+            "Named value has secret-like content or naming at structural location(s): $(@($x.secretPatternLocations) -join ', '); no value is retained."
+        }
+        Recommendation = 'Store sensitive named values as secrets backed by an approved secret-management mechanism and rotate any exposed credential through the authorized operational process.'
+        Effort = 'S'
+        References = @()
+        SourceFiles = @('raw/namedValues.json', 'model/namedValues.json')
+        Enabled = $true
+    }
+    @{
+        Id = 'APIM-SEC-010'
+        Title = 'HTTPS backend certificate validation is disabled'
+        Pillar = 'Security'
+        Mcsb = 'DP-3'
+        Severity = 'Medium'
+        Scope = 'Backend'
+        Requires = @('model/backends.json')
+        DataGaps = {
+            param($ctx)
+            $targets = @($ctx.Models.backends | Where-Object {
+                    $_.scheme -eq 'https'
+                })
+            $positive = @($targets | Where-Object {
+                    $_.tlsValidationChain -eq $false -or
+                    $_.tlsValidationName -eq $false
+                })
+            if ($positive.Count -eq 0) {
+                if (@($targets | Where-Object {
+                            $null -eq $_.tlsValidationChain
+                        }).Count -gt 0) {
+                    'model/backends.json#tlsValidationChain'
+                }
+                if (@($targets | Where-Object {
+                            $null -eq $_.tlsValidationName
+                        }).Count -gt 0) {
+                    'model/backends.json#tlsValidationName'
+                }
+            }
+        }
+        Applies = {
+            param($x, $ctx)
+            $null = $ctx
+            $x.scheme -eq 'https'
+        }
+        Test = {
+            param($x, $ctx)
+            $null = $ctx
+            $x.tlsValidationChain -eq $false -or
+                $x.tlsValidationName -eq $false
+        }
+        Evidence = {
+            param($x, $ctx)
+            $null = $ctx
+            [ordered]@{
+                scheme = $x.scheme
+                tlsValidationChain = $x.tlsValidationChain
+                tlsValidationName = $x.tlsValidationName
+            }
+        }
+        EvidenceText = {
+            param($x, $ctx)
+            $null = $x
+            $null = $ctx
+            'HTTPS backend certificate chain or hostname validation is explicitly disabled.'
+        }
+        Recommendation = 'Enable backend certificate chain and hostname validation unless an approved exception is documented and independently protected.'
+        Effort = 'S'
+        References = @()
+        SourceFiles = @('raw/backends.json', 'model/backends.json')
+        Enabled = $true
+    }
+    @{
         Id = 'APIM-SEC-012'
         Title = 'API policy permits unsafe credentialed cross-origin requests'
         Pillar = 'Security'

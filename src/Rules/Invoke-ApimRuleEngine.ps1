@@ -10,6 +10,9 @@ $script:ApimRuleScopes = @{
     Api = 'apis'
     Operation = 'operations'
     Subscription = 'subscriptions'
+    NamedValue = 'namedValues'
+    Backend = 'backends'
+    Certificate = 'certificates'
     Route = 'exposure'
     Network = 'network'
 }
@@ -168,6 +171,9 @@ function Get-ApimRuleScopeKey {
             return "operation:$($Target.apiId)/$($Target.operationId)"
         }
         Subscription { return "subscription:$($Target.subscriptionId)" }
+        NamedValue { return "named-value:$($Target.namedValueId)" }
+        Backend { return "backend:$($Target.backendId)" }
+        Certificate { return "certificate:$($Target.certificateId)" }
         Route { return "route:$($Target.routeKey)" }
     }
     throw 'Rule scope is unsupported.'

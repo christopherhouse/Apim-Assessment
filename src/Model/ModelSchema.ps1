@@ -10,6 +10,9 @@ $script:ApimModelSchemaPaths = [ordered]@{
     operations = Join-Path $modelSchemaRoot 'operations.schema.json'
     policyMatrix = Join-Path $modelSchemaRoot 'policyMatrix.schema.json'
     subscriptions = Join-Path $modelSchemaRoot 'subscriptions.schema.json'
+    namedValues = Join-Path $modelSchemaRoot 'namedValues.schema.json'
+    backends = Join-Path $modelSchemaRoot 'backends.schema.json'
+    certificates = Join-Path $modelSchemaRoot 'certificates.schema.json'
     network = Join-Path $modelSchemaRoot 'network.schema.json'
     exposure = Join-Path $modelSchemaRoot 'exposure.schema.json'
 }

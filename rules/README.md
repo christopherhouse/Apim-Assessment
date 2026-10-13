@@ -7,20 +7,24 @@ are implemented. `NET.rules.ps1` contains NET-001/002/004/006/007/008/009.
 NET-001 and NET-009 evaluate only explicitly operator-attested evidence in
 the closed network model; absent/unknown attestations remain NotEvaluated.
 Synthetic definitions in unit tests exercise the contract. The current
-engine supports Service, Api, Operation, Subscription, Route, and Network
-targets backed by the implemented models. A rule must list its target model
+engine supports Service, Api, Operation, Subscription, NamedValue, Backend,
+Certificate, Route, and Network targets backed by the implemented models. A rule
+must list its target model
 in `Requires` and every additional model it reads; rule callbacks receive the
 target and a context with `Config`, `Models`, and `Manifest`.
 NET-009's Route target is the allowlisted `network.auxiliaryRoutes` field,
 not an API route in `exposure.json`.
-`SEC.rules.ps1` contains SEC-003/004/005/007/012/014/015/020. These rules use
-only the implemented API, operation, and subscription models. Positive evidence
+`SEC.rules.ps1` contains
+SEC-003/004/005/007/008/010/012/014/015/020. These rules use only the
+implemented API, operation, subscription, named-value, and backend models.
+Positive evidence
 is retained when another record is incomplete; otherwise unknown applicable
-facts produce one NotEvaluated finding. SEC-014 remains unavailable against
-ordinary saved models until diagnostics collection populates its two closed
-fields. The remaining SEC rules require future service/security,
-named-value/backend/certificate, product-classification, diagnostics, or
-authorization evidence and must not be approximated from partial fields.
+facts produce one NotEvaluated finding. SEC-008 uses derived structural
+locations without retaining values. SEC-010 applies only to HTTPS backends and
+keeps missing validation facts unknown. The remaining SEC rules require future
+service/security, multi-scope Key Vault, configurable plain-HTTP exception,
+backend intent/mapping, product-classification, telemetry, or authorization
+evidence and must not be approximated from partial fields.
 The current synthetic NET fixture has two API route records and one App
 Gateway. Focused tests add one attested edge/origin assessment and one
 attested public portal route: NET-001 and NET-009 each yield one evaluated

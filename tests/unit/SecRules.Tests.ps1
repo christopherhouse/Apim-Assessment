@@ -40,6 +40,15 @@ Describe 'Evidence-backed SEC catalog' {
                     subscriptions = Get-Content -LiteralPath (
                         Join-Path $script:secFixtureRoot 'subscriptions.json'
                     ) -Raw | ConvertFrom-Json -Depth 100 -NoEnumerate
+                    namedValues = Get-Content -LiteralPath (
+                        Join-Path $script:secFixtureRoot 'namedValues.json'
+                    ) -Raw | ConvertFrom-Json -Depth 100 -NoEnumerate
+                    backends = Get-Content -LiteralPath (
+                        Join-Path $script:secFixtureRoot 'backends.json'
+                    ) -Raw | ConvertFrom-Json -Depth 100 -NoEnumerate
+                    certificates = Get-Content -LiteralPath (
+                        Join-Path $script:secFixtureRoot 'certificates.json'
+                    ) -Raw | ConvertFrom-Json -Depth 100 -NoEnumerate
                 }
             }
 
@@ -60,11 +69,12 @@ Describe 'Evidence-backed SEC catalog' {
             }
         }
 
-        It 'loads the eight currently model-backed SEC rules with empty references' {
+        It 'loads the ten currently model-backed SEC rules with empty references' {
             @($script:secRules.Id) | Should -Be @(
                 'APIM-SEC-003', 'APIM-SEC-004', 'APIM-SEC-005',
-                'APIM-SEC-007', 'APIM-SEC-012', 'APIM-SEC-014',
-                'APIM-SEC-015', 'APIM-SEC-020'
+                'APIM-SEC-007', 'APIM-SEC-008', 'APIM-SEC-010',
+                'APIM-SEC-012', 'APIM-SEC-014', 'APIM-SEC-015',
+                'APIM-SEC-020'
             )
             foreach ($rule in $script:secRules) {
                 $rule.References.Count | Should -Be 0
@@ -150,6 +160,41 @@ Describe 'Evidence-backed SEC catalog' {
                     -Models $models).Count | Should -Be 0
         }
 
+        It 'flags secret-like plain-text named values using structural evidence only' {
+            $models = Get-SyntheticSecModelSet
+            $found = @(Get-SyntheticSecFinding -RuleId 'APIM-SEC-008' `
+                    -Models $models)
+            $found.Count | Should -Be 1
+            $found[0].scope | Should -Be 'named-value:partner-api-key'
+            $found[0].evidence.secret | Should -BeFalse
+            $found[0].evidence.plainTextSecretLike | Should -BeTrue
+            @($found[0].evidence.secretPatternLocations) -join ',' |
+                Should -Be 'displayName,value'
+            @($found[0].evidence.Keys) | Should -Not -Contain 'value'
+            $found[0].sourceFiles | Should -Contain 'raw/namedValues.json'
+
+            $models.namedValues[1].plainTextSecretLike = $false
+            @(Get-SyntheticSecFinding -RuleId 'APIM-SEC-008' `
+                    -Models $models).Count | Should -Be 0
+        }
+
+        It 'flags explicitly disabled HTTPS backend certificate validation' {
+            $models = Get-SyntheticSecModelSet
+            $models.backends[0].tlsValidationName = $false
+            $found = @(Get-SyntheticSecFinding -RuleId 'APIM-SEC-010' `
+                    -Models $models)
+            $found.Count | Should -Be 1
+            $found[0].scope | Should -Be 'backend:orders-backend'
+            $found[0].evidence.scheme | Should -Be 'https'
+            $found[0].evidence.tlsValidationChain | Should -BeTrue
+            $found[0].evidence.tlsValidationName | Should -BeFalse
+            $found[0].sourceFiles | Should -Contain 'raw/backends.json'
+
+            $models.backends[0].tlsValidationName = $true
+            @(Get-SyntheticSecFinding -RuleId 'APIM-SEC-010' `
+                    -Models $models).Count | Should -Be 0
+        }
+
         It 'flags unsafe CORS and leaves known safe APIs unflagged' {
             $models = Get-SyntheticSecModelSet
             $models.apis[0].corsUnsafe = $true
@@ -219,6 +264,7 @@ Describe 'Evidence-backed SEC catalog' {
             -TestCases @(
                 @{ Id = 'APIM-SEC-003'; Missing = 'callerAuth'; Setup = 'Sec003' }
                 @{ Id = 'APIM-SEC-004'; Missing = 'callerAuth'; Setup = 'Sec004' }
+                @{ Id = 'APIM-SEC-010'; Missing = 'tlsValidationChain'; Setup = 'Sec010' }
                 @{ Id = 'APIM-SEC-012'; Missing = 'corsUnsafe'; Setup = 'Sec012' }
                 @{ Id = 'APIM-SEC-014'; Missing = 'bodyLogging'; Setup = 'Sec014' }
                 @{ Id = 'APIM-SEC-015'; Missing = 'allowTracing'; Setup = 'Sec015' }
@@ -233,6 +279,9 @@ Describe 'Evidence-backed SEC catalog' {
                 Sec004 {
                     $models.apis[1].subscriptionRequired = $false
                     $models.apis[1].callerAuth = $null
+                }
+                Sec010 {
+                    $models.backends[0].tlsValidationChain = $null
                 }
                 Sec012 {
                     $models.apis[0].corsUnsafe = $null
@@ -263,6 +312,9 @@ Describe 'Evidence-backed SEC catalog' {
                     if ($Id -eq 'APIM-SEC-015') {
                         'subscriptions'
                     }
+                    elseif ($Id -eq 'APIM-SEC-010') {
+                        'backends'
+                    }
                     else {
                         'apis'
                     }
@@ -288,6 +340,7 @@ Describe 'Evidence-backed SEC catalog' {
             $models.apis[1].subscriptionRequired = $false
             $models.apis[1].callerAuth = 'None'
             $models.operations[0].mockOrTrace = $true
+            $models.backends[0].tlsValidationName = $false
             $findings = @(Invoke-ApimRuleEngine -Rules $script:secRules `
                     -Models $models -Manifest $script:secRulesManifest `
                     -Config $script:secRulesConfig)

@@ -1,0 +1,16 @@
+[
+  {
+    "certificateId": "key-vault-certificate",
+    "expirationDate": "2027-10-13T00:00:00.0000000+00:00",
+    "keyVaultBacked": true,
+    "modelStatus": "Complete",
+    "missingInputs": []
+  },
+  {
+    "certificateId": "uploaded-certificate",
+    "expirationDate": "2026-11-01T00:00:00.0000000+00:00",
+    "keyVaultBacked": false,
+    "modelStatus": "Complete",
+    "missingInputs": []
+  }
+]

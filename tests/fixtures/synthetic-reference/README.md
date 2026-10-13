@@ -59,6 +59,15 @@ both remain `exposure=Unknown`, Medium confidence, and Partial because route
 usage is not yet available. `model/apis.exposure.json` records the corresponding
 post-exposure API backfill separately from the pre-exposure `model/apis.json`
 fixture used by the API-model tests.
+The security-asset model fixtures contain three sorted named values, two
+backends, and two certificates. `partner-api-key` has only structural
+`displayName`/`value` secret-pattern locations and produces the expected
+SEC-008 finding without storing its value. `orders-backend` is HTTPS with both
+certificate-validation controls enabled; `status-backend` is HTTP and its
+non-applicable TLS facts are null, so the baseline has no SEC-010 finding.
+Focused rule tests mutate the HTTPS hostname-validation fact to false for the
+positive case. Certificate model records retain only normalized expiry and
+Key Vault-backed status.
 
 Planned T-201 counts: 60 APIs, four all-API subscriptions, 11 unused APIs,
 14 APIs without products, seven key-only external APIs, three missing `<base/>`

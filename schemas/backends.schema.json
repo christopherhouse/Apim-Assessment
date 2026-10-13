@@ -1,0 +1,55 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.invalid/apim-assessment/schemas/backends.schema.json",
+  "title": "APIM Assessment Backend Model",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "backendId",
+      "scheme",
+      "tlsValidationChain",
+      "tlsValidationName",
+      "credentialConfigured",
+      "circuitBreakerConfigured",
+      "poolConfigured",
+      "modelStatus",
+      "missingInputs"
+    ],
+    "properties": {
+      "backendId": {
+        "type": "string",
+        "minLength": 1
+      },
+      "scheme": {
+        "enum": ["http", "https"]
+      },
+      "tlsValidationChain": {
+        "type": ["boolean", "null"]
+      },
+      "tlsValidationName": {
+        "type": ["boolean", "null"]
+      },
+      "credentialConfigured": {
+        "type": "boolean"
+      },
+      "circuitBreakerConfigured": {
+        "type": "boolean"
+      },
+      "poolConfigured": {
+        "type": "boolean"
+      },
+      "modelStatus": {
+        "enum": ["Complete", "Partial"]
+      },
+      "missingInputs": {
+        "type": "array",
+        "items": {
+          "enum": ["tlsValidationChain", "tlsValidationName"]
+        },
+        "uniqueItems": true
+      }
+    }
+  }
+}

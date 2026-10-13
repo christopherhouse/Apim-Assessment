@@ -465,6 +465,9 @@ the deterministic `data-scope` and unresolved-fragment status attributes.
 |---|---|---|
 | `policyMatrix.json` | API | `apiId` + one column per control: `callerAuth`, `rateLimit`, `ipFilter`, `corsSafe`, `backendAuth`, `noHardcodedSecret`, `basePresent`, `noMockTrace` with values `Pass`/`Fail`/`NA` |
 | `subscriptions.json` | subscription | `subscriptionId`, `displayName`, `scopeType` (`AllApis`/`Product`/`Api`), `scopeTarget`, `state`, `ownerType`, `createdDate`, `expirationDate`, `allowTracing`, `calls90d`, `lastUsed`, `isBuiltInMaster`, `flags[]` |
+| `namedValues.json` | named value | `namedValueId`, `secret`, nullable `keyVaultBacked`/`keyVaultStatus`, structural `secretPatternLocations[]`, derived `plainTextSecretLike`, completeness metadata |
+| `backends.json` | backend | `backendId`, URL `scheme`, nullable `tlsValidationChain`/`tlsValidationName`, `credentialConfigured`, circuit-breaker/pool flags, completeness metadata |
+| `certificates.json` | certificate | `certificateId`, normalized nullable `expirationDate`, nullable `keyVaultBacked`, completeness metadata |
 | `exposure.json` | route × API | stable `routeKey`, `gateway`, `listener`, `listenerHost`, `backendHost`, `frontendType` (Public/Private), `ruleType`, `pattern`, `wafState`, `wafMode`, `edge` (`Cloudflare-Assumed`), `apiId`, `reachability`, `restriction`, `exposure`, `callsViaAppGw`, `callsInternal`, `confidence`, `baseMissingBypass`, `restrictedOperations[]`, completeness metadata |
 | `network.json` | single object | APIM VNet mode, public access, NSG evaluation result, other front doors, App GW TLS policy, WAF state, optional operator-attested edge/origin and auxiliary endpoint facts |
 | `usage.json` | API × month | calls; plus top-N table |
@@ -483,6 +486,17 @@ derives `ownerType` in memory and drops `ownerId`; model flags are sorted from
 `AllApis`, `AllowTracing`, `BuiltInMaster`, `NoExpiration`, and `OwnerMissing`.
 Until usage telemetry is available, `calls90d` and `lastUsed` are null with
 `modelStatus=Partial` and `missingInputs=["usage"]`.
+
+The three security-asset arrays are derived only from the closed T-108
+collector payloads. Named-value values are never present; SEC-008 uses the
+collector's allowlisted `displayName`/`value` pattern locations plus the secret
+flag to derive `plainTextSecretLike`. Backend URLs are reduced to scheme and
+structural controls. HTTPS certificate-chain and hostname-validation settings
+remain Boolean or null; for HTTP backends they are normalized to null because
+TLS validation is not applicable. Certificates retain normalized expiry and
+whether a complete Key Vault reference is present, never encoded/private
+certificate material. Missing Key Vault, HTTPS TLS, or expiry facts produce
+Partial records with explicit `missingInputs`, not safe defaults (D-33/D-36).
 
 `network.json` is a closed-schema single object. It records
 `virtualNetworkType`, `publicNetworkAccess`, APIM subnet/NSG identity,
@@ -594,10 +608,11 @@ Edge layer: with `Edge.Mode = AssumedReachable`, every public listener is treate
 }
 ```
 `$ctx` gives access to config thresholds, all model files, and the manifest.
-Until additional model contracts exist, the private engine evaluates only
-Service, Api, Operation, Subscription, Route, and Network targets; catalog
-entries for other scopes are deferred (D-29). Rules must declare their target
-model and any additional model they use in `Requires`.
+The private engine evaluates Service, Api, Operation, Subscription, NamedValue,
+Backend, Certificate, Route, and Network targets backed by registered model
+contracts. Portal and Cost targets remain deferred until their model contracts
+exist (D-29/D-36). Rules must declare their target model and any additional
+model they use in `Requires`.
 An optional `DataGaps = { param($ctx) ... }` callback declares unavailable
 required facts within valid models using `model/<name>.json#<field>` references
 to declared `Requires` files. The engine emits one Info/NotEvaluated finding
@@ -706,16 +721,24 @@ publication; both remain NotEvaluated without corroboration (D-30/D-31).
 | APIM-SEC-019 | No managed identity on APIM | Low | IM-3 | Service | `identity` null |
 | APIM-SEC-020 | Mock or trace policies in production | Medium | n/a | Operation | `mockOrTrace` (env = Prod) |
 
-T-304 currently implements SEC-003/004/005/007/012/014/015/020 against the
-closed API, operation, and subscription models. Known positive evidence remains
+T-304 currently implements
+SEC-003/004/005/007/008/010/012/014/015/020 against the closed API, operation,
+subscription, named-value, and backend models. Known positive evidence remains
 evaluated when another record has an unavailable fact; if all otherwise
 applicable evidence is unknown, the rule emits one Info/NotEvaluated finding.
-SEC-014 consumes the collected diagnostic contract through the API model and
-evaluates known body/sensitive-request-header logging in saved runs. Incomplete
-diagnostic evidence remains null and produces NotEvaluated when no positive fact
-is known (D-35). The remaining SEC rules stay deferred until their
-service/security, named-value/backend/certificate, product-classification, or
-authorization evidence is modeled (D-32).
+SEC-008 uses only the derived secret flag and structural pattern locations;
+values are never evidence. SEC-010 applies only to HTTPS backends with an
+explicitly false chain or hostname-validation flag. HTTP TLS flags are
+non-applicable, and missing HTTPS validation facts produce NotEvaluated when no
+positive finding is known. SEC-014 consumes the collected diagnostic contract
+through the API model and evaluates known body/sensitive-request-header logging
+in saved runs. Incomplete diagnostic evidence remains null and produces
+NotEvaluated when no positive fact is known (D-35/D-36). SEC-009 remains
+deferred pending a deliberate one-rule/multi-scope contract, SEC-011 pending a
+configurable approved-internal HTTP exception, and SEC-013 pending
+backend-to-API mapping plus anonymous-by-design owner intent. Other deferred
+rules still require service/security, product-classification, telemetry, or
+authorization evidence (D-32).
 
 ### 11.3 Governance / Operational Excellence (GOV)
 | ID | Title | Sev | Logic |

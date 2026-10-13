@@ -229,6 +229,9 @@ Describe 'Private offline rule engine and findings contract' {
             -TestCases @(
                 @{ Scope = 'Operation'; Model = 'operations'; Prefix = 'operation:' }
                 @{ Scope = 'Subscription'; Model = 'subscriptions'; Prefix = 'subscription:' }
+                @{ Scope = 'NamedValue'; Model = 'namedValues'; Prefix = 'named-value:' }
+                @{ Scope = 'Backend'; Model = 'backends'; Prefix = 'backend:' }
+                @{ Scope = 'Certificate'; Model = 'certificates'; Prefix = 'certificate:' }
                 @{ Scope = 'Route'; Model = 'exposure'; Prefix = 'route:' }
                 @{ Scope = 'Network'; Model = 'network'; Prefix = 'network' }
             ) {
