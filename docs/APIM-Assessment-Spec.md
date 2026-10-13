@@ -393,6 +393,13 @@ Effective policy for an operation in product P = `op ⊕ (api ⊕ (product P ⊕
 - Expand `<include-fragment fragment-id="x"/>` inline from fragment XML (max depth 5, cycle-safe).
 - Preserve original scope attribution on each node (`data-scope` attribute) for evidence.
 
+The merge result contains one record per product path with `product`, `apiId`,
+`operationId`, `effectiveXml`, `normalizedXml`, `sha256`, `baseMissing[]`, and
+`fragmentIssues[]`. Missing fragments, cycles, and depth-limit failures retain
+the unresolved `<include-fragment>` with `data-fragment-status`; analysis must
+not silently interpret it as expanded. Conservative cross-product flag
+aggregation consumes the per-product flag records produced by §8.4.
+
 ### 8.4 Policy flags (`Get-PolicyFlags`) — XPath on effective XML
 | Flag | Detection |
 |---|---|
@@ -409,7 +416,9 @@ Effective policy for an operation in product P = `op ⊕ (api ⊕ (product P ⊕
 | `returnsWithoutBackend` | `//return-response` in inbound not inside a `choose` |
 | `baseMissing` | from merge |
 
-Normalization for hashing: remove comments, collapse whitespace, sort attributes, LF line endings, then SHA-256.
+Normalization for hashing: remove comments, collapse whitespace, sort
+attributes, use LF line endings, and then SHA-256. Effective-policy hashes include
+the deterministic `data-scope` and unresolved-fragment status attributes.
 
 ### 8.5 Other model files
 | File | Grain | Key fields |
