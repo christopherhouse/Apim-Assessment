@@ -42,9 +42,10 @@ logging, subscription tracing, missing managed identity, and production
 mock/trace policy. Remaining collectors
 and models, telemetry-based exposure refinement, the rest of the SEC catalog,
 the remaining GOV and other rule catalogs, the model-data airlock, Copilot
-operator workflow, assessment CLI entry points, report writer, and executive
-HTML template are not implemented. The customer-neutral Excel action-plan
-template is implemented, but it is not populated by any public command.
+operator workflow, assessment CLI entry points, public report command, and
+executive HTML template are not implemented. A private offline Excel writer now
+populates the implemented deterministic report sheets from a validated saved
+run, but no public command invokes it.
 
 An independent, **maintainer-only collection smoke command** now exercises all
 eight implemented collector checks in dependency order against a Microsoft-owned test
@@ -66,12 +67,12 @@ builders; this gate is not a public Analyze command or the model-data airlock.
 | Module manifest and deterministic source loader | Remaining run orchestration and collectors |
 | Strict private configuration validation | Public assessment entry points |
 | Structured JSON-lines logging and progress | Run resume and persisted progress orchestration |
-| Guarded ARM transport with paging/retry | Excel report writer, carry-forward, and run comparison |
+| Guarded ARM transport with paging/retry | Public report command, carry-forward, and run comparison |
 | Versioned run manifest lifecycle and APIM service/API/product/subscription/policy/network plus secret-safe named-value/backend/certificate and logger/diagnostic collectors | Remaining APIM, telemetry, and cost collectors |
 | Maintainer-only cumulative collection smoke script (eight registered checks through Diagnostics) | Full assessment orchestration and live acceptance |
 | Effective policy merge/flags plus ten implemented models with shared schema-gated persistence and saved-run loading | Remaining model builders and telemetry exposure refinement |
 | Private offline rule engine, seven NET checks, fifteen SEC checks, six GOV checks, all six REL checks, configurable priority scoring, schema-gated findings, and closed action-item aggregation | Remaining SEC/GOV catalog entries, PERF and other catalogs, public Analyze orchestration, and Excel rendering |
-| Generated customer-neutral Excel action-plan template with fixed sheets/tables, formulas, chart, tracking dropdown, and conditional formatting | Workbook population, tracking carry-forward, and Excel integration reporting |
+| Generated customer-neutral Excel template plus private validated-run population for actions, findings, APIs, policy, subscriptions, exposure, network summary, and Summary assumptions | Public workbook rendering, Run Info/rules/weights, tracking carry-forward, and future usage/cost/drift population |
 | Synthetic-fixture scaffold | Populated fixtures and offline integration pipeline |
 | Windows/Linux lint and test CI | Model-data airlock and local Copilot broker |
 | Copilot development instructions, agents, and skills | Assessment analyst agents and operator skills |
@@ -284,7 +285,20 @@ frozen headers, fixed widths, finding/policy/exposure conditional formatting,
 the action-status dropdown, Summary formulas, a pillar/severity chart, and an
 assumptions/data-gap banner. The generator uses fixed widths and does not require
 Excel or auto-size native dependencies. It contains no customer data and does
-not make report rendering available.
+not make public report rendering available.
+
+The private `Export-ApimActionPlan` helper loads the closed manifest, all ten
+registered model files, and schema-valid findings from one saved run before
+creating any output. It derives action rows through the same T-307 aggregator,
+copies the trusted template, writes typed values directly into the existing
+tables, fills the assumptions banner and network summary, and stores the result
+under the run's restricted `report` folder. Unsafe filename components,
+malformed inputs, incompatible templates, and tables above 9,997 data rows fail
+closed without a partial workbook. Existing filenames are never overwritten;
+`-2`, `-3`, and later suffixes are selected. Usage, Cost, Environment Drift, Run
+Info, and Method & Rules remain empty until their owning tasks. Generated
+reports can contain customer and infrastructure identifiers and must never be
+provided to a model.
 
 The subscription model classifies AllApis/Product/Api scope, extracts a stable
 scope target, detects the built-in master subscription, and emits sorted
