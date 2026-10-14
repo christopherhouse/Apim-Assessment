@@ -44,6 +44,12 @@ Describe 'APIM service security model' {
             $json | Should -Not -Match (
                 '(?i)subscriptions/|resourceGroups/|userAssignedIdentities'
             )
+            $actual.skuName | Should -Be 'Premium'
+            $actual.skuCapacity | Should -Be 2
+            $actual.zones.Count | Should -Be 0
+            $actual.platformVersion | Should -Be 'stv2'
+            $actual.hostnameCertificateExpirations |
+                Should -Be @('2027-12-01T00:00:00.0000000+00:00')
         }
 
         It 'retains explicit legacy TLS enablement despite another unknown control' {
@@ -98,6 +104,38 @@ Describe 'APIM service security model' {
                 Should -Be 'SystemAssignedUserAssigned'
         }
 
+        It 'normalizes reliability posture and preserves missing facts as unknown' {
+            $payload = Read-ServiceModelFixture 'raw/service.json'
+            $payload | Add-Member -NotePropertyName zones `
+                -NotePropertyValue @('3', '1', '1')
+            $payload.sku.PSObject.Properties.Remove('capacity')
+            $payload.properties.PSObject.Properties.Remove('platformVersion')
+
+            $model = Get-ApimServiceSecurityModel -ServicePayload $payload
+
+            $model.zones | Should -Be @('1', '3')
+            $model.skuCapacity | Should -BeNullOrEmpty
+            $model.platformVersion | Should -BeNullOrEmpty
+            $model.modelStatus | Should -Be 'Partial'
+            $model.missingInputs | Should -Be @(
+                'platformVersion',
+                'skuCapacity'
+            )
+        }
+
+        It 'keeps unavailable hostname certificate expiry explicit' {
+            $payload = Read-ServiceModelFixture 'raw/service.json'
+            $payload.properties.hostnameConfigurations[0].
+                PSObject.Properties.Remove('certificate')
+
+            $model = Get-ApimServiceSecurityModel -ServicePayload $payload
+
+            $model.hostnameCertificateExpirations.Count | Should -Be 0
+            $model.modelStatus | Should -Be 'Partial'
+            $model.missingInputs |
+                Should -Contain 'hostnameCertificateExpirations'
+        }
+
         It 'rejects malformed service security metadata' -TestCases @(
             @{ Kind = 'legacy-tls' }
             @{ Kind = 'legacy-tls-map' }
@@ -105,6 +143,12 @@ Describe 'APIM service security model' {
             @{ Kind = 'identity-map' }
             @{ Kind = 'minimum-version' }
             @{ Kind = 'minimum-version-map' }
+            @{ Kind = 'sku-name' }
+            @{ Kind = 'sku-capacity' }
+            @{ Kind = 'sku-map' }
+            @{ Kind = 'zones' }
+            @{ Kind = 'platform-version' }
+            @{ Kind = 'hostname-certificate-expiry' }
         ) {
             param($Kind)
 
@@ -129,6 +173,26 @@ Describe 'APIM service security model' {
                 }
                 'minimum-version-map' {
                     $payload.properties.apiVersionConstraint = '2021-08-01'
+                }
+                'sku-name' {
+                    $payload.sku.name = 1
+                }
+                'sku-capacity' {
+                    $payload.sku.capacity = 1.5
+                }
+                'sku-map' {
+                    $payload.sku = 'Premium'
+                }
+                zones {
+                    $payload | Add-Member -NotePropertyName zones `
+                        -NotePropertyValue '1'
+                }
+                'platform-version' {
+                    $payload.properties.platformVersion = 2
+                }
+                'hostname-certificate-expiry' {
+                    $payload.properties.hostnameConfigurations[0].
+                        certificate.expiry = 'not-a-date'
                 }
             }
 

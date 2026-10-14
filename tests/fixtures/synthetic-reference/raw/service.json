@@ -29,6 +29,9 @@
         "type": "Proxy",
         "hostName": "api.synthetic.invalid",
         "certificateSource": "KeyVault",
+        "certificate": {
+          "expiry": "2027-12-01T00:00:00Z"
+        },
         "negotiateClientCertificate": false
       }
     ],

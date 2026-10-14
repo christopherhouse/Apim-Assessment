@@ -59,12 +59,14 @@ both remain `exposure=Unknown`, Medium confidence, and Partial because route
 usage is not yet available. `model/apis.exposure.json` records the corresponding
 post-exposure API backfill separately from the pre-exposure `model/apis.json`
 fixture used by the API-model tests.
-The service-security model fixture records all five recognized legacy TLS
-controls as explicitly disabled, a minimum management API version, and a
-system-assigned identity. Its baseline therefore produces no SEC-001, SEC-002,
-or SEC-019 finding. Focused tests mutate each structural fact for positive and
-missing-evidence cases; no resource or user-assigned identity IDs enter the
-model.
+The service model fixture records Premium capacity two, no zones, platform
+version `stv2`, all five recognized legacy TLS controls as explicitly disabled,
+a future service-hostname certificate expiry, a minimum management API version,
+and a system-assigned identity. Its baseline
+therefore produces REL-001 but not REL-002/REL-006, and no SEC-001, SEC-002, or
+SEC-019 finding. Focused tests mutate each structural fact for positive,
+non-finding, and missing-evidence cases; no resource or user-assigned identity
+IDs enter the model.
 The security-asset model fixtures contain three sorted named values, two
 backends, and two certificates. `partner-api-key` has only structural
 `displayName`/`value` secret-pattern locations and produces the expected
@@ -78,6 +80,12 @@ positive case. The uploaded certificate is explicitly not Key Vault-backed and
 produces the baseline SEC-009 certificate finding; the secret named-value
 reference has a successful Key Vault status. Certificate model records retain
 only normalized expiry and Key Vault-backed status.
+The baseline App Gateway route uses the default `/` probe path, producing one
+REL-004 finding. The uploaded certificate expires within the configured 60-day
+threshold relative to the fixed focused-test run timestamp, producing one
+REL-005 finding. No backend is critical by default; focused tests explicitly
+target `status-backend` to exercise REL-003 without embedding fixture-specific
+criticality in configuration.
 The API/operation baseline produces six governance findings: both APIs lack an
 owner/team tag, `status-v1` has one non-current online revision, both version
 sets contain only one known version, and the orders operation has a missing

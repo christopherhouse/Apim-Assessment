@@ -1,6 +1,6 @@
 # Assessment rule catalogs
 
-Planned catalogs: `REL`, `PERF`, `POR`, and `COST.rules.ps1`.
+Planned catalogs: `PERF`, `POR`, and `COST.rules.ps1`.
 Use the hashtable contract in specification section 10 and stable catalog IDs in
 section 11. The private rule engine, closed `findings.json` schema, and restricted writer
 are implemented. `NET.rules.ps1` contains NET-001/002/004/006/007/008/009.
@@ -43,6 +43,13 @@ missing base inheritance uses the operation model. GOV-006 evaluates only
 complete version sets, GOV-008 emits one service-level convention distribution,
 and GOV-010 preserves known positives under unrelated Partial policy evidence.
 GOV-003 and GOV-009 require future product and diagnostic-posture models.
+`REL.rules.ps1` contains REL-001/002/003/004/005/006. Service SKU, zones, and
+platform version are closed normalized facts; critical backend applicability
+uses exact validated `RuleTargets.CriticalBackendIds`; probe alignment is
+derived only from APIM-targeted App Gateway routes; and certificate expiry uses
+both service-hostname and certificate-entity dates plus the saved run timestamp.
+Unknown facts produce one NotEvaluated result, while a known expiring
+certificate is retained if another expiry is unavailable.
 The current synthetic NET fixture has two API route records and one App
 Gateway. Focused tests add one attested edge/origin assessment and one
 attested public portal route: NET-001 and NET-009 each yield one evaluated

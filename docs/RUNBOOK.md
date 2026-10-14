@@ -13,10 +13,11 @@ collectors, and an internal network collector for Application Gateway/WAF and
 Resource Graph evidence. Private offline helpers now merge effective policies,
 normalize/hash them, and extract deterministic policy flags. Private offline
 builders create schema-validated API, operation, policy-matrix, subscription,
-service-security, named-value, backend, certificate, network, and pre-telemetry
+service, named-value, backend, certificate, network, and pre-telemetry
 exposure records from saved synthetic-equivalent inputs. A private rule engine,
 seven NET catalog entries, fifteen model-backed
-SEC catalog entries, six model-backed GOV catalog entries, and a
+SEC catalog entries, six model-backed GOV catalog entries, all six REL catalog
+entries, and a
 closed findings schema are available for offline synthetic testing. Full
 collection/analyze orchestration, remaining collectors and models,
 telemetry-based exposure refinement, rule catalogs, the model-data airlock, Copilot
@@ -55,6 +56,8 @@ Rule-engine acceptance remains offline and synthetic:
 .\scripts\Invoke-Checks.ps1 -TestPath .\tests\unit\RuleEngine.Tests.ps1
 .\scripts\Invoke-Checks.ps1 -TestPath .\tests\unit\NetRules.Tests.ps1
 .\scripts\Invoke-Checks.ps1 -TestPath .\tests\unit\SecRules.Tests.ps1
+.\scripts\Invoke-Checks.ps1 -TestPath .\tests\unit\GovRules.Tests.ps1
+.\scripts\Invoke-Checks.ps1 -TestPath .\tests\unit\RelRules.Tests.ps1
 ```
 
 The private `Get-ApimRuleCatalog`, `Invoke-ApimRuleEngine`, and
@@ -110,6 +113,25 @@ bounded convention counts rather than one row per API. GOV-010 preserves a
 known missing-`<base/>` operation finding when another policy is Partial.
 GOV-003 and GOV-009 remain unavailable until product ownership/approval and
 diagnostic enablement/sampling are modeled.
+
+`rules/REL.rules.ps1` includes REL-001 through REL-006. SKU, zone, and platform
+facts come from the closed service model. Critical backend evaluation is opt-in
+and exact:
+
+```powershell
+RuleTargets = @{
+    CriticalBackendIds = @('critical-backend-id')
+}
+```
+
+Omitting `RuleTargets`, or leaving the array empty, declares no critical backend
+targets. REL-004 considers only APIM-targeted App Gateway routes; a linked HTTP
+setting without a custom probe uses the default `/` path, while unresolved
+probe evidence is NotEvaluated. REL-005 compares normalized service-hostname and
+APIM certificate-entity expiry with the saved `manifest.startedUtc` plus
+`CertExpiryDays`, so rerunning analysis does not move the threshold. Missing
+service, probe, or expiry facts remain
+NotEvaluated unless another record provides a known positive.
 
 ## Reusable collection smoke (Microsoft-owned test APIM only)
 

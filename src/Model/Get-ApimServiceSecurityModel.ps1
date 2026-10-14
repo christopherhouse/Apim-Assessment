@@ -87,6 +87,70 @@ function ConvertTo-ApimManagedIdentityType {
     return $normalizedParts[0]
 }
 
+function ConvertTo-ApimServiceZoneArray {
+    [CmdletBinding()]
+    param(
+        [AllowNull()]
+        [object] $Value
+    )
+
+    if ($null -eq $Value) {
+        return @()
+    }
+    if ($Value -is [string] -or
+        $Value -isnot [System.Collections.IEnumerable]) {
+        throw 'APIM service zones were not an array.'
+    }
+    $zones = [System.Collections.Generic.List[string]]::new()
+    foreach ($zone in @($Value)) {
+        if ($zone -isnot [string] -or
+            [string]::IsNullOrWhiteSpace([string] $zone)) {
+            throw 'APIM service zones contained an invalid value.'
+        }
+        $zones.Add([string] $zone)
+    }
+    return @($zones | Sort-Object -Unique)
+}
+
+function ConvertTo-ApimServiceModelDate {
+    [CmdletBinding()]
+    param(
+        [AllowNull()]
+        [object] $Value,
+
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string] $Context
+    )
+
+    if ($null -eq $Value -or
+        [string]::IsNullOrWhiteSpace([string] $Value)) {
+        return $null
+    }
+    $parsed = if ($Value -is [datetimeoffset]) {
+        [datetimeoffset] $Value
+    }
+    elseif ($Value -is [datetime]) {
+        [datetimeoffset] ([datetime] $Value).ToUniversalTime()
+    }
+    else {
+        $candidate = [datetimeoffset]::MinValue
+        if (-not [datetimeoffset]::TryParse(
+                [string] $Value,
+                [System.Globalization.CultureInfo]::InvariantCulture,
+                (
+                    [System.Globalization.DateTimeStyles]::AssumeUniversal -bor
+                    [System.Globalization.DateTimeStyles]::AdjustToUniversal
+                ),
+                [ref] $candidate
+            )) {
+            throw "$Context was not a valid date-time."
+        }
+        $candidate
+    }
+    return $parsed.ToUniversalTime().ToString('O')
+}
+
 function Get-ApimServiceSecurityModel {
     [CmdletBinding()]
     param(
@@ -173,6 +237,88 @@ function Get-ApimServiceSecurityModel {
     $identity = Get-ApimModelValue -InputObject $ServicePayload `
         -Name identity -Context 'APIM service' -AllowMissing
     $managedIdentity = ConvertTo-ApimManagedIdentityType -Identity $identity
+
+    $sku = Get-ApimModelValue -InputObject $ServicePayload `
+        -Name sku -Context 'APIM service' -AllowMissing
+    $skuName = $null
+    $skuCapacity = $null
+    if ($null -ne $sku) {
+        Test-ApimServiceModelMap -Value $sku -Context 'APIM service SKU'
+        $skuNameValue = Get-ApimModelValue -InputObject $sku -Name name `
+            -Context 'APIM service SKU' -AllowMissing
+        if ($null -ne $skuNameValue) {
+            if ($skuNameValue -isnot [string] -or
+                [string]::IsNullOrWhiteSpace([string] $skuNameValue)) {
+                throw 'APIM service SKU name was invalid.'
+            }
+            $skuName = [string] $skuNameValue
+        }
+        $skuCapacityValue = Get-ApimModelValue -InputObject $sku `
+            -Name capacity -Context 'APIM service SKU' -AllowMissing
+        if ($null -ne $skuCapacityValue) {
+            if ($skuCapacityValue -isnot [System.ValueType] -or
+                [double]::IsNaN([double] $skuCapacityValue) -or
+                [double]::IsInfinity([double] $skuCapacityValue) -or
+                [double] $skuCapacityValue -lt 0 -or
+                [double] $skuCapacityValue -ne
+                    [math]::Truncate([double] $skuCapacityValue) -or
+                [double] $skuCapacityValue -gt [int]::MaxValue) {
+                throw 'APIM service SKU capacity was invalid.'
+            }
+            $skuCapacity = [int] $skuCapacityValue
+        }
+    }
+    $zones = @(
+        ConvertTo-ApimServiceZoneArray -Value (
+            Get-ApimModelValue -InputObject $ServicePayload -Name zones `
+                -Context 'APIM service' -AllowMissing
+        )
+    )
+    $platformVersionValue = Get-ApimModelValue -InputObject $properties `
+        -Name platformVersion -Context 'APIM service properties' `
+        -AllowMissing
+    $platformVersion = $null
+    if ($null -ne $platformVersionValue) {
+        if ($platformVersionValue -isnot [string] -or
+            [string]::IsNullOrWhiteSpace(
+                [string] $platformVersionValue
+            )) {
+            throw 'APIM service platform version was invalid.'
+        }
+        $platformVersion = ([string] $platformVersionValue).ToLowerInvariant()
+    }
+    $hostnameCertificateExpirations = [System.Collections.Generic.List[string]]::new()
+    $hostnameCertificateExpiryMissing = $false
+    foreach ($hostnameConfiguration in @(
+            Get-ApimModelValue -InputObject $properties `
+                -Name hostnameConfigurations `
+                -Context 'APIM service properties' -AllowMissing
+        )) {
+        if ($null -eq $hostnameConfiguration) {
+            continue
+        }
+        Test-ApimServiceModelMap -Value $hostnameConfiguration `
+            -Context 'APIM hostname configuration'
+        $certificate = Get-ApimModelValue `
+            -InputObject $hostnameConfiguration -Name certificate `
+            -Context 'APIM hostname configuration' -AllowMissing
+        if ($null -eq $certificate) {
+            $hostnameCertificateExpiryMissing = $true
+            continue
+        }
+        Test-ApimServiceModelMap -Value $certificate `
+            -Context 'APIM hostname certificate'
+        $expiration = ConvertTo-ApimServiceModelDate -Value (
+            Get-ApimModelValue -InputObject $certificate -Name expiry `
+                -Context 'APIM hostname certificate' -AllowMissing
+        ) -Context 'APIM hostname certificate expiry'
+        if ($null -eq $expiration) {
+            $hostnameCertificateExpiryMissing = $true
+            continue
+        }
+        $hostnameCertificateExpirations.Add($expiration)
+    }
+
     $legacyTlsEnabled = if ($enabledControls.Count -gt 0) {
         $true
     }
@@ -186,8 +332,28 @@ function Get-ApimServiceSecurityModel {
     if ($missingLegacyControl) {
         $missingInputs = @('legacyTlsControls')
     }
+    if ($null -eq $skuName) {
+        $missingInputs += 'skuName'
+    }
+    if ($null -eq $skuCapacity) {
+        $missingInputs += 'skuCapacity'
+    }
+    if ($null -eq $platformVersion) {
+        $missingInputs += 'platformVersion'
+    }
+    if ($hostnameCertificateExpiryMissing) {
+        $missingInputs += 'hostnameCertificateExpirations'
+    }
+    $missingInputs = @($missingInputs | Sort-Object -Unique)
 
     return [pscustomobject] [ordered]@{
+        skuName = $skuName
+        skuCapacity = $skuCapacity
+        zones = $zones
+        platformVersion = $platformVersion
+        hostnameCertificateExpirations = @(
+            $hostnameCertificateExpirations | Sort-Object -Unique
+        )
         legacyTlsEnabled = $legacyTlsEnabled
         enabledLegacyTlsControls = $enabledControls.ToArray()
         minApiVersion = $minApiVersion
