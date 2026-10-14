@@ -699,7 +699,8 @@ Describe 'Maintainer-only smoke command preflight' {
             -Environment Prod 2>&1
 
         $LASTEXITCODE | Should -Be 1
-        $output[-1] |
+        $output[-1] | Should -Be '[SMOKE] FAIL - configuration preflight failed (exit code 1)'
+        $output[-2] |
             Should -Be 'SMOKE_CONFIG_ERROR: acknowledge a Microsoft-owned test environment.'
     }
 
@@ -708,7 +709,8 @@ Describe 'Maintainer-only smoke command preflight' {
             -Environment Test 2>&1
 
         $LASTEXITCODE | Should -Be 1
-        $output[-1] |
+        $output[-1] | Should -Be '[SMOKE] FAIL - configuration preflight failed (exit code 1)'
+        $output[-2] |
             Should -Be 'SMOKE_CONFIG_ERROR: acknowledge a Microsoft-owned test environment.'
     }
 
@@ -718,7 +720,8 @@ Describe 'Maintainer-only smoke command preflight' {
             -Environment Prod -MicrosoftOwnedTestEnvironment 2>&1
 
         $LASTEXITCODE | Should -Be 1
-        $output[-1] |
+        $output[-1] | Should -Be '[SMOKE] FAIL - configuration preflight failed (exit code 1)'
+        $output[-2] |
             Should -Be (
                 'SMOKE_CONFIG_ERROR (LOCATION_INVALID): Keep the private ' +
                 'config and output roots outside the repository.'
@@ -731,7 +734,8 @@ Describe 'Maintainer-only smoke command preflight' {
             -Environment Test -MicrosoftOwnedTestEnvironment 2>&1
 
         $LASTEXITCODE | Should -Be 1
-        $output[-1] |
+        $output[-1] | Should -Be '[SMOKE] FAIL - configuration preflight failed (exit code 1)'
+        $output[-2] |
             Should -Be (
                 'SMOKE_CONFIG_ERROR (CONFIG_NOT_FOUND): Check that the ' +
                 'private config file exists; use -Config if needed.'
@@ -758,7 +762,8 @@ Describe 'Maintainer-only smoke command preflight' {
             -MicrosoftOwnedTestEnvironment 2>&1
 
         $LASTEXITCODE | Should -Be 1
-        $output[-1] |
+        $output[-1] | Should -Be '[SMOKE] FAIL - configuration preflight failed (exit code 1)'
+        $output[-2] |
             Should -Be (
                 'SMOKE_CONFIG_ERROR (ENVIRONMENT_NOT_FOUND): Use ' +
                 '-Environment with a name defined in the private config.'
@@ -784,7 +789,8 @@ Describe 'Maintainer-only smoke command preflight' {
             -MicrosoftOwnedTestEnvironment 2>&1
 
         $LASTEXITCODE | Should -Be 1
-        $output[-1] |
+        $output[-1] | Should -Be '[SMOKE] FAIL - configuration preflight failed (exit code 1)'
+        $output[-2] |
             Should -Be (
                 'SMOKE_CONFIG_ERROR (CONFIG_INVALID): Check private config ' +
                 'fields and non-overlapping output roots locally.'
@@ -811,7 +817,8 @@ Describe 'Maintainer-only smoke command preflight' {
             -MicrosoftOwnedTestEnvironment 2>&1
 
         $LASTEXITCODE | Should -Be 1
-        $output[-1] |
+        $output[-1] | Should -Be '[SMOKE] FAIL - configuration preflight failed (exit code 1)'
+        $output[-2] |
             Should -Be (
                 'SMOKE_CONFIG_ERROR (LOCATION_INVALID): Keep the private ' +
                 'config and output roots outside the repository.'
@@ -838,7 +845,8 @@ Describe 'Maintainer-only smoke command preflight' {
             -MicrosoftOwnedTestEnvironment 2>&1
 
         $LASTEXITCODE | Should -Be 1
-        $output[-1] |
+        $output[-1] | Should -Be '[SMOKE] FAIL - configuration preflight failed (exit code 1)'
+        $output[-2] |
             Should -Be (
                 'SMOKE_CONFIG_ERROR (LOCATION_INVALID): Keep the private ' +
                 'config and output roots outside the repository.'
@@ -850,6 +858,27 @@ Describe 'Maintainer-only smoke command preflight' {
 Describe 'Smoke progress presentation' {
     BeforeAll {
         . (Join-Path $repoRoot 'scripts/Format-ApimSmokeConsoleLine.ps1')
+    }
+
+    It 'prints the final result and preserves exit code <Code>' -TestCases @(
+        @{ Code = 0; Result = 'PASS - collection and saved-output validation completed' }
+        @{ Code = 1; Result = 'FAIL - configuration preflight failed' }
+        @{ Code = 2; Result = 'FAIL - Azure modules or context preflight failed' }
+        @{ Code = 3; Result = 'PARTIAL - collection is incomplete' }
+        @{ Code = 4; Result = 'FAIL - run or saved-output validation failed' }
+    ) {
+        param($Code, $Result)
+
+        $formatterPath = (Join-Path $repoRoot `
+                'scripts/Format-ApimSmokeConsoleLine.ps1').Replace("'", "''")
+        $output = & pwsh -NoProfile -Command (
+            ". '$formatterPath'; Complete-ApimSmokeCommand -ExitCode $Code; " +
+            "'UNREACHABLE'"
+        ) 2>&1
+
+        $LASTEXITCODE | Should -Be $Code
+        @($output).Count | Should -Be 1
+        $output | Should -Be "[SMOKE] $Result (exit code $Code)"
     }
 
     It 'formats accessible progress and bounded help without terminal control codes' {

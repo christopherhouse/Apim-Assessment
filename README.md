@@ -129,8 +129,10 @@ For the standard private config at
 `.\scripts\Invoke-ApimSmoke.ps1 -Environment Test -MicrosoftOwnedTestEnvironment`
 in a separate ordinary PowerShell terminal. The environment name must match
 the private config; `-Config` overrides the default path when needed.
-The collection smoke streams numbered preflight/check progress and a final
-status. Interactive terminals show a compact emoji scorecard that updates its
+The collection smoke streams numbered preflight/check progress and prints its
+final PASS/FAIL/PARTIAL result with the exit code automatically, including
+preflight failures; no second shell command is needed. Interactive terminals
+show a compact emoji scorecard that updates its
 active row in place without changing the caller's console encoding; redirected
 output or `NO_COLOR` uses plain ASCII. An emoji-capable terminal/font is
 required for glyph rendering. Errors show fixed troubleshooting hints, not raw

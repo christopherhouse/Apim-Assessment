@@ -25,7 +25,7 @@ $useColor = -not [Console]::IsOutputRedirected -and
 
 if (-not $MicrosoftOwnedTestEnvironment) {
     [Console]::Error.WriteLine('SMOKE_CONFIG_ERROR: acknowledge a Microsoft-owned test environment.')
-    exit 1
+    Complete-ApimSmokeCommand -ExitCode 1
 }
 
 Write-ApimSmokeConsoleLine -Line (Format-ApimSmokeConsoleLine `
@@ -102,7 +102,7 @@ catch {
         }
     }
     [Console]::Error.WriteLine("SMOKE_CONFIG_ERROR ($configIssue): $hint")
-    exit 1
+    Complete-ApimSmokeCommand -ExitCode 1
 }
 
 Write-ApimSmokeConsoleLine -Line (Format-ApimSmokeConsoleLine `
@@ -126,7 +126,7 @@ try {
 catch {
     if ($useColor) { [Console]::Out.WriteLine() }
     [Console]::Error.WriteLine('SMOKE_AUTH_ERROR: verify Az modules and the selected Azure context.')
-    exit 2
+    Complete-ApimSmokeCommand -ExitCode 2
 }
 
 Write-ApimSmokeConsoleLine -Line (Format-ApimSmokeConsoleLine `
@@ -178,7 +178,7 @@ try {
 catch {
     if ($useColor) { [Console]::Out.WriteLine() }
     [Console]::Error.WriteLine('SMOKE_RUN_ERROR: inspect the restricted run folder locally.')
-    exit 4
+    Complete-ApimSmokeCommand -ExitCode 4
 }
 
 try {
@@ -191,7 +191,7 @@ try {
 }
 catch {
     [Console]::Error.WriteLine('SMOKE_OUTPUT_INVALID: inspect the restricted run locally.')
-    exit 4
+    Complete-ApimSmokeCommand -ExitCode 4
 }
 [Console]::Out.WriteLine('SMOKE_OUTPUT_VALID: manifest and completed collector files verified.')
 Write-ApimSmokeConsoleLine -Line (Format-ApimSmokeConsoleLine `
@@ -201,5 +201,6 @@ Write-ApimSmokeConsoleLine -Line (Format-ApimSmokeConsoleLine `
         -Total $result.Checks.Count `
         -Color:$useColor) -Color:$useColor
 if ($result.Status -ne 'Completed') {
-    exit 3
+    Complete-ApimSmokeCommand -ExitCode 3
 }
+Complete-ApimSmokeCommand -ExitCode 0

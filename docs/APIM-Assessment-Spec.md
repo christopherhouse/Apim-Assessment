@@ -1061,6 +1061,9 @@ collection shapes/counts, and policy index/XML hashes locally before exit 0.
 Only bounded validation status is printed; a mismatched or missing output
 returns exit 4. A Partial run can validate completed files but remains exit 3.
 This does not perform Analyze, Render, or a model-data airlock validation.
+Every handled smoke outcome prints a fixed final PASS/FAIL/PARTIAL result and
+its numeric exit code before exiting; the displayed code must match the actual
+process exit code. Operators do not need a second command to inspect it.
 Agents and CI run the synthetic/mocked tests, never live Azure collection. A
 passing collection smoke
 does not satisfy the full-run exit-0 check or G3 customer-run gate.

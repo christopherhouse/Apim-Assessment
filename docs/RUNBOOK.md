@@ -313,9 +313,13 @@ using your normal Azure PowerShell workflow in that same terminal. Then run:
 
 ```powershell
 .\scripts\Invoke-ApimSmoke.ps1 -Environment Test -MicrosoftOwnedTestEnvironment
-$LASTEXITCODE
 ```
 
+The script prints its final PASS/FAIL/PARTIAL result and exit code itself,
+including on preflight failures. A successful run ends with
+`[SMOKE] PASS - collection and saved-output validation completed (exit code 0)`.
+No follow-up shell command is required; the actual process exit code remains
+available to automation.
 The single script defaults to
 `$HOME\apim-smoke-private\smoke.psd1`; if you use another private directory,
 pass `-Config (Join-Path $private 'smoke.psd1')`. `Test` must match the
