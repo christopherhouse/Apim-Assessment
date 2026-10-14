@@ -46,6 +46,7 @@ Describe 'Get-Config' {
 
         $config.Customer | Should -Be 'Example'
         $config.Environments.Count | Should -Be 1
+        $config.RuleTargets.CriticalBackendIds.Count | Should -Be 0
         $config.RuleExceptions.ApprovedPlainHttpBackendIds.Count |
             Should -Be 0
         $config.RuleExceptions.ApprovedPlainHttpOperationKeys.Count |
@@ -109,6 +110,71 @@ Describe 'Get-Config' {
             } $path
         } | Should -Not -Throw
     }
+
+    It 'accepts an omitted optional rule-target map as no declared targets' {
+        $path = Get-SyntheticConfigFile -Transform {
+            param($Content)
+            $Content -replace (
+                "(?ms)^\s*RuleTargets\s*=\s*@\{.*?^\s*\}\r?\n",
+                ''
+            )
+        }
+
+        {
+            & $script:module {
+                param($ConfigPath)
+                Get-Config -Path $ConfigPath
+            } $path
+        } | Should -Not -Throw
+    }
+
+    It 'accepts valid critical backend targets' {
+        $path = Get-SyntheticConfigFile -Transform {
+            param($Content)
+            $Content.Replace(
+                'CriticalBackendIds = @()',
+                "CriticalBackendIds = @('orders-backend', 'status-backend')"
+            )
+        }
+
+        $config = & $script:module {
+            param($ConfigPath)
+            Get-Config -Path $ConfigPath
+        } $path
+        $config.RuleTargets.CriticalBackendIds |
+            Should -Be @('orders-backend', 'status-backend')
+    }
+
+    It 'rejects duplicate or malformed critical backend targets' `
+        -TestCases @(
+            @{
+                Value = "@('status-backend', 'STATUS-BACKEND')"
+                Expected = '*duplicate value*'
+            }
+            @{
+                Value = "@('status/backend')"
+                Expected = '*invalid target key*'
+            }
+            @{
+                Value = "'status-backend'"
+                Expected = '*array of strings*'
+            }
+        ) {
+            param($Value, $Expected)
+
+            $replacement = "CriticalBackendIds = $Value"
+            $path = Get-SyntheticConfigFile -Transform {
+                param($Content)
+                $Content.Replace('CriticalBackendIds = @()',
+                    $replacement)
+            }
+            {
+                & $script:module {
+                    param($ConfigPath)
+                    Get-Config -Path $ConfigPath
+                } $path
+            } | Should -Throw $Expected
+        }
 
     It 'accepts valid exact plain-HTTP exception targets' {
         $path = Get-SyntheticConfigFile -Transform {

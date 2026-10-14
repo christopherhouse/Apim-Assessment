@@ -185,6 +185,9 @@ tool/path isolation.
     Usage    = @{ InUse=1.5; Unused=1; NotApplicable=1 }
   }
   Thresholds = @{ CertExpiryDays=60; BackendP95Ms=2000; Error5xxPct=1.0; UnusedDays=90; SubscriptionStaleDays=180; MaxWriteRolePrincipals=5 }
+  RuleTargets = @{
+    CriticalBackendIds = @() # exact backend IDs declared critical by an operator
+  }
   RuleExceptions = @{
     ApprovedPlainHttpBackendIds = @()
     ApprovedPlainHttpOperationKeys = @() # exact apiId/operationId keys
@@ -205,7 +208,9 @@ tool/path isolation.
 Validation: `Get-Config` validates required keys and nested types, GUIDs, enums,
 positive numeric settings, strictly ascending usage buckets, and absolute
 non-overlapping output roots, then returns normalized paths without creating
-them. The optional `RuleExceptions` map accepts only non-empty, unique
+them. The optional `RuleTargets` map accepts only unique, case-insensitive exact
+backend IDs; absent or empty `CriticalBackendIds` declares no critical backend
+targets. The optional `RuleExceptions` map accepts only non-empty, unique
 case-insensitive resource-name segments for exact backend IDs and
 `apiId/operationId` keys; absent or empty arrays approve nothing. Existing
 symbolic links/junctions in either root are rejected.
@@ -471,14 +476,14 @@ the deterministic `data-scope` and unresolved-fragment status attributes.
 ### 8.5 Other model files
 | File | Grain | Key fields |
 |---|---|---|
-| `service.json` | single object | nullable `legacyTlsEnabled`, `enabledLegacyTlsControls[]`, nullable `minApiVersion`, normalized `managedIdentity`, completeness metadata |
+| `service.json` | single object | nullable SKU name/capacity, zones, nullable platform version, normalized hostname-certificate expirations, nullable `legacyTlsEnabled`, `enabledLegacyTlsControls[]`, nullable `minApiVersion`, normalized `managedIdentity`, completeness metadata |
 | `policyMatrix.json` | API | `apiId` + one column per control: `callerAuth`, `rateLimit`, `ipFilter`, `corsSafe`, `backendAuth`, `noHardcodedSecret`, `basePresent`, `noMockTrace` with values `Pass`/`Fail`/`NA` |
 | `subscriptions.json` | subscription | `subscriptionId`, `displayName`, `scopeType` (`AllApis`/`Product`/`Api`), `scopeTarget`, `state`, `ownerType`, `createdDate`, `expirationDate`, `allowTracing`, `calls90d`, `lastUsed`, `isBuiltInMaster`, `flags[]` |
 | `namedValues.json` | named value | `namedValueId`, `secret`, nullable `keyVaultBacked`/`keyVaultStatus`, structural `secretPatternLocations[]`, derived `plainTextSecretLike`, completeness metadata |
 | `backends.json` | backend | `backendId`, URL `scheme`, nullable `tlsValidationChain`/`tlsValidationName`, `credentialConfigured`, circuit-breaker/pool flags, completeness metadata |
 | `certificates.json` | certificate | `certificateId`, normalized nullable `expirationDate`, nullable `keyVaultBacked`, completeness metadata |
 | `exposure.json` | route × API | stable `routeKey`, `gateway`, `listener`, `listenerHost`, `backendHost`, `frontendType` (Public/Private), `ruleType`, `pattern`, `wafState`, `wafMode`, `edge` (`Cloudflare-Assumed`), `apiId`, `reachability`, `restriction`, `exposure`, `callsViaAppGw`, `callsInternal`, `confidence`, `baseMissingBypass`, `restrictedOperations[]`, completeness metadata |
-| `network.json` | single object | APIM VNet mode, public access, NSG evaluation result, other front doors, App GW TLS policy, WAF state, optional operator-attested edge/origin and auxiliary endpoint facts |
+| `network.json` | single object | APIM VNet mode, public access, NSG evaluation result, other front doors, App GW TLS policy, APIM-targeted probe alignment/paths, WAF state, optional operator-attested edge/origin and auxiliary endpoint facts |
 | `usage.json` | API × month | calls; plus top-N table |
 | `cost.json` | resource × month (and day) | `resourceId`, `resourceType`, `meterCategory`, `cost`, `currency`; derived `costPerMillionCalls` (APIM + App GW) |
 | `capacity.json` | day | `capacityAvg`, `capacityMax`, `capacityP95`, `units` |
@@ -494,7 +499,10 @@ enablement produces null plus `missingInputs=["legacyTlsControls"]`. The model
 retains the minimum management API version or null and normalizes service
 identity to `None`, `SystemAssigned`, `UserAssigned`, or
 `SystemAssignedUserAssigned`; resource IDs and user-assigned identity IDs are
-not retained (D-39).
+not retained. The same closed object normalizes SKU name/capacity, sorted zones,
+lower-case platform version, and hostname-certificate expiration dates for
+reliability rules; absent SKU, platform, or configured-hostname expiry facts
+remain explicit in `missingInputs` (D-39/D-41).
 
 Subscription scope is derived from a full ARM service resource path or the
 documented relative scope: the service root or `/apis` is `AllApis`,
@@ -817,6 +825,19 @@ enablement and sampling are modeled.
 | APIM-PERF-001 | High 5xx rate | Medium | `pct5xx > Error5xxPct` with calls > 1000 |
 | APIM-PERF-002 | Slow backends | Low | `backendP95Ms > BackendP95Ms` |
 | APIM-PERF-003 | Capacity pressure | Medium | capacity P95 > 70% or max > 85% |
+
+T-306 implements all six REL rules against closed service, backend, certificate,
+and network models. REL-001/002 apply only when the manifest environment is
+`Prod`; missing SKU facts remain NotEvaluated. REL-003 evaluates only exact
+backend IDs in the optional validated `RuleTargets.CriticalBackendIds` array.
+REL-004 derives probe paths only from App Gateway routes whose pool and effective
+backend host target APIM; the platform default `/` is misaligned, no APIM route
+is not applicable, and unresolved probe evidence is NotEvaluated. REL-005 uses
+both service hostname-certificate dates and APIM certificate entities, uses
+`manifest.startedUtc` as its stable clock, and treats expiry exactly at the
+configured boundary as not within the threshold. Known expiring certificates
+remain evaluated when another expiry is unavailable. REL-006 accepts `stv2`
+and `stv2.1`; missing platform version remains NotEvaluated (D-41).
 
 ### 11.5 Developer portal (POR)
 | ID | Title | Sev | Logic |

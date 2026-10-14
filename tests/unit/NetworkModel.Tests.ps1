@@ -88,7 +88,97 @@ Describe 'APIM network model' {
             $actual.nsgEvaluation | Should -Be 'Restricted'
             $actual.wafState | Should -Be 'Disabled'
             $actual.appGatewayTlsPolicy | Should -Be 'Strong'
+            $actual.appGatewayProbeAlignment | Should -Be 'Misaligned'
+            $actual.appGatewayProbePaths | Should -Be @('/')
             $actual.modelStatus | Should -Be 'Complete'
+        }
+
+        It 'recognizes the APIM status endpoint on a linked custom probe' {
+            $inputData = Get-SyntheticNetworkModelInput
+            $gateway = $inputData.AppGateways[0]
+            $probeId = (
+                '/subscriptions/00000000-0000-0000-0000-000000000001/' +
+                'resourceGroups/rg-synthetic-network/providers/' +
+                'Microsoft.Network/applicationGateways/agw-synthetic-prod/' +
+                'probes/apim-status'
+            )
+            $gateway.properties | Add-Member -NotePropertyName probes `
+                -NotePropertyValue @(
+                    [pscustomobject]@{
+                        id = $probeId
+                        name = 'apim-status'
+                        properties = [pscustomobject]@{
+                            path = '/status-0123456789abcdef'
+                        }
+                    }
+                )
+            $gateway.properties.backendHttpSettingsCollection[0].properties |
+                Add-Member -NotePropertyName probe `
+                    -NotePropertyValue ([pscustomobject]@{ id = $probeId })
+
+            $actual = Get-ApimNetworkModel @inputData
+
+            $actual.appGatewayProbeAlignment | Should -Be 'Aligned'
+            $actual.appGatewayProbePaths |
+                Should -Be @('/status-0123456789abcdef')
+        }
+
+        It 'keeps an unresolved APIM probe reference unknown' {
+            $inputData = Get-SyntheticNetworkModelInput
+            $gateway = $inputData.AppGateways[0]
+            $gateway.properties.backendHttpSettingsCollection[0].properties |
+                Add-Member -NotePropertyName probe `
+                    -NotePropertyValue ([pscustomobject]@{
+                        id = '/synthetic/probes/missing'
+                    })
+
+            $actual = Get-ApimNetworkModel @inputData
+
+            $actual.appGatewayProbeAlignment | Should -Be 'Unknown'
+            $actual.appGatewayProbePaths.Count | Should -Be 0
+            $actual.modelStatus | Should -Be 'Partial'
+            $actual.missingInputs |
+                Should -Contain 'appGatewayProbeAlignment'
+        }
+
+        It 'retains a known misaligned probe when another route is unresolved' {
+            $inputData = Get-SyntheticNetworkModelInput
+            $gateway = $inputData.AppGateways[0]
+            $settingsId = (
+                '/subscriptions/00000000-0000-0000-0000-000000000001/' +
+                'resourceGroups/rg-synthetic-network/providers/' +
+                'Microsoft.Network/applicationGateways/agw-synthetic-prod/' +
+                'backendHttpSettingsCollection/apim-unknown-probe'
+            )
+            $gateway.properties.backendHttpSettingsCollection += (
+                [pscustomobject]@{
+                    id = $settingsId
+                    name = 'apim-unknown-probe'
+                    properties = [pscustomobject]@{
+                        protocol = 'Https'
+                        port = 443
+                        hostName = 'api.synthetic.invalid'
+                        pickHostNameFromBackendAddress = $false
+                        probe = [pscustomobject]@{
+                            id = '/synthetic/probes/missing'
+                        }
+                    }
+                }
+            )
+            $secondRule = $gateway.properties.requestRoutingRules[0] |
+                ConvertTo-Json -Depth 100 |
+                ConvertFrom-Json -Depth 100
+            $secondRule.name = 'host-wide-unknown-probe'
+            $secondRule.properties.priority = 200
+            $secondRule.properties.backendHttpSettings.id = $settingsId
+            $gateway.properties.requestRoutingRules += $secondRule
+
+            $actual = Get-ApimNetworkModel @inputData
+
+            $actual.appGatewayProbeAlignment | Should -Be 'Misaligned'
+            $actual.appGatewayProbePaths | Should -Be @('/')
+            $actual.missingInputs |
+                Should -Not -Contain 'appGatewayProbeAlignment'
         }
 
         It 'keeps uncorroborated origin and endpoint intent unavailable' {
@@ -264,6 +354,8 @@ Describe 'APIM network model' {
             $json = ConvertTo-Json -InputObject $actual -Depth 100
 
             $actual.appGateways | Should -BeNullOrEmpty
+            $actual.appGatewayProbeAlignment | Should -Be 'Unknown'
+            $actual.appGatewayProbePaths | Should -BeNullOrEmpty
             $actual.otherFrontDoors | Should -BeNullOrEmpty
             $actual.otherPublicIpRoutes | Should -BeNullOrEmpty
             $actual.modelStatus | Should -Be 'Partial'

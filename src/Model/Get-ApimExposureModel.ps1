@@ -474,6 +474,13 @@ function Get-ApimPublishedRouteSet {
                     -Context 'Application Gateway properties' -AllowMissing |
                     Where-Object { $null -ne $_ }
             ) -Context 'Application Gateway HTTP settings'
+        $probes = ConvertTo-ApimExposureResourceMap `
+            -Resources @(
+                Get-ApimModelValue -InputObject $properties `
+                    -Name probes -Context 'Application Gateway properties' `
+                    -AllowMissing |
+                    Where-Object { $null -ne $_ }
+            ) -Context 'Application Gateway probes'
         $pathMaps = ConvertTo-ApimExposureResourceMap `
             -Resources @(
                 Get-ApimModelValue -InputObject $properties -Name urlPathMaps `
@@ -603,6 +610,8 @@ function Get-ApimPublishedRouteSet {
                     return
                 }
                 $httpSettings = $null
+                $probePath = $null
+                $probePathKnown = $false
                 if ($null -ne $SettingsReference) {
                     $settingsId = Get-ApimExposureReferenceId `
                         -Reference $SettingsReference `
@@ -611,6 +620,43 @@ function Get-ApimPublishedRouteSet {
                         throw 'Application Gateway route referenced unknown HTTP settings.'
                     }
                     $httpSettings = $settings[$settingsId]
+                    $httpSettingsProperties = Get-ApimModelValue `
+                        -InputObject $httpSettings -Name properties `
+                        -Context 'Application Gateway HTTP settings'
+                    $probeReference = Get-ApimModelValue `
+                        -InputObject $httpSettingsProperties -Name probe `
+                        -Context 'Application Gateway HTTP settings properties' `
+                        -AllowMissing
+                    if ($null -eq $probeReference) {
+                        $probePath = '/'
+                        $probePathKnown = $true
+                    }
+                    else {
+                        $probeId = Get-ApimExposureReferenceId `
+                            -Reference $probeReference `
+                            -Context 'Application Gateway probe reference'
+                        if ($probes.ContainsKey($probeId)) {
+                            $probeProperties = Get-ApimModelValue `
+                                -InputObject $probes[$probeId] -Name properties `
+                                -Context 'Application Gateway probe'
+                            $probePathValue = Get-ApimModelValue `
+                                -InputObject $probeProperties -Name path `
+                                -Context 'Application Gateway probe properties' `
+                                -AllowMissing
+                            if ($null -ne $probePathValue) {
+                                if ($probePathValue -isnot [string] -or
+                                    [string]::IsNullOrWhiteSpace(
+                                        [string] $probePathValue
+                                    )) {
+                                    throw 'Application Gateway probe path was invalid.'
+                                }
+                                $probePath = '/' + (
+                                    [string] $probePathValue
+                                ).Trim().TrimStart('/')
+                                $probePathKnown = $true
+                            }
+                        }
+                    }
                 }
                 $rewrite = Get-ApimExposureRewriteAssessment `
                     -Reference $RewriteReference -RewriteSets $rewriteSets
@@ -641,6 +687,8 @@ function Get-ApimPublishedRouteSet {
                                 ruleName = $ruleName
                                 pattern = $normalizedPattern
                                 rewriteUnresolved = [bool] $rewrite.unresolved
+                                probePath = $probePath
+                                probePathKnown = [bool] $probePathKnown
                             })
                     }
                 }

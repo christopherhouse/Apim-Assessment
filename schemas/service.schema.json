@@ -5,6 +5,11 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
+    "skuName",
+    "skuCapacity",
+    "zones",
+    "platformVersion",
+    "hostnameCertificateExpirations",
     "legacyTlsEnabled",
     "enabledLegacyTlsControls",
     "minApiVersion",
@@ -13,6 +18,43 @@
     "missingInputs"
   ],
   "properties": {
+    "skuName": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "skuCapacity": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "zones": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "platformVersion": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "hostnameCertificateExpirations": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "uniqueItems": true
+    },
     "legacyTlsEnabled": {
       "type": [
         "boolean",
@@ -56,7 +98,13 @@
     "missingInputs": {
       "type": "array",
       "items": {
-        "const": "legacyTlsControls"
+        "enum": [
+          "legacyTlsControls",
+          "hostnameCertificateExpirations",
+          "platformVersion",
+          "skuCapacity",
+          "skuName"
+        ]
       },
       "uniqueItems": true
     }

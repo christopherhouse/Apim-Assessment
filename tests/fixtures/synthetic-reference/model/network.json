@@ -13,6 +13,10 @@
   "appGatewayTlsPolicyNames": [
     "AppGwSslPolicy20220101"
   ],
+  "appGatewayProbeAlignment": "Misaligned",
+  "appGatewayProbePaths": [
+    "/"
+  ],
   "wafState": "Disabled",
   "wafMode": "Detection",
   "otherFrontDoors": [],

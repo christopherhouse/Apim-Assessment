@@ -407,6 +407,28 @@ function Get-Config {
         Get-RequiredConfigValue $thresholds 'Error5xxPct' 'Thresholds'
     ) -Context 'Thresholds.Error5xxPct' -Minimum 0
 
+    if ($config.Contains('RuleTargets')) {
+        $ruleTargets = $config.RuleTargets
+        Test-ConfigMap -Value $ruleTargets -Context 'RuleTargets'
+        $criticalBackendIds = Get-RequiredConfigValue $ruleTargets `
+            'CriticalBackendIds' 'RuleTargets'
+        Test-ConfigStringArray -Value $criticalBackendIds `
+            -Context 'RuleTargets.CriticalBackendIds' -AllowEmpty
+        $uniqueCriticalBackendIds = [System.Collections.Generic.HashSet[string]]::new(
+            [System.StringComparer]::OrdinalIgnoreCase
+        )
+        foreach ($backendId in @($criticalBackendIds)) {
+            if (-not $uniqueCriticalBackendIds.Add([string] $backendId)) {
+                throw "Configuration 'RuleTargets.CriticalBackendIds' contains a duplicate value."
+            }
+            if ([string] $backendId -cnotmatch (
+                    '^[A-Za-z0-9][A-Za-z0-9._-]*$'
+                )) {
+                throw "Configuration 'RuleTargets.CriticalBackendIds' contains an invalid target key."
+            }
+        }
+    }
+
     if ($config.Contains('RuleExceptions')) {
         $ruleExceptions = $config.RuleExceptions
         Test-ConfigMap -Value $ruleExceptions -Context 'RuleExceptions'

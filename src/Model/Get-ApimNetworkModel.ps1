@@ -604,6 +604,41 @@ function Get-ApimNetworkModel {
     if ($wafAssessment.missingPolicy) {
         $null = $missingInputs.Add('wafPolicies')
     }
+    $appGatewayProbeAlignment = 'NotApplicable'
+    $appGatewayProbePaths = @()
+    if ($null -eq $AppGateways) {
+        $appGatewayProbeAlignment = 'Unknown'
+        $appGatewayProbePaths = $null
+        $null = $missingInputs.Add('appGatewayProbeAlignment')
+    }
+    elseif ($effectiveAppGateways.Count -gt 0) {
+        $apimRoutes = @(
+            Get-ApimPublishedRouteSet -Service $Service `
+                -AppGateways $effectiveAppGateways
+        )
+        if ($apimRoutes.Count -gt 0) {
+            $appGatewayProbePaths = @(
+                $apimRoutes |
+                    Where-Object probePathKnown |
+                    ForEach-Object probePath |
+                    Sort-Object -Unique
+            )
+            if (@($appGatewayProbePaths | Where-Object {
+                        $_ -cne '/status-0123456789abcdef'
+                    }).Count -gt 0) {
+                $appGatewayProbeAlignment = 'Misaligned'
+            }
+            elseif (@($apimRoutes | Where-Object {
+                        -not $_.probePathKnown
+                    }).Count -gt 0) {
+                $appGatewayProbeAlignment = 'Unknown'
+                $null = $missingInputs.Add('appGatewayProbeAlignment')
+            }
+            else {
+                $appGatewayProbeAlignment = 'Aligned'
+            }
+        }
+    }
 
     $frontDoorAssessment = Get-ApimTargetingNetworkResourceAssessment `
         -Payload $FrontDoorPayload -Context 'Other front door payload' `
@@ -755,6 +790,8 @@ function Get-ApimNetworkModel {
         appGateways = $outputAppGateways
         appGatewayTlsPolicy = $tlsAssessment.status
         appGatewayTlsPolicyNames = $tlsAssessment.policyNames
+        appGatewayProbeAlignment = $appGatewayProbeAlignment
+        appGatewayProbePaths = $appGatewayProbePaths
         wafState = $wafAssessment.state
         wafMode = $wafAssessment.mode
         otherFrontDoors = $outputOtherFrontDoors

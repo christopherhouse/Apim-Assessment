@@ -42,6 +42,9 @@
         CertExpiryDays = 60; BackendP95Ms = 2000; Error5xxPct = 1.0
         UnusedDays = 90; SubscriptionStaleDays = 180; MaxWriteRolePrincipals = 5
     }
+    RuleTargets = @{
+        CriticalBackendIds = @()
+    }
     RuleExceptions = @{
         ApprovedPlainHttpBackendIds = @()
         ApprovedPlainHttpOperationKeys = @()
