@@ -787,8 +787,9 @@ no copy fallback. Failures preserve existing versions; alias maps never move.
 The host must enforce exclusive ownership/ACLs on all roots and their ancestors.
 This guards accidental/stale writers with checks and immutable API semantics;
 it does not claim immunity to a hostile concurrent filesystem administrator.
-Broker isolation, host trust configuration, and agent acceptance remain
-T-321/T-322/T-323 and G3 (D-48/D-49).
+The implemented broker rechecks package/attestation and exact hashes at read time.
+Host trust/ACL configuration and actual isolated agent acceptance remain owner
+checks under T-321/T-324 and G3 (D-48/D-49).
 
 ### 10.7 Specialist Copilot analysis
 
@@ -808,11 +809,19 @@ approved-code priorities, themes, decisions, and roadmap items with resolving
 finding/fact/observation citations, plus the package's assumptions and data gaps.
 Assumption and data-gap sets must match the package exactly: neither missing
 nor invented codes are accepted.
-The contract gate validates supplied specialist sets before accepting executive
-observation references and rejects duplicate analyst roles. It checks structural
-traceability, not whether a cited fact logically entails a claim; specialist
-claim reconciliation remains T-322/T-323. No agent profile or runtime is enabled
-by these schemas (D-47).
+The structural contract gate validates supplied specialist sets before accepting
+executive references and rejects duplicate analyst roles. The separate
+`Test-ApimAgentClaim` semantic gate additionally requires every direct citation
+to support the selected rationale, compatible recommendations/categories, and
+confidence no higher than supporting evidence. Executive codes reconcile to
+supported specialist rationales/direct facts, retain exact assumption/gap sets,
+and preserve posture from authoritative findings. High findings require at least
+one highest-severity priority citation. NotEvaluated supports only low-confidence
+MissingEvidence, never a confirmed risk. A schema-approved code is not itself
+evidence; unsupported diagnostic-coverage claims reject, including attempts to
+treat sensitive capture as insufficient diagnostics. Four explicit broker-only
+profiles are implemented, but schema/profile declarations do not certify actual
+host permissions or enable customer analysis (D-47/D-52/D-54).
 
 ---
 
@@ -1006,7 +1015,13 @@ opened. Editing weights changes only workbook formulas and cached presentation;
 it never mutates `findings.json`, and action rows remain in their original
 deterministic saved order rather than automatically resorting (D-45).
 
-`template/executive-summary/` holds local HTML/CSS/SVG templates. The renderer, not an AI model, combines the validated executive summary with restricted local facts and resolves approved aliases through `alias-map.json`.
+`template/ApimExecutiveSummary.html` holds the self-contained local HTML/CSS/SVG
+template (D-54). The renderer, not an AI model, combines revalidated synthesis
+with restricted local facts. It builds a fresh package from current replay-checked
+models, checks exact digest and identity-map agreement, resolves all aliases
+locally, and HTML-encodes local labels. The non-AI path requires no promotion,
+agent output, broker, or Azure access. Excel/HTML share one basename; restricted
+local registries retain relative artifact paths without returning them to a model.
 
 ### 12.2 Sheets
 | Sheet | Table name | Source |
@@ -1051,6 +1066,30 @@ Input two run folders. Output `diff.json` and a `Run Comparison` sheet: `New`, `
 
 ## 14. CLI
 
+The implemented operational slice (D-50) exposes Collect, Analyze, Excel/HTML Report,
+and Assessment over the eight current collectors, ten model contracts, and
+installed catalog. Analyze/Report are offline. Cost, Log Analytics, Git,
+carry-forward, custom/filtered catalogs, and run comparison below remain future
+capabilities: unsupported requests fail explicitly. The skip switches confirm
+default exclusions; explicit `:$false` requests an unavailable capability.
+`-SkipLogs` does not exclude diagnostic-configuration collection. Only
+Cloudflare/AssumedReachable edge configuration and six usage bands are supported.
+`-Stage Collect` on Assessment selects collection only; `-Resume` reuses a run
+only after compatible identity/configuration/settings and per-collector
+inventory/count/policy-hash validation. Changed prerequisites force dependent
+recollection and invalidate downstream stage states. Collector-owned old files
+are cleared before replacement; failed evidence is never read as a complete set.
+
+The restricted closed `run-settings.json` snapshot persists only allowlisted
+non-secret settings needed for reproducible analysis/package replay; scoring,
+edge settings, and date anchors come from the manifest. Missing models produce
+Info/NotEvaluated findings where possible and block Report/promotion. Report
+requires Completed analysis, all ten valid models, and exact finding replay.
+Collection-only failures return 3; attempted downstream failure returns 4 while
+preserving collector status. Console output is bounded status/exit-code text.
+The examples involving future capabilities below describe the eventual v1
+contract, not currently executable commands.
+
 ```powershell
 # Full run, one environment
 ./Invoke-ApimAssessment.ps1 -Config config/customer.psd1 -Environment Prod [-PreviousReport <xlsx>] [-SkipCost] [-SkipLogs] [-SkipGit] [-Resume <runFolder>]
@@ -1080,8 +1119,33 @@ The operator may select the repository assessment-orchestrator agent/skill. Copi
 - `promote_analysis_package(runId)` → validation/promotion status and package hash only.
 - `read_validated_analysis_package(runId)` → package only when attestation is valid and the package hash still matches.
 - `render_reports(runId, validatedAgentOutputs)` → output status and local paths represented as opaque artifact IDs to the model.
+- `validate_agent_output(runId, packageSha256, kind, json)` → digest-bound validated output ID only.
+- `read_validated_agent_outputs(runId)` → revalidated model-safe proposals only.
 
 The broker allowlists operations and arguments, resolves local paths internally, captures/sanitizes stdout and stderr, never returns Azure exceptions verbatim, and has no generic command-execution method.
+
+The implemented stdio server handshakes MCP 2025-11-25 and supports only
+initialize/initialized, ping and tools/list/call. It is not a generic MCP
+resource/file server. Exact tool schemas reject unknown fields/operations,
+caller paths and unsupported options. Each tool runs in a fixed local worker
+process whose OS stdout/stderr are drained, never forwarded; result-file content
+must pass a separate closed result gate before reaching the wire. Errors use
+fixed codes, without exception text. The module manifest supplies server version.
+Operator startup is closed JSON with approved config aliases/environments,
+registered saved runs, complete visible roots, disjoint canonical physical
+restricted/analysis/private-staging roots and explicit approval/exclusive ownership.
+Declarations are required inputs, not automatic proof of actual permissions.
+Startup/configuration remains outside model control. IDs are session-scoped.
+
+Promotion directories remain immutable two-file versions. Validated specialist
+and executive proposals live in separate restricted storage with both output
+and package hashes in closed persistent sidecars. Every output read/render rechecks those bindings and
+semantics. Missing/rejected proposals use an explicitly labeled deterministic
+report path; unvalidated output is never used. Specialist/synthesis profiles
+allow only exact read-only namespaced tools; the orchestrator alone submits
+proposals and requests reports. No generic shell/filesystem/delegation tools
+are allowed. The operator must verify actual profile tool admission and filesystem
+isolation in a clean session before assisted use (D-51/D-53).
 
 ### 14.2 Manual and degraded operation
 

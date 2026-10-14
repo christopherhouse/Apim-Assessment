@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Restricted APIM Agent Output Binding",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "outputId", "kind", "packageSha256", "outputSha256"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "outputId": { "type": "string", "pattern": "^output-[a-f0-9]{32}$" },
+    "kind": { "enum": ["ExpertObservations", "ExecutiveSummary"] },
+    "packageSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "outputSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  }
+}

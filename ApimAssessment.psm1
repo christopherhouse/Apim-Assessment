@@ -11,5 +11,7 @@ foreach ($area in @('Core', 'Collect', 'Model', 'Rules', 'Package', 'Report')) {
     }
 }
 
-# Public commands are added to this list and the manifest together when implemented.
-Export-ModuleMember -Function @() -Alias @()
+Export-ModuleMember -Function @(
+    'Invoke-ApimCollect', 'Invoke-ApimAnalyze', 'Invoke-ApimReport',
+    'Invoke-ApimAssessment'
+) -Alias @()

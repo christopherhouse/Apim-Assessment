@@ -8,6 +8,20 @@ deferred to their builders. Follow specification sections 6, 8, 9, and 10, use
 camelCase fields and stable keys, and do not turn unavailable collector data
 into an empty successful result.
 
+## Restricted run settings
+
+`run-settings.schema.json` closes the version 1.0 offline analysis settings
+snapshot stored at `restricted/run-settings.json`. It contains only the
+run/tool binding, configured gateway identities and subnet CIDRs, certificate
+expiry threshold, exact backend/operation rule exceptions and critical targets,
+and six usage-band thresholds. All fields use camelCase. It excludes private
+configuration, paths, tokens, credentials, and user identities. Gateway
+identities remain restricted; this schema does not authorize model access.
+The loader validates the schema, identity/version binding, CIDR values, and
+strictly increasing bands, and reconstructs scoring/edge settings from the
+manifest. Collection separately stores a versioned configuration SHA-256 for
+resume compatibility, never the full private configuration.
+
 ## Model-safe contracts (T-317)
 
 `analysis-package.schema.json`, `expert-observations.schema.json`, and
@@ -72,3 +86,32 @@ Private promotion revalidates a fresh snapshot, verifies hashes and persisted
 attestation, and atomically renames a two-file directory into a new immutable
 version. Host-enforced root isolation and exclusive ownership remain required;
 these schemas do not grant tools, trust, or model access.
+
+## Broker startup and proposal binding (T-321-T-323)
+
+`broker-operator.schema.json` is a closed local startup contract, not a model-safe
+artifact. It contains paths/config aliases/registered saved runs and must remain
+inside the operator-owned restricted root. Approval, exclusive filesystem and
+complete-visible-root flags must all be true; canonical path/link/disjointness
+checks are additional runtime requirements. These declarations do not prove
+actual host permissions, and no tool accepts them.
+
+The seven tool input/result contracts are generated locally by the broker.
+Unknown fields/operations, caller paths, arbitrary text in returned statuses,
+malformed/duplicate JSON, stale digest/output bytes and unsupported output IDs
+fail closed. Results contain only approved statuses, hashes and opaque IDs, or
+independently revalidated model-safe package/proposals.
+
+The original observation/executive schemas remain version 1.0. A separate
+`Test-ApimAgentClaim` evidence compatibility gate rejects unrelated or
+contradictory cited facts/findings, incompatible recommendations/categories,
+confidence escalation, unsupported executive codes/posture/priorities, and lost
+or invented assumptions/data gaps. A vocabulary enum is not proof of evidence:
+diagnostic capture does not entail insufficient diagnostic coverage.
+Proposal handoff supplies the exact promoted digest outside the proposal JSON.
+`agent-output-binding.schema.json` closes each restricted version 1.0 sidecar:
+output ID, contract kind, exact package digest and output digest, with no paths
+or narrative. Sidecars retain auditable bindings after process exit; IDs still
+expire and are not automatically restored at restart. Every read/render
+revalidates context. Immutable publication directories still contain exactly
+package/attestation, never proposal output or alias maps.

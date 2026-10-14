@@ -95,11 +95,36 @@ function Test-ApimSmokeOutput {
         throw 'Smoke run status does not match its collectors.'
     }
 
-    $apiNames = @()
-    $productNames = @()
     foreach ($check in $completed) {
-        $name = $check.Name
-        $items = [int] $collectors[$name].items
+        Test-ApimCollectorOutput -RunPath $RunPath -Environment $Environment `
+            -Collector $collectors[$check.Name]
+    }
+}
+
+function Test-ApimCollectorOutput {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string] $RunPath,
+
+        [Parameter(Mandatory)]
+        [System.Collections.IDictionary] $Environment,
+
+        [Parameter(Mandatory)]
+        [object] $Collector,
+
+        [switch] $CompletePolicyInventory
+    )
+
+        $name = $Collector.name
+        $items = [int] $Collector.items
+        $apiNames = @()
+        if ($name -in @('Diagnostics', 'Policies')) {
+            $apis = Read-ApimSmokeOutputJson -RunPath $RunPath `
+                -RelativePath 'raw/apis.json' -Collection
+            $apiNames = @(Get-ApimCollectionResourceName -Payload $apis `
+                    -CollectionName 'APIM API')
+        }
         $actual = switch ($name) {
             'Service' {
                 $null = Read-ApimSmokeOutputJson -RunPath $RunPath `
@@ -196,6 +221,64 @@ function Test-ApimSmokeOutput {
                         throw 'Smoke policy absence does not match the index.'
                     }
                 }
+                if ($CompletePolicyInventory) {
+                    $expected = [Collections.Generic.HashSet[string]]::new(
+                        [StringComparer]::Ordinal
+                    )
+                    $null = $expected.Add('Global|global')
+                    $products = Read-ApimSmokeOutputJson -RunPath $RunPath `
+                        -RelativePath 'raw/products.json' -Collection
+                    foreach ($product in Get-ApimCollectionResourceName `
+                            -Payload $products -CollectionName 'APIM product') {
+                        $null = $expected.Add("Product|$product")
+                    }
+                    foreach ($api in $apiNames) {
+                        $null = $expected.Add("Api|$api")
+                        $segment = ConvertTo-ApimResourceSegment -Value $api
+                        $operations = Read-ApimSmokeOutputJson -RunPath $RunPath `
+                            -RelativePath "raw/operations/$segment.json" -Collection
+                        foreach ($operation in Get-ApimCollectionResourceName `
+                                -Payload $operations -CollectionName 'APIM operation') {
+                            $null = $expected.Add("Operation|$api|$operation")
+                        }
+                    }
+                    $seen = [Collections.Generic.HashSet[string]]::new(
+                        [StringComparer]::Ordinal
+                    )
+                    $files = [Collections.Generic.HashSet[string]]::new(
+                        [StringComparer]::Ordinal
+                    )
+                    foreach ($policy in $index.policies) {
+                        $key = "$($policy.scopeType)|$($policy.scope)"
+                        if (-not $seen.Add($key) -or -not $files.Add($policy.file) -or
+                            ($policy.scopeType -cne 'Fragment' -and
+                                -not $expected.Contains($key)) -or
+                            $policy.scopeType -cnotin @('Global', 'Product', 'Api', 'Operation', 'Fragment')) {
+                            throw 'Policy scope inventory is invalid.'
+                        }
+                        $expectedFile = switch -CaseSensitive ($policy.scopeType) {
+                            Global { 'policies/global.xml' }
+                            Product { 'policies/product.{0}.xml' -f (ConvertTo-ApimResourceSegment -Value $policy.scope) }
+                            Api { 'policies/api.{0}.xml' -f (ConvertTo-ApimResourceSegment -Value $policy.scope) }
+                            Fragment { 'policies/fragment.{0}.xml' -f (ConvertTo-ApimResourceSegment -Value $policy.scope) }
+                            Operation {
+                                $parts = $policy.scope.Split('|')
+                                if ($parts.Count -ne 2) { throw 'Policy scope inventory is invalid.' }
+                                'policies/op.{0}.{1}.xml' -f (
+                                    ConvertTo-ApimResourceSegment -Value $parts[0]
+                                ), (ConvertTo-ApimResourceSegment -Value $parts[1])
+                            }
+                        }
+                        if ($policy.file -cne $expectedFile) {
+                            throw 'Policy scope file binding is invalid.'
+                        }
+                    }
+                    foreach ($key in $expected) {
+                        if (-not $seen.Contains($key)) {
+                            throw 'Policy scope inventory is incomplete.'
+                        }
+                    }
+                }
                 $index.policies.Count
             }
             'Network' {
@@ -227,9 +310,9 @@ function Test-ApimSmokeOutput {
                 }
                 $files.Count
             }
+            default { throw 'Collector output validation is unavailable.' }
         }
         if ($items -ne $actual) {
             throw 'Smoke collector item count does not match saved output.'
         }
-    }
 }

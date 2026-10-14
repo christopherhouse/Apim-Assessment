@@ -20,28 +20,236 @@ SEC catalog entries, six model-backed GOV catalog entries, all six REL catalog
 entries, a closed findings schema, and private closed action-item aggregation
 plus a customer-neutral generated Excel action-plan template are available for
 offline synthetic testing. A private report writer can populate the current
-deterministic workbook sheets from a validated saved run. Full
-collection/analyze orchestration, remaining collectors and models,
-telemetry-based exposure refinement, rule catalogs, Copilot
-operator workflow, public report/comparison commands, and the executive HTML template are not
-implemented.
+deterministic workbook sheets from a validated saved run. Four bounded public
+commands now connect collection, offline analysis, and paired Excel/HTML
+reporting, including validated resume. A synthetic-tested narrow stdio broker,
+four broker-only assessment profiles, semantic output validation and four
+operator skills are implemented. Remaining collectors/models, telemetry-based
+exposure refinement, rule catalogs and run comparison are not implemented.
+Actual clean Copilot-session/tool isolation, approved roots/ACLs, organization
+approval and visual/live G3 acceptance remain owner gates.
 
 All ten implemented model contracts share a private schema gate for pending
 writes and complete saved-run loading. Private findings are validated against
 `schemas/findings.schema.json` before restricted persistence. This does not add
-a public Analyze command or authorize model/findings access to an agent.
+authorization for model/findings access to an agent.
 
 Closed schema version 1.0 contracts and a private in-memory reference gate are
 also available for synthetic tests. They validate opaque aliases, approved
 fact/narrative codes, typed usage buckets/cost trends, unique IDs, citations,
 and executive assumption/data-gap carry-forward. Private version 1.1 package
 construction, independent privacy validation, local attestation, and immutable
-atomic promotion are also implemented and synthetic-tested. There is still no
-public package/promotion command, broker, or assessment-agent runtime.
+atomic promotion are also implemented and synthetic-tested. The broker invokes
+these private helpers; standalone root package/promotion facades remain planned.
 No customer data is approved for model access by a schema/reference pass.
 
 Do not run the planned commands in specification section 14 until their tasks
 are implemented, tested, and marked available in the root README.
+
+## Implemented deterministic workflow
+
+Collection is authorized-maintainer-only in an ordinary local terminal, with
+existing Reader access and matching Azure context. Never launch it through a
+coding agent, `!`, or CI. Store private configuration and restricted runs in
+approved external locations. I-05/I-06 and live G3 remain owner gates.
+
+Prerequisites: PowerShell 7.4+, Az.Accounts and Az.ResourceGraph for collection;
+ImportExcel 7.8.10 for Excel rendering. Use the dependency installer for the
+pinned local Excel dependency, not Azure authentication. The runtime does not
+log in, switch subscriptions, retrieve credentials, or install Azure modules.
+
+```powershell
+# In an authorized ordinary PowerShell terminal; not Copilot CLI.
+.\Invoke-ApimAssessment.ps1 -Config <private-config.psd1> -Environment Prod
+.\Invoke-ApimAssessment.ps1 -Config <private-config.psd1> -Environment Prod -Stage Collect
+.\Invoke-ApimCollect.ps1 -Config <private-config.psd1> -Environment Prod -ThrottleLimit 4
+.\Invoke-ApimCollect.ps1 -Config <private-config.psd1> -Environment Prod -Resume <run-folder>
+
+# Offline stages still operate on restricted local data.
+.\Invoke-ApimAnalyze.ps1 -RunFolder <run-folder>
+.\Invoke-ApimReport.ps1 -RunFolder <run-folder>
+```
+
+All scripts print only the stage outcome and matching process exit code, not
+run paths, model data, findings, or exception text. Locate the run under the
+configured restricted output root locally. The module functions return bounded
+status objects, with Collect/Assessment carrying the run ID. Reports remain
+under that run's `report` directory and never overwrite previous workbooks.
+
+The implemented slice collects Service, Apis, Products, Subscriptions,
+SecurityAssets, Diagnostics, Policies, and Network. It accepts only
+Cloudflare/AssumedReachable edge settings and six increasing usage thresholds.
+`-SkipCost`, `-SkipLogs`, and `-SkipGit` confirm default exclusions of future
+cost, Log Analytics queries, and Git collection. Diagnostic settings are still
+collected. Explicit `:$false` on those switches is rejected. `-PreviousReport`,
+Analyze's `-RulesPath`/`-OnlyRules`/`-CompareRuns`, and comparison commands
+remain unavailable; none silently falls back to a speculative capability.
+
+Resume verifies exact configuration/settings compatibility and run identity,
+then validates completed collector output before reuse. Failed, partial,
+missing, or damaged checks rerun; changed prerequisites invalidate dependent
+checks and Analyze/Report/package stage state. Only collector-owned stale files
+are removed. A changed configuration requires a new run. Do not edit the
+restricted settings snapshot to change thresholds; it must match collection.
+Analyze uses only saved evidence and the restricted closed settings snapshot.
+Unavailable required models generate Info/NotEvaluated findings where possible,
+leave analysis Failed, and withhold reporting. Missing diagnostics remain unknown
+facts even if the other models can be built. Reporting replays every deterministic
+finding, including evidence, before writing a workbook.
+
+| Exit | Meaning and local action |
+|---|---|
+| 0 | Implemented requested stages completed; this is not owner/live approval. |
+| 1 | Invalid config or unavailable requested capability; check settings/options locally. |
+| 2 | Az modules or matching existing context unavailable; maintainers resolve outside Copilot. |
+| 3 | Collection has Failed/Partial/Skipped checks; inspect the restricted manifest/log and resume. |
+| 4 | Analysis/report/runtime-state failed; inspect saved input/schema/stage state locally. |
+
+An Assessment run preserves exit 3 if downstream stages succeed, but returns 4
+if a requested downstream stage fails. Collector failure records remain intact.
+No broker or model-safe access is enabled by these commands.
+
+Offline acceptance uses compact synthetic raw fixtures: two APIs, two
+operations, two products, six subscriptions, three named values, two backends,
+two certificates, eight indexed policies, and nine network files. The separate
+60-API generator produces saved models, not a scaled raw collector run.
+
+```powershell
+.\scripts\Invoke-Checks.ps1 -TestPath .\tests\unit\CollectionResume.Tests.ps1
+.\scripts\Invoke-Checks.ps1 -TestPath .\tests\unit\RuntimeEntryPoint.Tests.ps1
+.\scripts\Invoke-Checks.ps1 -TestPath .\tests\integration\OperationalRuntime.Tests.ps1
+```
+
+## Narrow model-safe broker (owner admission required)
+
+Do not attach the broker to a broad coding session or read restricted setup/run
+files through Copilot. The owner must first approve I-05/I-06, select canonical
+physical roots, enforce exclusive filesystem/ancestor ownership, stop other
+writers, and verify the **complete** actual Copilot-visible path set. Restricted
+and private-staging roots must be outside every visible root. All three roots
+must be pairwise disjoint; staging and analysis must support atomic rename on
+one filesystem. Links, mapped/substituted drives, unknown isolation, incomplete
+roots, missing approvals or concurrent writers are blockers. No command here
+discovers, modifies or bypasses host trust/ACL/tool controls.
+
+Create `broker.json` locally inside the restricted root, outside the model
+session. It must pass `schemas/broker-operator.schema.json`. This illustrative
+shape starts with false admission flags and therefore **must fail startup**
+until the owner verifies and explicitly changes them:
+
+```json
+{
+  "schemaVersion": "1.0",
+  "restrictedRoot": "<absolute restricted root>",
+  "analysisRoot": "<absolute dedicated analysis root>",
+  "privateStagingRoot": "<absolute private staging root>",
+  "visibleRoots": ["<every actual visible root, including checkout/session grants>"],
+  "visibleRootsComplete": false,
+  "exclusiveFilesystem": false,
+  "approved": false,
+  "aliases": [
+    {
+      "alias": "synthetic-test",
+      "configPath": "<private PSD1 inside restricted root>",
+      "environments": ["Test"]
+    }
+  ],
+  "savedRuns": [
+    {
+      "runId": "run-00000000000000000000000000000001",
+      "relativePath": "synthetic-operational"
+    }
+  ]
+}
+```
+
+Aliases are optional for saved-run offline workflows. For new collection, each
+private PSD1 must be valid and its `Output.Root` must exactly match the restricted
+root. Alias/environment names are bounded identifiers, not customer names.
+Saved runs are registered by an owner-chosen opaque ID and a single safe
+directory name beneath the restricted root; each must already have a valid
+manifest. These are operator declarations, not model-supplied tool arguments.
+Set `$brokerStartup` locally to that file. The stdio server command is:
+
+```powershell
+# Owner-configured MCP child process, not a Copilot shell/tool invocation.
+pwsh -NoProfile -NonInteractive -File .\scripts\Start-ApimBroker.ps1 -OperatorConfigPath $brokerStartup
+```
+
+Configure this exact command as local MCP server **`apim-assessment`** in the
+owner-managed host (`/mcp` opens configuration in Copilot CLI). Keep private
+configuration outside model-readable directories; do not paste its resolved
+paths or logs into chat. The server pins MCP 2025-11-25 and accepts only its
+initialize/initialized, ping, tools/list and tools/call lifecycle. Clients using
+an incompatible handshake fail closed. Tool calls have a 20-minute hard worker
+timeout; worker stdout/stderr, including native/direct-console output, are
+drained without forwarding. Fixed startup/operation/request error codes are
+safe to report; inspect the restricted manifest locally for operational failures.
+Run/output IDs are scoped to the broker process and expire on restart.
+
+Select the reviewed source profiles in a **clean model-safe-only context**.
+Before supplying any package, the owner must verify actual available tools,
+not just the YAML text:
+
+| Profile | Exact tools under `apim-assessment/` |
+|---|---|
+| `apim-architecture-exposure` | `read_validated_analysis_package` |
+| `apim-security-analyst` | `read_validated_analysis_package` |
+| `apim-executive-synthesizer` | `read_validated_analysis_package`, `read_validated_agent_outputs` |
+| `apim-assessment-orchestrator` | `run_assessment`, `get_assessment_status`, `promote_analysis_package`, `read_validated_analysis_package`, `validate_agent_output`, `read_validated_agent_outputs`, `render_reports` |
+
+No generic shell, filesystem, search, Azure, delegation or wildcard tools may be
+available. Unrecognized/missing profile tools are a blocker, not permission to
+use a development agent. Skills are instructions, **not** permission controls.
+The four `apim-*` operator skills describe orchestration, analysis, deliverables
+and validation; they must only be used in the admitted broker-only profile.
+
+The workflow is start/register run -> coarse status -> promote -> read package
+and digest -> propose specialists -> validate proposals -> read revalidated
+proposals -> propose executive -> validate -> render. `run_assessment` accepts
+only approved configAlias/environment and `options: {"stage":"All"}` or Collect.
+Public ordinary-terminal Resume remains available; the broker has no path-based
+resume argument. Read-only specialists/synthesizer return proposal JSON; the
+orchestrator alone submits it through `validate_agent_output` with exact digest
+and kind. Every direct citation must support the approved rationale/code and
+recommendation/category. Confidence cannot exceed evidence; NotEvaluated only
+supports Low MissingEvidence. Unknown diagnostic coverage cannot be asserted
+from sensitive diagnostic capture. Executive posture and priority citations
+preserve authoritative High findings; assumption/data-gap sets are exact.
+
+On missing/rejected proposals, request `render_reports` with an empty
+`validatedAgentOutputs` list. This is explicit deterministic non-AI fallback,
+not a success-shaped AI summary. Both reports remain under `report/`;
+`restricted/latest-reports.json` pairs the current filenames and
+`restricted/report-artifacts.json` maps opaque returned artifact IDs to relative
+paths for the owner. No broker operation reads those registries to a model.
+Immutable analysis versions contain only package/attestation; proposals and
+identity maps remain restricted. Each proposal also has a closed
+`restricted/agent-outputs/<outputId>.binding.json` sidecar preserving exact package
+and output hashes for local audit; these files never authorize restored IDs or
+model access after restart. Rendering replays findings, rebuilds package
+binding, checks identity-map agreement, resolves aliases locally and escapes text.
+No agent writes templates or reads a rendered report. Human visual review,
+accessible browser/print review and live G3 acceptance remain owner tasks.
+
+Synthetic automated acceptance, without Azure credentials or actual host
+admission, is runnable in a development checkout:
+
+```powershell
+.\scripts\Invoke-Checks.ps1 -TestPath tests\unit\AgentClaim.Tests.ps1
+.\scripts\Invoke-Checks.ps1 -TestPath tests\unit\BrokerBoundary.Tests.ps1
+.\scripts\Invoke-Checks.ps1 -TestPath tests\unit\AssessmentProfile.Tests.ps1
+.\scripts\Invoke-Checks.ps1 -TestPath tests\integration\BrokerWorkflow.Tests.ps1
+.\scripts\Invoke-Checks.ps1 -TestPath tests\integration\ExecutiveHtml.Tests.ps1
+```
+
+The real subprocess tests check lifecycle/strict dispatch, all-stream canaries,
+byte/digest/identity mutations, approved specialist/executive handoff and paired
+reports. Profile tests guard exact declaration allowlists; contrast tests measure
+the used normal-text foreground/background pairs. These tests **do not** certify
+actual Copilot tool filtering, organization approval, host ACLs or clean-session
+execution. T-324 remains blocked on the owner demonstrating that clean workflow
+without generic tools or permission expansion.
 
 ## Safe bootstrap check
 
@@ -54,9 +262,9 @@ Get-Module ApimAssessment
 .\scripts\Invoke-Checks.ps1
 ```
 
-These commands do not connect to Azure. The module exports no public assessment
-functions, so the internal run-persistence and collector helpers are not operator
-commands. ARM and collector behavior, including parallel throttle enforcement, is
+These commands do not connect to Azure. The module exports four implemented
+assessment functions; the internal persistence and collector helpers remain
+private. ARM and collector behavior, including parallel throttle enforcement, is
 exercised through mocked or synthetic offline tests only. Missing development
 modules are installed into the current user's module path; Pester results go to
 ignored `artifacts`.
@@ -91,8 +299,8 @@ available models and invalid evidence fail closed. Unknown usage is not zero
 usage. `rules/NET.rules.ps1` includes NET-001/002/004/006/007/008/009.
 NET-001 and NET-009 need operator-corroborated facts in the closed network
 model. With no attestation, both emit Info/NotEvaluated rather than asserting
-absent authentication or unnecessary publication. No full saved-run
-Analyze path or public findings-report/promotion command is available yet.
+absent authentication or unnecessary publication. The saved-run Analyze and
+Excel Report commands are available; package promotion remains private.
 `rules/SEC.rules.ps1` includes
 SEC-001/002/003/004/005/007/008/009/010/011/012/014/015/019/020. Rules with
 unknown applicable facts emit one Info/NotEvaluated finding unless other
@@ -173,7 +381,7 @@ offline after installing pinned development dependencies:
 
 This uses ImportExcel without desktop Excel, fixed column widths, and no Azure
 access. The template contains no customer values. Regeneration is a development
-operation only; no public report command currently populates or distributes it.
+operation only; the public Report command populates a local restricted copy.
 
 Private report-writer acceptance also remains synthetic and offline:
 
@@ -374,7 +582,8 @@ sibling folders under that private folder; the roots must not contain each
 other. Resolve issues only in the maintainer's terminal; do not paste private
 settings or exceptions into Copilot. Inspect the
 restricted manifest and outputs locally in that terminal; do not print or share
-them in Copilot. There is no public full assessment command yet.
+them in Copilot. The bounded public assessment command does not change the smoke
+command's maintainer-only contract or grant customer-run approval.
 
 The internal policy collector reads the previously collected API, operation, and
 product catalogs, discovers policy fragments, and writes restricted XML under
@@ -415,7 +624,7 @@ redaction. Secret-bearing HTTP(S) URLs retain only their scheme plus the marker
 so plain-HTTP risk remains visible without retaining host, path, query, fragment,
 or credential data. Effective policies with unresolved fragments are marked
 Partial so downstream models cannot treat absent detections as authoritative
-negatives. There is still no public analyze command.
+negatives. Public Analyze connects these builders to validated saved raw evidence.
 
 The internal API/operation model helper joins current API catalog records,
 operations, revisions, tags, product memberships, and per-product policy flags.
@@ -593,9 +802,10 @@ paths. Supply native canonical physical roots, including every visible alias;
 mapped/substituted drives and network/virtualized filesystems are unsupported.
 API-level immutability and hash/path rechecks do not protect against a
 hostile concurrent administrator or replace filesystem isolation. Real approved
-paths, the narrow broker, read-time attestation checks, agent tool isolation,
-and owner-led G3 acceptance remain outstanding. No public export or agent
-runtime was added.
+paths, actual host-enforced agent tool isolation and owner-led G3 acceptance
+remain outstanding. The narrow broker now invokes these helpers and rechecks
+attestation/hashes on every read; standalone package root-script facades remain
+planned.
 
 ## Offline model fixture check
 
@@ -750,14 +960,14 @@ location, and a separate non-overlapping model-safe analysis location. Agents/CI
 use synthetic fixtures instead. Do not store secret values or tokens, do not
 upload customer outputs, and delete run data after the agreed readout.
 
-When the Copilot-assisted path is implemented, agents will receive only a locally
+On the admitted Copilot-assisted path, agents receive only a locally
 validated and promoted `analysis-package.json` through narrow tools. They must
 not receive raw/model run data, alias maps, Azure command output, exact metrics,
 customer/infrastructure identifiers, credentials, or arbitrary filesystem access.
-The deterministic collection, analysis, Excel, and HTML paths will remain
+The deterministic collection, analysis, Excel, and HTML paths remain
 available without Copilot.
 
 As each pipeline stage becomes available, add its tested commands, resume/skip
 options, manifest interpretation, troubleshooting, and implemented exit codes
-here. The specification's 0-4 exit codes are planned contracts, not current
-assessment behavior.
+here. The bounded public commands implement exit codes 0-4 as documented above;
+future capabilities must not be advertised as implemented.
