@@ -320,7 +320,7 @@ Describe 'Closed model-safe analysis contracts' {
         }
 
         It 'rejects unknown schema versions and inappropriate reference contexts' {
-            $script:contractPackage.schemaVersion = '1.1'
+            $script:contractPackage.schemaVersion = '9.9'
             $json = ConvertTo-ContractTestJson $script:contractPackage
             {
                 Test-ApimAnalysisContract -Kind AnalysisPackage -Json $json

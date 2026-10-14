@@ -9,7 +9,7 @@ HTML executive presentation, and run comparisons.
 
 ## Current status
 
-**Collection and deterministic-model foundation only; not yet an operational assessment
+**Private offline engine and model-data airlock; not yet an operational assessment
 tool.** The
 module imports and contains private configuration validation, structured logging,
 a guarded ARM transport, schema-validated run persistence, and internal APIM
@@ -41,7 +41,7 @@ plain-HTTP backend targets, unsafe CORS, diagnostic body/sensitive-header
 logging, subscription tracing, missing managed identity, and production
 mock/trace policy. Remaining collectors
 and models, telemetry-based exposure refinement, the rest of the SEC catalog,
-the remaining GOV and other rule catalogs, the model-data airlock, Copilot
+the remaining GOV and other rule catalogs, Copilot
 operator workflow, assessment CLI entry points, public report command, and
 executive HTML template are not implemented. A private offline Excel writer now
 populates the implemented deterministic report sheets, Run Info, the implemented
@@ -86,9 +86,20 @@ observations, and executive summaries. A private in-memory schema/reference
 gate rejects unknown fields, unapproved text or exact usage/cost values,
 duplicate members/IDs, and unsupported citations; executive summaries must
 retain the package's assumptions and data gaps. These are synthetic-tested
-contracts only: package construction, independent prohibited-value scanning,
-attestation/promotion, broker isolation, and assessment agents remain unavailable.
-Passing this contract gate does **not** authorize model access to any run data.
+contracts. Private offline helpers now construct version 1.1 packages from all
+ten validated saved models and replay-checked findings, independently validate
+them, and publish immutable package/attestation versions by atomic directory
+rename. Construction uses new allowlisted objects and deterministic aliases;
+identifier-only alias maps stay restricted. Six configured usage bands,
+approved deterministic condition codes, and explicit unknowns replace raw
+evidence, exact metrics, and free text. Version 1.0 remains supported.
+Promotion requires explicit complete host-supplied visible roots, isolated
+restricted/analysis/private-staging roots, and an exclusively controlled local
+filesystem. Unknown isolation, linked paths, tampering, and failed validation
+reject publication. No public command invokes these helpers; the broker,
+assessment agents, and host isolation acceptance remain unavailable.
+Neither a contract pass nor a private candidate authorizes model access to run
+data. The coding-agent checks use synthetic data only.
 
 | Available | Planned |
 |---|---|
@@ -98,12 +109,12 @@ Passing this contract gate does **not** authorize model access to any run data.
 | Guarded ARM transport with paging/retry | Public report command, carry-forward, and run comparison |
 | Versioned run manifest lifecycle with an exact scoring snapshot, plus APIM service/API/product/subscription/policy/network and secret-safe named-value/backend/certificate and logger/diagnostic collectors | Remaining APIM, telemetry, and cost collectors |
 | Maintainer-only cumulative collection smoke script with local output validation (eight registered checks) | Full assessment orchestration and live acceptance |
-| Local saved-run secret-scan script for supported text and Excel artifacts, also required by smoke | Independent model-safe package validation and promotion |
+| Local saved-run secret-scan script for supported text and Excel artifacts, also required by smoke | Broker-mediated model-safe admission and host isolation acceptance |
 | Effective policy merge/flags plus ten implemented models with shared schema-gated persistence and saved-run loading | Remaining model builders and telemetry exposure refinement |
 | Private offline rule engine, seven NET checks, fifteen SEC checks, six GOV checks, all six REL checks, configurable priority scoring, schema-gated findings, and closed action-item aggregation | Remaining SEC/GOV catalog entries, PERF and other catalogs, public Analyze orchestration, and Excel rendering |
 | Generated customer-neutral Excel template plus private validated-run population for actions, findings, APIs, policy, subscriptions, exposure, network summary, Summary assumptions, Run Info, rule catalog, and editable scoring weights | Public workbook rendering, tracking carry-forward, and future usage/cost/drift population |
-| Synthetic-fixture scaffold | Populated fixtures and offline integration pipeline |
-| Closed model-safe package/specialist/executive schemas and private in-memory schema/reference validation | Package builder, independent prohibited-value scanner, promotion, and local Copilot broker |
+| Compact collector fixtures plus a deterministic 60-API synthetic model generator and offline airlock canary/mutation integration | Full raw collection-to-report pipeline and live acceptance |
+| Closed model-safe contracts, private allowlist package construction, independent privacy validation, hash attestation, and immutable atomic promotion | Local Copilot broker and assessment-agent access |
 | Windows/Linux lint and test CI | Assessment analyst runtime and airlock acceptance |
 | Copilot development instructions, agents, and skills | Assessment analyst agents and operator skills |
 | Guarded SemVer tag/release workflow | v1.0 acceptance against the technical specification |

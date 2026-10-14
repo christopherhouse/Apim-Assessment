@@ -39,3 +39,36 @@ scanning, source-evidence/claim verification, hash attestation, or promotion.
 No agent receives a package here. Those boundaries remain separate tasks;
 vocabulary changes require deliberate contract review rather than accepting
 arbitrary strings or new fields.
+
+## Private airlock contracts (T-318/T-319)
+
+`analysis-package.v1.1.schema.json` adds approved `AssessmentCondition` values
+and six configured positive usage bands to the existing closed package shape.
+The original 1.0 schema is not broadened; the contract gate selects exactly
+1.0 or 1.1 and rejects other versions. Specialist/executive contracts remain
+1.0 and may cite either supported package version.
+
+The builder replays the implemented rules against validated saved models and
+configuration, checks the saved findings, and constructs condition facts from
+the fixed rule-to-condition mapping. It never copies finding evidence/text or
+arbitrary model properties. Usage requires six strictly increasing thresholds
+starting at zero; positive values select the greatest matching lower bound
+(`VeryLow`, `Low`, `Medium`, `High`, `VeryHigh`, `Extreme`), with explicit
+`Zero` and `Unknown`. Relative priority boundaries are one third/two thirds
+of the configuration's maximum score. See specification section 10.6 and D-48.
+
+`validation-attestation.schema.json` closes schema version 1.0 attestations:
+package schema version, exact-byte SHA-256, module-derived tool compatibility
+versions, status, and three fixed passing checks. No paths, times, identifiers,
+rejected excerpts, or arbitrary diagnostics are allowed. Parsing rejects
+duplicate members, excessive nesting, and attestations over 64 KiB.
+The attestation is a local integrity record, not a digital signature or builder
+provenance claim.
+
+The independent privacy validator maintains its own field-specific vocabulary,
+ASCII/encoding/prohibited-value checks, size/depth/work bounds, and fixed safe
+failure code. It is distinct from the saved-run accident-detection secret scan.
+Private promotion revalidates a fresh snapshot, verifies hashes and persisted
+attestation, and atomically renames a two-file directory into a new immutable
+version. Host-enforced root isolation and exclusive ownership remain required;
+these schemas do not grant tools, trust, or model access.

@@ -93,10 +93,16 @@ sets contain only one known version, and the orders operation has a missing
 path convention, so GOV-001 and GOV-008 do not fire until focused tests mutate
 those facts.
 
-Planned T-201 counts: 60 APIs, four all-API subscriptions, 11 unused APIs,
-14 APIs without products, seven key-only external APIs, three missing `<base/>`
-cases, and two **synthetic** secret-pattern cases. These counts are targets,
-not claims about fixtures that already exist.
+`scaled/New-SyntheticReference.ps1` now generates the separate T-201 model
+scenario: 60 APIs, four all-API subscriptions, 14 APIs without products, seven
+key-only externally reachable APIs, three missing `<base/>` cases, and two
+**synthetic** secret-pattern cases. `-WithUsage` supplies explicit synthetic
+telemetry with 11 unused APIs; without it usage remains null and exposure
+Unknown. Policies are detected before redaction and returned sanitized.
+The scaled README documents overlapping cohorts and expected outcomes.
+All ten generated model files validate and round-trip through the saved loader;
+the existing compact raw/model fixtures above remain unchanged. This is not
+an implementation of telemetry collection or a scaled ARM collector export.
 
 `analysis-contracts/` adds four independent T-317 JSON examples, not a package
 generated or promoted from the raw/model fixture tree. Its package contains
@@ -106,8 +112,10 @@ executive summary with two priorities, one theme, one decision, and one roadmap
 item. All references resolve and assumptions/data gaps are retained. Tests
 mutate these examples to reject unknown fields, exact metrics/free text,
 duplicate members/IDs, unsupported references, invalid analyst identity, and
-lost or invented executive qualifications. This does not complete T-201's
-full 60-API topology or T-320's independent airlock canary/mutation suite.
+lost or invented executive qualifications. The independent airlock integration
+suite now exercises generated saved models through findings, construction,
+validation, and promotion, plus source canaries and candidate mutations.
+The 1.0 examples remain independent contract examples, not collected data.
 
 Secret-pattern tests must use explicitly artificial strings. No real keys, JWTs,
 connection strings, tenant IDs, or user identities are allowed.

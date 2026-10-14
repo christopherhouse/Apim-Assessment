@@ -22,8 +22,8 @@ plus a customer-neutral generated Excel action-plan template are available for
 offline synthetic testing. A private report writer can populate the current
 deterministic workbook sheets from a validated saved run. Full
 collection/analyze orchestration, remaining collectors and models,
-telemetry-based exposure refinement, rule catalogs, the model-data airlock, Copilot
-operator workflow, reports/comparison, and Excel/HTML templates are not
+telemetry-based exposure refinement, rule catalogs, Copilot
+operator workflow, public report/comparison commands, and the executive HTML template are not
 implemented.
 
 All ten implemented model contracts share a private schema gate for pending
@@ -34,8 +34,10 @@ a public Analyze command or authorize model/findings access to an agent.
 Closed schema version 1.0 contracts and a private in-memory reference gate are
 also available for synthetic tests. They validate opaque aliases, approved
 fact/narrative codes, typed usage buckets/cost trends, unique IDs, citations,
-and executive assumption/data-gap carry-forward. This is not a package builder,
-privacy scan, attestation, promotion command, or assessment-agent runtime.
+and executive assumption/data-gap carry-forward. Private version 1.1 package
+construction, independent privacy validation, local attestation, and immutable
+atomic promotion are also implemented and synthetic-tested. There is still no
+public package/promotion command, broker, or assessment-agent runtime.
 No customer data is approved for model access by a schema/reference pass.
 
 Do not run the planned commands in specification section 14 until their tasks
@@ -77,8 +79,8 @@ saved customer run nor creates/promotes an analysis package. The private gate
 consumes JSON strings, rejects malformed/duplicate-member inputs, and bounds
 each input to 16 MiB of UTF-8 content and a JSON nesting depth of 32. Rejections
 use fixed messages without echoing input values or validator exception details.
-The independent prohibited-value scanner and physical promotion boundary remain
-T-319; specialist claim reconciliation remains T-322/T-323.
+Independent privacy validation and physical promotion are tested separately
+below; specialist claim reconciliation remains T-322/T-323.
 
 The private `Get-ApimRuleCatalog`, `Invoke-ApimRuleEngine`, and
 `Write-ApimFindingSet` helpers are not operator commands. Rules require explicit
@@ -90,7 +92,7 @@ usage. `rules/NET.rules.ps1` includes NET-001/002/004/006/007/008/009.
 NET-001 and NET-009 need operator-corroborated facts in the closed network
 model. With no attestation, both emit Info/NotEvaluated rather than asserting
 absent authentication or unnecessary publication. No full saved-run
-Analyze path, findings report, or model-safe promotion is available yet.
+Analyze path or public findings-report/promotion command is available yet.
 `rules/SEC.rules.ps1` includes
 SEC-001/002/003/004/005/007/008/009/010/011/012/014/015/019/020. Rules with
 unknown applicable facts emit one Info/NotEvaluated finding unless other
@@ -518,7 +520,82 @@ Plain metadata flags, IDs, and policy hashes are not treated as secrets solely
 because of their length. A clean result is not proof that arbitrary unlabeled or
 encoded credentials, customer identifiers, or other restricted data are absent.
 This scanner is an accident-detection check, not redaction, remediation, or the
-future model-data airlock. It never authorizes sending a run to Copilot.
+independent model-data airlock. It never authorizes sending a run to Copilot.
+
+## Private offline model-data airlock
+
+Only synthetic development commands are available; do not use the following
+checks to admit customer data, inspect actual trust settings, or run collection:
+
+```powershell
+.\scripts\Invoke-Checks.ps1 -TestPath tests\unit\SyntheticReference.Tests.ps1
+.\scripts\Invoke-Checks.ps1 -TestPath tests\unit\AnalysisPackage.Tests.ps1
+.\scripts\Invoke-Checks.ps1 -TestPath tests\unit\AnalysisPackageValidation.Tests.ps1
+.\scripts\Invoke-Checks.ps1 -TestPath tests\unit\AnalysisPackagePromotion.Tests.ps1
+.\scripts\Invoke-Checks.ps1 -TestPath tests\integration\AnalysisAirlock.Tests.ps1
+```
+
+The private `New-ApimAnalysisPackage -RunPath -Config` helper loads the manifest,
+all ten registered models, and saved findings, then replays all implemented
+rules. Missing/invalid artifacts, changed findings/scoring, unsupported mappings,
+and tainted required identities reject with `ANALYSIS_BUILD_REJECTED`. It writes
+new candidate/package and identifier-only alias-map files beneath
+`restricted/candidates/<opaque-candidate-id>` in the run and returns only
+`Built` plus the candidate ID. It does not update manifest orchestration state.
+The candidate is restricted, not approved for an agent.
+
+Version 1.1 supports six ascending usage thresholds starting at zero and
+relative priority buckets; other threshold counts reject. `Zero` and `Unknown`
+remain distinct. Cost is `Unknown` until a cost model is implemented. Conditions
+are approved codes for replay-verified deterministic rule outcomes; source
+evidence text, labels, paths, policy XML, and exact usage/cost/priority are not
+copied. Equivalent reordered inventories produce identical package/map bytes.
+Changed inventories may renumber aliases. Version 1.0 contract input remains
+supported by validation.
+
+`Test-ApimAnalysisPackage -CandidatePath` independently reads at most 16 MiB,
+checks strict UTF-8, closed contracts/references/depth, and a separate recursive
+field-specific vocabulary/prohibited-value scan. Arbitrary or encoded text,
+Unicode alternatives, exact metrics, unexpected fields/types, and scan errors
+reject with `ANALYSIS_VALIDATION_REJECTED`, without echoing input or paths.
+Passing returns a closed local attestation with the exact-byte SHA-256,
+supported package schema, module-derived builder/validator compatibility
+versions, and fixed check statuses. Attestations are bounded to 64 KiB/depth
+eight with no duplicate members. They are not signatures or proof of origin.
+
+`Publish-ApimAnalysisPackage` requires the restricted run root, candidate ID,
+dedicated analysis root, private staging root, `version-NNNNNN`, and an explicit
+complete host-supplied `CopilotVisiblePath` set with `VisibleRootsComplete`.
+The host/operator must supply **all** visible roots; an empty/incomplete set
+rejects. No host permissions are discovered, changed, or bypassed.
+All three roots must be absolute, canonical, pairwise disjoint, and free of
+linked ancestors. Restricted/staging roots must be outside every visible root.
+Portable paths ending a segment in a dot/space are rejected; Windows UNC/device,
+alternate-stream, reserved-device, and short-name forms are unsupported.
+Existing analysis contents must be closed version directories containing only
+validated package/attestation pairs; links, unrelated files, stale hashes, and
+tampering reject. This requirement also prevents an existing link back to
+restricted data from being ignored.
+
+The helper copies only package bytes into a fresh uniquely owned private
+snapshot, validates there, persists/rechecks attestation, rechecks isolation
+and source/snapshot hashes, then performs a no-overwrite directory rename.
+Staging must support rename on the destination filesystem; cross-filesystem or
+non-atomic failures never fall back to partial copying. Only package and
+attestation become visible together; alias maps, models, logs, and rejected
+bytes never enter the analysis zone. Existing versions are never overwritten.
+Failures return `ANALYSIS_PROMOTION_REJECTED`; failed owned-stage cleanup returns
+`ANALYSIS_CLEANUP_REJECTED`, requiring host-side inspection, not model access.
+
+The host must exclusively control roots and ancestors through permissions/ACLs,
+stop other writers, and retain the private staging area outside model-visible
+paths. Supply native canonical physical roots, including every visible alias;
+mapped/substituted drives and network/virtualized filesystems are unsupported.
+API-level immutability and hash/path rechecks do not protect against a
+hostile concurrent administrator or replace filesystem isolation. Real approved
+paths, the narrow broker, read-time attestation checks, agent tool isolation,
+and owner-led G3 acceptance remain outstanding. No public export or agent
+runtime was added.
 
 ## Offline model fixture check
 
