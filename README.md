@@ -56,6 +56,11 @@ outside Copilot CLI. The maintainer reports the prior six checks completed on a
 test APIM; the newly registered SecurityAssets and Diagnostics checks have
 synthetic acceptance but still need maintainer-only live validation. No agent
 used live Azure resources or inspected restricted output.
+The same smoke script now validates the newly saved manifest, completed
+collector file inventories, JSON collection shapes and item counts, and policy
+index/XML hashes before reporting a completed smoke. Validation failures return
+a fixed safe code and do not print restricted content. This is structural
+collection validation, not a full analysis, privacy audit, or report check.
 
 All ten implemented model contracts now share a fail-closed schema gate.
 Writers validate every pending serialized snapshot before writing any file, and
@@ -70,7 +75,7 @@ builders; this gate is not a public Analyze command or the model-data airlock.
 | Structured JSON-lines logging and progress | Run resume and persisted progress orchestration |
 | Guarded ARM transport with paging/retry | Public report command, carry-forward, and run comparison |
 | Versioned run manifest lifecycle with an exact scoring snapshot, plus APIM service/API/product/subscription/policy/network and secret-safe named-value/backend/certificate and logger/diagnostic collectors | Remaining APIM, telemetry, and cost collectors |
-| Maintainer-only cumulative collection smoke script (eight registered checks through Diagnostics) | Full assessment orchestration and live acceptance |
+| Maintainer-only cumulative collection smoke script with local output validation (eight registered checks) | Full assessment orchestration and live acceptance |
 | Effective policy merge/flags plus ten implemented models with shared schema-gated persistence and saved-run loading | Remaining model builders and telemetry exposure refinement |
 | Private offline rule engine, seven NET checks, fifteen SEC checks, six GOV checks, all six REL checks, configurable priority scoring, schema-gated findings, and closed action-item aggregation | Remaining SEC/GOV catalog entries, PERF and other catalogs, public Analyze orchestration, and Excel rendering |
 | Generated customer-neutral Excel template plus private validated-run population for actions, findings, APIs, policy, subscriptions, exposure, network summary, Summary assumptions, Run Info, rule catalog, and editable scoring weights | Public workbook rendering, tracking carry-forward, and future usage/cost/drift population |
@@ -119,13 +124,20 @@ as capabilities are implemented:
 Do **not** run an Azure login, the live smoke command, or any command that reads
 restricted output using `!` or an assessment agent. The live command and
 maintainer-only setup are in [the runbook](docs/RUNBOOK.md).
+For the standard private config at
+`$HOME\apim-smoke-private\smoke.psd1`, the authorized maintainer can run
+`.\scripts\Invoke-ApimSmoke.ps1 -Environment Test -MicrosoftOwnedTestEnvironment`
+in a separate ordinary PowerShell terminal. The environment name must match
+the private config; `-Config` overrides the default path when needed.
 The collection smoke streams numbered preflight/check progress and a final
 status. Interactive terminals show a compact emoji scorecard that updates its
 active row in place without changing the caller's console encoding; redirected
 output or `NO_COLOR` uses plain ASCII. An emoji-capable terminal/font is
 required for glyph rendering. Errors show fixed troubleshooting hints, not raw
 Azure or policy exception messages. Rejected policy XML gets a bounded
-`POLICY_XML_REJECTED` code.
+`POLICY_XML_REJECTED` code. `SMOKE_OUTPUT_VALID` means the saved collector
+output passed structural validation; `SMOKE_OUTPUT_INVALID` and exit 4 mean
+the saved run needs local inspection.
 
 Develop only on `feature/<name>`, `chore/<name>`, or `bugfix/<name>` branches.
 Open a pull request to `main`; CI rejects other source-branch prefixes.

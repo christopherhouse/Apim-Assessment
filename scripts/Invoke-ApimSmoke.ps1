@@ -1,9 +1,8 @@
 #Requires -Version 7.4
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory)]
     [ValidateNotNullOrEmpty()]
-    [string] $Config,
+    [string] $Config = (Join-Path (Join-Path $HOME 'apim-smoke-private') 'smoke.psd1'),
 
     [Parameter(Mandatory)]
     [ValidateNotNullOrEmpty()]
@@ -138,19 +137,32 @@ try {
             -ThrottleLimit $throttle -OnProgress $progressCallback
     } $prepared.Config $Environment $tenantId $ThrottleLimit $onProgress `
         2>$null 3>$null 4>$null 5>$null 6>$null
-
-    Write-ApimSmokeConsoleLine -Line (Format-ApimSmokeConsoleLine `
-            -State Summary -SummaryStatus $result.Status `
-            -CompletedCount @($result.Checks |
-                Where-Object Status -EQ Completed).Count `
-            -Total $result.Checks.Count `
-            -Color:$useColor) -Color:$useColor
-    if ($result.Status -ne 'Completed') {
-        exit 3
-    }
 }
 catch {
     if ($useColor) { [Console]::Out.WriteLine() }
     [Console]::Error.WriteLine('SMOKE_RUN_ERROR: inspect the restricted run folder locally.')
     exit 4
+}
+
+try {
+    & $module {
+        param($runPath, $smokeResult, $targetEnvironment)
+        Test-ApimSmokeOutput -RunPath $runPath -Result $smokeResult `
+            -Environment $targetEnvironment
+    } (Join-Path $prepared.Config.Output.Root $result.RunId) `
+        $result $prepared.Target 2>$null 3>$null 4>$null 5>$null 6>$null
+}
+catch {
+    [Console]::Error.WriteLine('SMOKE_OUTPUT_INVALID: inspect the restricted run locally.')
+    exit 4
+}
+[Console]::Out.WriteLine('SMOKE_OUTPUT_VALID: manifest and completed collector files verified.')
+Write-ApimSmokeConsoleLine -Line (Format-ApimSmokeConsoleLine `
+        -State Summary -SummaryStatus $result.Status `
+        -CompletedCount @($result.Checks |
+            Where-Object Status -EQ Completed).Count `
+        -Total $result.Checks.Count `
+        -Color:$useColor) -Color:$useColor
+if ($result.Status -ne 'Completed') {
+    exit 3
 }

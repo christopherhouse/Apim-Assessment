@@ -231,6 +231,7 @@ function Invoke-ApimSmoke {
     Complete-ApimRun -RunPath $run.Path
 
     return [pscustomobject]@{
+        RunId = $runId
         Status = $status
         Checks = @(
             foreach ($check in $checks) {
