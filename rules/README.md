@@ -18,7 +18,7 @@ with `Config`, `Models`, and `Manifest`.
 NET-009's Route target is the allowlisted `network.auxiliaryRoutes` field,
 not an API route in `exposure.json`.
 `SEC.rules.ps1` contains
-SEC-003/004/005/007/008/009/010/012/014/015/020. These rules use only the
+SEC-003/004/005/007/008/009/010/011/012/014/015/020. These rules use only the
 implemented API, operation, subscription, named-value, and backend models.
 Positive evidence
 is retained when another record is incomplete; otherwise unknown applicable
@@ -26,10 +26,13 @@ facts produce one NotEvaluated finding. SEC-008 uses derived structural
 locations without retaining values. SEC-009 evaluates named-value and
 certificate Key Vault posture under one stable rule ID and preserves known
 positives when another fact is unavailable. SEC-010 applies only to HTTPS
-backends and keeps missing validation facts unknown. The remaining SEC rules
-require future service/security, configurable plain-HTTP exception, backend
-intent/mapping, product-classification, telemetry, or authorization evidence
-and must not be approximated from partial fields.
+backends and keeps missing validation facts unknown. SEC-011 evaluates backend
+scheme and operation-level policy override facts. Its optional allowlist matches
+only exact backend IDs or `apiId/operationId` keys and never infers that an API
+is internal; Partial policy evidence remains unknown when no unapproved HTTP
+target is known. The remaining SEC rules require future service/security,
+backend intent/mapping, product-classification, telemetry, or authorization
+evidence and must not be approximated from partial fields.
 The current synthetic NET fixture has two API route records and one App
 Gateway. Focused tests add one attested edge/origin assessment and one
 attested public portal route: NET-001 and NET-009 each yield one evaluated

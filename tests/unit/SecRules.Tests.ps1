@@ -60,21 +60,25 @@ Describe 'Evidence-backed SEC catalog' {
                     [Parameter(Mandatory)]
                     [System.Collections.IDictionary] $Models,
 
-                    [object] $Manifest = $script:secRulesManifest
+                    [object] $Manifest = $script:secRulesManifest,
+
+                    [System.Collections.IDictionary] $Config = (
+                        $script:secRulesConfig
+                    )
                 )
 
                 $rule = @($script:secRules | Where-Object Id -EQ $RuleId)
                 return @(Invoke-ApimRuleEngine -Rules $rule -Models $Models `
-                        -Manifest $Manifest -Config $script:secRulesConfig)
+                        -Manifest $Manifest -Config $Config)
             }
         }
 
-        It 'loads the eleven currently model-backed SEC rules with empty references' {
+        It 'loads the twelve currently model-backed SEC rules with empty references' {
             @($script:secRules.Id) | Should -Be @(
                 'APIM-SEC-003', 'APIM-SEC-004', 'APIM-SEC-005',
                 'APIM-SEC-007', 'APIM-SEC-008', 'APIM-SEC-009',
-                'APIM-SEC-010', 'APIM-SEC-012', 'APIM-SEC-014',
-                'APIM-SEC-015', 'APIM-SEC-020'
+                'APIM-SEC-010', 'APIM-SEC-011', 'APIM-SEC-012',
+                'APIM-SEC-014', 'APIM-SEC-015', 'APIM-SEC-020'
             )
             foreach ($rule in $script:secRules) {
                 $rule.References.Count | Should -Be 0
@@ -233,6 +237,47 @@ Describe 'Evidence-backed SEC catalog' {
                     -Models $models).Count | Should -Be 0
         }
 
+        It 'flags unapproved plain HTTP backend entities and policy overrides' {
+            $models = Get-SyntheticSecModelSet
+            $found = @(Get-SyntheticSecFinding -RuleId 'APIM-SEC-011' `
+                    -Models $models)
+            $found.Count | Should -Be 1
+            $found[0].scope | Should -Be 'backend:status-backend'
+            $found[0].evidence.assetType | Should -Be 'Backend'
+            $found[0].evidence.scheme | Should -Be 'http'
+            $found[0].evidence.approvedException | Should -BeFalse
+            $found[0].sourceFiles | Should -Contain 'raw/backends.json'
+
+            $models.operations[0].policyEvaluationStatus = 'Partial'
+            $found = @(Get-SyntheticSecFinding -RuleId 'APIM-SEC-011' `
+                    -Models $models)
+            $found.Count | Should -Be 1
+            $found[0].evaluation | Should -Be 'Evaluated'
+
+            $models.operations[0].backendOverrideHttp = $true
+            $found = @(Get-SyntheticSecFinding -RuleId 'APIM-SEC-011' `
+                    -Models $models)
+            $found.Count | Should -Be 2
+            @($found.scope) | Should -Be @(
+                'backend:status-backend',
+                'operation:orders-v1/get-orders'
+            )
+            $found[1].evidence.assetType | Should -Be 'Operation'
+            $found[1].evidence.method | Should -Be 'GET'
+            $found[1].evidence.path | Should -Be '/orders'
+            $found[1].sourceFiles | Should -Contain 'raw/policies/'
+
+            $config = $script:secRulesConfig.Clone()
+            $config.RuleExceptions = @{
+                ApprovedPlainHttpBackendIds = @('STATUS-BACKEND')
+                ApprovedPlainHttpOperationKeys = @(
+                    'ORDERS-V1/GET-ORDERS'
+                )
+            }
+            @(Get-SyntheticSecFinding -RuleId 'APIM-SEC-011' `
+                    -Models $models -Config $config).Count | Should -Be 0
+        }
+
         It 'flags unsafe CORS and leaves known safe APIs unflagged' {
             $models = Get-SyntheticSecModelSet
             $models.apis[0].corsUnsafe = $true
@@ -304,6 +349,7 @@ Describe 'Evidence-backed SEC catalog' {
                 @{ Id = 'APIM-SEC-004'; Missing = 'callerAuth'; Setup = 'Sec004' }
                 @{ Id = 'APIM-SEC-009'; Missing = 'keyVaultStatus'; Setup = 'Sec009' }
                 @{ Id = 'APIM-SEC-010'; Missing = 'tlsValidationChain'; Setup = 'Sec010' }
+                @{ Id = 'APIM-SEC-011'; Missing = 'backendOverrideHttp'; Setup = 'Sec011' }
                 @{ Id = 'APIM-SEC-012'; Missing = 'corsUnsafe'; Setup = 'Sec012' }
                 @{ Id = 'APIM-SEC-014'; Missing = 'bodyLogging'; Setup = 'Sec014' }
                 @{ Id = 'APIM-SEC-015'; Missing = 'allowTracing'; Setup = 'Sec015' }
@@ -325,6 +371,12 @@ Describe 'Evidence-backed SEC catalog' {
                 }
                 Sec010 {
                     $models.backends[0].tlsValidationChain = $null
+                }
+                Sec011 {
+                    $models.backends[1].scheme = 'https'
+                    $models.backends[1].tlsValidationChain = $true
+                    $models.backends[1].tlsValidationName = $true
+                    $models.operations[0].policyEvaluationStatus = 'Partial'
                 }
                 Sec012 {
                     $models.apis[0].corsUnsafe = $null
@@ -361,6 +413,9 @@ Describe 'Evidence-backed SEC catalog' {
                     elseif ($Id -eq 'APIM-SEC-010') {
                         'backends'
                     }
+                    elseif ($Id -eq 'APIM-SEC-011') {
+                        'operations'
+                    }
                     else {
                         'apis'
                     }
@@ -376,7 +431,15 @@ Describe 'Evidence-backed SEC catalog' {
                 $finding[0].severity | Should -Be 'Info'
                 $finding[0].scope | Should -Be 'missing-input'
                 $finding[0].evidence.missingInputs.Count |
-                    Should -Be $(if ($id -eq 'APIM-SEC-009') { 2 } else { 1 })
+                    Should -Be $(if ($id -in @(
+                                    'APIM-SEC-009',
+                                    'APIM-SEC-011'
+                                )) {
+                            2
+                        }
+                        else {
+                            1
+                        })
             }
         }
 
@@ -393,6 +456,7 @@ Describe 'Evidence-backed SEC catalog' {
                     -Config $script:secRulesConfig)
             @($findings.ruleId) | Should -Contain 'APIM-SEC-004'
             @($findings.ruleId) | Should -Contain 'APIM-SEC-009'
+            @($findings.ruleId) | Should -Contain 'APIM-SEC-011'
             @($findings.ruleId) | Should -Contain 'APIM-SEC-020'
             $first = Write-ApimFindingSet -RunPath (
                 Join-Path $TestDrive 'sec-first'

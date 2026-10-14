@@ -46,6 +46,10 @@ Describe 'Get-Config' {
 
         $config.Customer | Should -Be 'Example'
         $config.Environments.Count | Should -Be 1
+        $config.RuleExceptions.ApprovedPlainHttpBackendIds.Count |
+            Should -Be 0
+        $config.RuleExceptions.ApprovedPlainHttpOperationKeys.Count |
+            Should -Be 0
         [System.IO.Path]::IsPathFullyQualified($config.Output.Root) |
             Should -BeTrue
         [System.IO.Path]::IsPathFullyQualified($config.Output.ModelSafeRoot) |
@@ -88,6 +92,85 @@ Describe 'Get-Config' {
             }
         } | Should -Throw "*Thresholds.Error5xxPct*finite number*"
     }
+
+    It 'accepts an omitted optional rule-exception map as no exemptions' {
+        $path = Get-SyntheticConfigFile -Transform {
+            param($Content)
+            $Content -replace (
+                "(?ms)^\s*RuleExceptions\s*=\s*@\{.*?^\s*\}\r?\n",
+                ''
+            )
+        }
+
+        {
+            & $script:module {
+                param($ConfigPath)
+                Get-Config -Path $ConfigPath
+            } $path
+        } | Should -Not -Throw
+    }
+
+    It 'accepts valid exact plain-HTTP exception targets' {
+        $path = Get-SyntheticConfigFile -Transform {
+            param($Content)
+            $Content.Replace(
+                'ApprovedPlainHttpBackendIds = @()',
+                "ApprovedPlainHttpBackendIds = @('status-backend')"
+            ).Replace(
+                'ApprovedPlainHttpOperationKeys = @()',
+                "ApprovedPlainHttpOperationKeys = @('orders-v1/get-orders')"
+            )
+        }
+
+        $config = & $script:module {
+            param($ConfigPath)
+            Get-Config -Path $ConfigPath
+        } $path
+        $config.RuleExceptions.ApprovedPlainHttpBackendIds |
+            Should -Be @('status-backend')
+        $config.RuleExceptions.ApprovedPlainHttpOperationKeys |
+            Should -Be @('orders-v1/get-orders')
+    }
+
+    It 'rejects duplicate or malformed plain-HTTP exception keys' `
+        -TestCases @(
+            @{
+                Field = 'ApprovedPlainHttpOperationKeys'
+                Value = "@('orders-v1/get-orders', 'ORDERS-V1/GET-ORDERS')"
+                Expected = '*duplicate value*'
+            }
+            @{
+                Field = 'ApprovedPlainHttpOperationKeys'
+                Value = "@('orders-v1')"
+                Expected = '*invalid target key*'
+            }
+            @{
+                Field = 'ApprovedPlainHttpBackendIds'
+                Value = "@('status/backend')"
+                Expected = '*invalid target key*'
+            }
+            @{
+                Field = 'ApprovedPlainHttpBackendIds'
+                Value = "'status-backend'"
+                Expected = '*array of strings*'
+            }
+        ) {
+            param($Field, $Value, $Expected)
+
+            $needle = "$Field = @()"
+            $replacement = "$Field = $Value"
+            $path = Get-SyntheticConfigFile -Transform {
+                param($Content)
+                $Content.Replace($needle, $replacement)
+            }
+
+            {
+                & $script:module {
+                    param($ConfigPath)
+                    Get-Config -Path $ConfigPath
+                } $path
+            } | Should -Throw $Expected
+        }
 
     It 'rejects duplicate environment names case-insensitively' {
         $path = Get-SyntheticConfigFile -Transform {
