@@ -446,7 +446,9 @@ or `CandidateDetected`. Its own generated report is excluded from rescans.
 Open the indicated file in a local editor. Plain text has one-based line/column,
 logs have the one-based record line plus JSON pointer, JSON files have escaped
 JSON pointers, and XML/workbook parts have positional XPath expressions (for
-example, `/*[1]/*[2]/@*[1]`). `decodedHtml` refers to entity-decoded text on the
+example, `/*[1]/*[2]/@*[1]`). Policies serialized in JSON/log strings combine
+the JSON pointer with that XPath; log records retain their source line.
+`decodedHtml` refers to entity-decoded text on the
 specified source line. A secret-like property name is represented by a
 zero-based `[member:N]` locator instead of copying that name. The report has no
 captured values, excerpts, or exception messages, but paths can identify
@@ -456,7 +458,12 @@ infrastructure: **do not paste it, or the source file, into Copilot**.
 confirmed. Verify that location locally before making any changes. The Basic
 authorization heuristic requires a decodable username/password payload; prose
 such as "Basic rule" is not a credential. Redacted values and full policy
-references should remain clean. An `Incomplete` report is not a current list of
+references should remain clean. JWT `header-name="Authorization"` selects the
+header to inspect; it does not supply a secret. Scheme-only authorization metadata
+and descriptive "Bearer token" wording are also not candidates. These exceptions
+do not exempt JWT policies: literal `token-value`, signing/decryption keys, and
+real authorization values are still checked, including embedded JSON/log policies.
+An `Incomplete` report is not a current list of
 all candidates; resolve the scan error locally and rerun. It
 may also be absent or stale if its initialization/write failed; the
 `SECRET_SCAN_ERROR` message explicitly warns not to trust an old report.

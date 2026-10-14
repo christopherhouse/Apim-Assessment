@@ -111,6 +111,105 @@ Describe 'Local saved-run secret scan' {
             Test-ApimRunSecret -RunFolder $script:scanRun.Path | Should -BeTrue
         }
 
+        It 'accepts JWT selectors and descriptive authentication metadata in <Extension>' -ForEach @(
+            @{ Extension = '.xml' }
+            @{ Extension = '.json' }
+            @{ Extension = '.log' }
+        ) {
+            $policy = @'
+<policies><inbound><validate-jwt header-name="Authorization" require-scheme="Bearer" failed-validation-error-message="A Bearer token is required."><openid-config url="https://example.invalid/.well-known/openid-configuration"/></validate-jwt><set-header name="Authorization"><value>Bearer</value></set-header><!-- Bearer token validation --></inbound></policies>
+'@
+            $text = if ($Extension -eq '.xml') { $policy }
+            else {
+                @{ effectiveXml = $policy; description = 'Inspect the Bearer token.' } |
+                    ConvertTo-Json -Compress
+            }
+            Set-Content -LiteralPath (Join-Path $script:scanRun.Path "metadata$Extension") `
+                -Value $text
+            Test-ApimRunSecret -RunFolder $script:scanRun.Path -WriteLocationReport |
+                Should -BeTrue
+            $report = Get-Content -LiteralPath (
+                Join-Path $script:scanRun.Path 'secret-scan-locations.json'
+            ) -Raw | ConvertFrom-Json
+            $report.locations.Count | Should -Be 0
+        }
+
+        It 'accepts scheme-only JSON header definitions and descriptive log messages' {
+            $text = @'
+{"headers":[{"name":"Authorization","value":"Bearer"},{"key":"Proxy-Authorization","value":"Basic"},{"Authorization":"Bearer"}],"message":"Expected a Bearer token.","title":"Bearer JWT verification"}
+'@
+            Set-Content -LiteralPath (Join-Path $script:scanRun.Path 'metadata.log') `
+                -Value $text
+            Test-ApimRunSecret -RunFolder $script:scanRun.Path | Should -BeTrue
+        }
+
+        It 'retains actual credential detection for <Name>' -ForEach @(
+            @{ Name = 'literal JWT-policy token'; Extension = '.xml'; Text = '<validate-jwt header-name="Authorization" token-value="synthetic-opaque-value"/>' }
+            @{ Name = 'literal Entra-policy token'; Extension = '.xml'; Text = '<validate-azure-ad-token header-name="Authorization" token-value="synthetic-opaque-value"/>' }
+            @{ Name = 'literal signing key'; Extension = '.xml'; Text = '<validate-jwt header-name="Authorization"><issuer-signing-keys><key>synthetic-opaque-value</key></issuer-signing-keys></validate-jwt>' }
+            @{ Name = 'literal decryption key'; Extension = '.xml'; Text = '<validate-jwt><decryption-keys><key>synthetic-opaque-value</key></decryption-keys></validate-jwt>' }
+            @{ Name = 'real authorization value'; Extension = '.json'; Text = '{"name":"Authorization","value":"Bearer synthetic-opaque-value"}' }
+            @{ Name = 'weak password equal to scheme'; Extension = '.json'; Text = '{"password":"Bearer"}' }
+            @{ Name = 'weak API key equal to scheme'; Extension = '.json'; Text = '{"name":"x-api-key","value":"Bearer"}' }
+            @{ Name = 'secret flag before header name'; Extension = '.json'; Text = '{"secret":true,"name":"Authorization","value":"Bearer"}' }
+            @{ Name = 'secret flag after header name'; Extension = '.json'; Text = '{"name":"Authorization","secret":true,"value":"Bearer"}' }
+            @{ Name = 'credential key before header name'; Extension = '.json'; Text = '{"key":"password","name":"Authorization","value":"Bearer"}' }
+            @{ Name = 'credential key after header name'; Extension = '.json'; Text = '{"name":"Authorization","key":"password","value":"Bearer"}' }
+            @{ Name = 'token in descriptive text'; Extension = '.json'; Text = '{"description":"Bearer synthetic-opaque-value"}' }
+            @{ Name = 'JWT in descriptive text'; Extension = '.json'; Text = '{"message":"Bearer eyJsynthetic.synthetic.payload"}' }
+            @{ Name = 'literal token equal to prose noun'; Extension = '.xml'; Text = '<set-header name="Authorization"><value>Bearer token</value></set-header>' }
+            @{ Name = 'serialized policy comment'; Extension = '.json'; Text = '{"effectiveXml":"<policies><!-- Bearer synthetic-opaque-value --><inbound/></policies>"}' }
+            @{ Name = 'serialized policy instruction'; Extension = '.json'; Text = '{"effectiveXml":"<policies><?synthetic Bearer synthetic-opaque-value?><inbound/></policies>"}' }
+            @{ Name = 'serialized policy mixed text'; Extension = '.json'; Text = '{"effectiveXml":"<policies><inbound><set-body>Bearer synthetic-opaque-value<synthetic/></set-body></inbound></policies>"}' }
+            @{ Name = 'serialized policy mixed CDATA'; Extension = '.json'; Text = '{"effectiveXml":"<policies><inbound><set-body><![CDATA[Bearer synthetic-opaque-value]]><synthetic/></set-body></inbound></policies>"}' }
+        ) {
+            Set-Content -LiteralPath (Join-Path $script:scanRun.Path "credential$Extension") `
+                -Value $Text
+            Test-ApimRunSecret -RunFolder $script:scanRun.Path -WriteLocationReport |
+                Should -BeFalse
+        }
+
+        It 'accepts JWT token and signing-key policy references rather than exempting the policy' {
+            $policy = @'
+<validate-jwt header-name="Authorization" token-value="@(context.Request.Headers.GetValueOrDefault(&quot;Authorization&quot;))"><issuer-signing-keys><key>{{signing-key}}</key></issuer-signing-keys><decryption-keys><key>***REDACTED***</key></decryption-keys></validate-jwt>
+'@
+            Set-Content -LiteralPath (Join-Path $script:scanRun.Path 'references.xml') `
+                -Value $policy
+            Test-ApimRunSecret -RunFolder $script:scanRun.Path | Should -BeTrue
+        }
+
+        It 'fails closed on malformed serialized policy XML' {
+            Set-Content -LiteralPath (Join-Path $script:scanRun.Path 'invalid-policy.json') `
+                -Value '{"effectiveXml":"<policies><inbound></policies>"}'
+            { Test-ApimRunSecret -RunFolder $script:scanRun.Path } | Should -Throw
+        }
+
+        It 'preserves log lines and JSON pointers for embedded policy XML locations' {
+            $policy = '<validate-jwt token-value="synthetic-opaque-value"/>'
+            $text = @{ policies = @(@{ effectiveXml = $policy }) } | ConvertTo-Json -Compress
+            Set-Content -LiteralPath (Join-Path $script:scanRun.Path 'policy.log') `
+                -Value ('{"message":"clean"}' + "`n" + $text)
+            Test-ApimRunSecret -RunFolder $script:scanRun.Path -WriteLocationReport |
+                Should -BeFalse
+            $report = Get-Content -LiteralPath (
+                Join-Path $script:scanRun.Path 'secret-scan-locations.json'
+            ) -Raw | ConvertFrom-Json
+            $report.locations.location | Should -Be '/policies/0/effectiveXml/*[1]/@*[1]'
+            $report.locations.line | Should -Be 2
+        }
+
+        It 'records every duplicate credential value rather than the final sibling pointer' {
+            Set-Content -LiteralPath (Join-Path $script:scanRun.Path 'duplicate.json') `
+                -Value '{"name":"Authorization","value":"synthetic-opaque-value","value":"Bearer"}'
+            Test-ApimRunSecret -RunFolder $script:scanRun.Path -WriteLocationReport |
+                Should -BeFalse
+            $report = Get-Content -LiteralPath (
+                Join-Path $script:scanRun.Path 'secret-scan-locations.json'
+            ) -Raw | ConvertFrom-Json
+            $report.locations.Count | Should -Be 1
+            $report.locations.location | Should -Be '/value'
+        }
+
         It 'reports all source locations without captured credential values or excerpts' {
             $planted = 'synthetic-' + 'planted-value'
             $json = '{"items":[{"password":"' + $planted + '"},{"apiKey":"' + $planted + '"}]}'

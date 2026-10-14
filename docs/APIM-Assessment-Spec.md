@@ -1030,7 +1030,15 @@ inside Excel workbooks without extracting them. It detects recognizable JWTs,
 authorization credentials, private-key PEM blocks, credential-bearing URLs,
 and labeled key/password/secret or connection-string values, including decoded
 JSON strings and XML attributes/text. Exact redaction markers, named-value
-references, and policy expressions are not literal credentials. Malformed,
+references, and policy expressions are not literal credentials. JWT header-name
+selectors and scheme-only Authorization/Proxy-Authorization values are metadata,
+not literal credentials. Bare "Bearer token"/"Bearer JWT" wording is ignored only
+in recognized descriptive JSON fields, XML descriptions/error-message attributes,
+and XML comments/processing instructions; credential-value contexts are not
+exempt. Literal JWT-policy `token-value` attributes, signing/decryption keys,
+and actual authorization credentials remain candidates. Known policy XML strings
+inside JSON/log records are parsed as XML, including comments, instructions, and
+mixed text; malformed serialized policies fail closed. Malformed,
 unreadable, linked, unsupported, or oversized artifacts fail the check rather
 than being skipped. Limits are 64 MiB per file and per expanded workbook, and
 16 MiB per workbook entry. A clean result means no supported secret pattern was
@@ -1038,7 +1046,8 @@ found, not proof that arbitrary unlabeled/encoded secrets or identifying data
 are absent. This check neither redacts files nor replaces the model-data airlock.
 Operator entry points write restricted `secret-scan-locations.json` containing
 relative files, fixed match kinds, text/log line numbers, JSON pointers,
-positional XML paths, and workbook part locations without captured values or
+positional XML paths (appended to the JSON pointer for embedded policy XML),
+and workbook part locations without captured values or
 excerpts. Report schema 1.1 includes a deterministic `artifactId` per file.
 On candidate failure, scripts show an end-of-script table before the final
 exit-code line: ordinal report row, artifact alias, fixed match kind, and nullable

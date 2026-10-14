@@ -70,6 +70,10 @@ secret candidates and incomplete scans fail without printing values or paths.
 The commands write a restricted `secret-scan-locations.json` inside the run and
 point to it when candidates are found. It lists relative files, match categories,
 and source locations, never matched values or excerpts.
+JWT policy header selectors such as `header-name="Authorization"` and scheme-only
+authorization metadata are not credentials. Descriptive "Bearer token" wording
+also remains clean; actual embedded token values and literal signing/decryption
+keys are still checked, including policies serialized inside JSON or logs.
 
 All ten implemented model contracts now share a fail-closed schema gate.
 Writers validate every pending serialized snapshot before writing any file, and
