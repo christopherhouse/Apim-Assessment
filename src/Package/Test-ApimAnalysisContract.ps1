@@ -58,7 +58,12 @@ function ConvertFrom-ApimAnalysisContractJson {
     try {
         $document = [System.Text.Json.JsonDocument]::Parse($Json, $options)
         Assert-ApimAnalysisJsonMember -Element $document.RootElement
-        $valid = Test-Json -Json $Json -SchemaFile $script:ApimAnalysisSchemaPaths[$Kind] `
+        $schemaPath = $script:ApimAnalysisSchemaPaths[$Kind]
+        if ($Kind -eq 'AnalysisPackage' -and
+            $document.RootElement.GetProperty('schemaVersion').GetString() -ceq '1.1') {
+            $schemaPath = Join-Path $analysisSchemaRoot 'analysis-package.v1.1.schema.json'
+        }
+        $valid = Test-Json -Json $Json -SchemaFile $schemaPath `
             -ErrorAction Stop
         if (-not $valid) { throw 'Analysis contract schema validation failed.' }
         return ConvertFrom-Json -InputObject $Json -AsHashtable -Depth 32 `

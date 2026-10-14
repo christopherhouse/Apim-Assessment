@@ -736,6 +736,60 @@ The private in-memory contract gate rejects duplicate JSON members and IDs,
 alias-kind mismatches, and unsupported references. It never writes or promotes
 data and does not replace T-319's independent scanner/attestation gate (D-47).
 
+T-318/T-319 add a private implementation, not public orchestration or an agent
+runtime. Package schema 1.1 is a separate self-contained schema; 1.0 remains
+supported unchanged. The builder loads all ten registered models and saved
+findings, replays the implemented catalog with the supplied configuration, and
+rejects inconsistent keys, severity, evaluation, score, exposure, or usage.
+Each evaluated finding cites a newly constructed `AssessmentCondition` fact
+whose approved code names that rule's positive deterministic condition
+(for example `InheritedControlsDropped` or `CertificateNearExpiry`). This
+preserves supported reliability/governance evidence without exporting free-text
+evidence or pretending unrelated topology facts explain a finding.
+
+Schema 1.1 requires six ascending configured usage thresholds beginning at
+zero. Zero is `Zero`; absent usage is `Unknown`; a positive count uses the
+greatest threshold not exceeding it, selecting `VeryLow`, `Low`, `Medium`,
+`High`, `VeryHigh`, or `Extreme`. The final band is unbounded. Configurations
+with other threshold counts are rejected by this builder, not reinterpreted.
+The default thresholds make 1 call `Low` and 1,000 calls `Medium`; custom
+thresholds can make positive counts `VeryLow`. Exact thresholds and metrics
+are not included in the package. Priority uses the replay-checked saved score
+relative to the supplied scoring maps' maximum possible score: High at two
+thirds, Medium at one third, otherwise Low; NotEvaluated remains Unknown.
+
+Aliases and fact/finding IDs are ordinal-stable for equivalent reordered saved
+inputs. They are not pinned across changed inventories. The restricted alias
+map stores only aliases and required scope identities, not source labels or
+credential-like/encoded identifiers. Candidate construction is not admission.
+Independent validation combines the schema/reference gate with a separately
+maintained, field-specific vocabulary and recursive prohibited-value scan.
+Closed ASCII tokens and bounded IDs/counts reject arbitrary source text,
+Unicode/encoded alternatives, and high-entropy strings without entropy-based
+exceptions. Unknown fields/types/values and scanner errors fail closed.
+
+`validation-attestation.schema.json` closes the local digest, supported
+package schema version, module-derived builder/validator compatibility
+versions, and fixed passing check metadata. The digest binds exact bytes,
+not reserialized JSON. This is a local integrity record, not a signature or
+cryptographic proof of who constructed a candidate.
+
+Publication requires an explicit complete host-supplied visible-root set.
+Restricted, analysis, and private-staging roots must be pairwise disjoint;
+restricted/staging roots must be outside every supplied visible root.
+Absolute canonical paths, traversal, linked ancestors/artifacts, and existing
+analysis-zone contents are checked. Only closed validated package/attestation
+pairs in named version directories may already occupy the analysis zone.
+New bytes are validated in fresh private staging outside the visible roots,
+rehash-checked with the source, and published by a no-overwrite directory rename
+on the destination filesystem. Cross-filesystem/non-atomic rename failures have
+no copy fallback. Failures preserve existing versions; alias maps never move.
+The host must enforce exclusive ownership/ACLs on all roots and their ancestors.
+This guards accidental/stale writers with checks and immutable API semantics;
+it does not claim immunity to a hostile concurrent filesystem administrator.
+Broker isolation, host trust configuration, and agent acceptance remain
+T-321/T-322/T-323 and G3 (D-48/D-49).
+
 ### 10.7 Specialist Copilot analysis
 
 Three repository agent profiles are used:
