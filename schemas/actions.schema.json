@@ -1,0 +1,136 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.invalid/apim-assessment/schemas/actions.schema.json",
+  "title": "APIM Assessment Action Items",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "ruleId",
+      "title",
+      "pillar",
+      "mcsb",
+      "severity",
+      "evaluation",
+      "affectedCount",
+      "findingCount",
+      "maxPriorityScore",
+      "topAffectedScopes",
+      "recommendation",
+      "effort",
+      "owner",
+      "status",
+      "targetDate",
+      "notes"
+    ],
+    "properties": {
+      "ruleId": {
+        "type": "string",
+        "pattern": "^APIM-[A-Z]+-[0-9]{3}$"
+      },
+      "title": {
+        "type": "string",
+        "minLength": 1
+      },
+      "pillar": {
+        "enum": [
+          "Security",
+          "Reliability",
+          "OperationalExcellence",
+          "CostOptimization",
+          "PerformanceEfficiency"
+        ]
+      },
+      "mcsb": {
+        "type": "string",
+        "minLength": 1
+      },
+      "severity": {
+        "enum": ["High", "Medium", "Low", "Info"]
+      },
+      "evaluation": {
+        "enum": ["Evaluated", "NotEvaluated"]
+      },
+      "affectedCount": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "findingCount": {
+        "type": "integer",
+        "minimum": 1
+      },
+      "maxPriorityScore": {
+        "type": "number",
+        "minimum": 0
+      },
+      "topAffectedScopes": {
+        "type": "array",
+        "maxItems": 5,
+        "uniqueItems": true,
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "recommendation": {
+        "type": "string",
+        "minLength": 1
+      },
+      "effort": {
+        "enum": ["S", "M", "L"]
+      },
+      "owner": {
+        "type": ["string", "null"],
+        "minLength": 1
+      },
+      "status": {
+        "enum": [
+          "Open",
+          "In progress",
+          "Done",
+          "Accepted risk",
+          "Not applicable"
+        ]
+      },
+      "targetDate": {
+        "type": ["string", "null"],
+        "format": "date"
+      },
+      "notes": {
+        "type": ["string", "null"]
+      }
+    },
+    "allOf": [
+      {
+        "if": {
+          "properties": {
+            "evaluation": {
+              "const": "NotEvaluated"
+            }
+          }
+        },
+        "then": {
+          "properties": {
+            "affectedCount": {
+              "const": 0
+            },
+            "findingCount": {
+              "const": 1
+            },
+            "topAffectedScopes": {
+              "maxItems": 0
+            }
+          }
+        },
+        "else": {
+          "properties": {
+            "affectedCount": {
+              "minimum": 1
+            }
+          }
+        }
+      }
+    ]
+  }
+}

@@ -677,7 +677,25 @@ per rule for these gaps; undeclared paths fail closed (D-30).
 `priorityScore = Severity[sev] × Exposure[exposure or 'Platform' for service-level] × Usage[usage]` (weights from config, defaults §5), rounded to 1 decimal.
 
 ### 10.4 Action-plan aggregation
-For the report, findings are grouped by `ruleId` into **action items**: `affectedCount`, max priority, top 5 affected scopes, combined recommendation. Instance rows remain in "Finding Details".
+For the report, schema-valid findings with valid unique keys are grouped by
+`ruleId` into closed, schema-valid **action items**:
+
+- `affectedCount` counts evaluated instance findings only.
+- `findingCount` records the number of source finding rows.
+- `maxPriorityScore` is the greatest source priority.
+- `topAffectedScopes` contains up to five evaluated scopes ordered by priority
+  descending, then ordinal scope.
+- `recommendation` combines unique source recommendations in ordinal order.
+- Rule metadata (`title`, `pillar`, `mcsb`, `severity`, `evaluation`, and
+  `effort`) must be invariant inside a group; conflicts fail closed.
+- Tracking fields start as `owner=null`, `status=Open`, `targetDate=null`, and
+  `notes=null` for later carry-forward.
+
+A rule represented by its single NotEvaluated gap row remains visible with
+`affectedCount=0`, `findingCount=1`, and no affected scopes. Action items sort by
+maximum priority descending, then ordinal rule ID. Empty findings produce an
+empty action array. Instance rows remain separately available for "Finding
+Details" (D-42).
 
 ### 10.5 Not-evaluated handling
 If a rule's `Requires` input is missing/failed, emit one `NotEvaluated` finding per rule (not per target) so gaps are visible in the report.

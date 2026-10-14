@@ -17,8 +17,8 @@ service, named-value, backend, certificate, network, and pre-telemetry
 exposure records from saved synthetic-equivalent inputs. A private rule engine,
 seven NET catalog entries, fifteen model-backed
 SEC catalog entries, six model-backed GOV catalog entries, all six REL catalog
-entries, and a
-closed findings schema are available for offline synthetic testing. Full
+entries, a closed findings schema, and private closed action-item aggregation
+are available for offline synthetic testing. Full
 collection/analyze orchestration, remaining collectors and models,
 telemetry-based exposure refinement, rule catalogs, the model-data airlock, Copilot
 operator workflow, reports/comparison, and Excel/HTML templates are not
@@ -58,6 +58,7 @@ Rule-engine acceptance remains offline and synthetic:
 .\scripts\Invoke-Checks.ps1 -TestPath .\tests\unit\SecRules.Tests.ps1
 .\scripts\Invoke-Checks.ps1 -TestPath .\tests\unit\GovRules.Tests.ps1
 .\scripts\Invoke-Checks.ps1 -TestPath .\tests\unit\RelRules.Tests.ps1
+.\scripts\Invoke-Checks.ps1 -TestPath .\tests\unit\ActionPlan.Tests.ps1
 ```
 
 The private `Get-ApimRuleCatalog`, `Invoke-ApimRuleEngine`, and
@@ -132,6 +133,14 @@ APIM certificate-entity expiry with the saved `manifest.startedUtc` plus
 `CertExpiryDays`, so rerunning analysis does not move the threshold. Missing
 service, probe, or expiry facts remain
 NotEvaluated unless another record provides a known positive.
+
+The private `Get-ApimActionPlan` helper is also not an operator command. It
+accepts only schema-valid findings with valid unique keys, groups them by rule,
+counts evaluated instance rows, retains NotEvaluated gaps with zero affected
+resources, selects deterministic top scopes, and validates the result against
+`schemas/actions.schema.json`. It does not write a workbook, carry tracking
+values forward, or expose models/findings to Copilot. Those report surfaces
+remain pending T-308 through T-310.
 
 ## Reusable collection smoke (Microsoft-owned test APIM only)
 

@@ -24,7 +24,10 @@ backend, certificate, network, and pre-telemetry exposure model records from
 saved inputs. A private
 offline rule engine now loads rule
 definitions, evaluates available model-backed scopes, and validates deterministic
-findings against a closed schema before restricted persistence. Seven NET rules,
+findings against a closed schema before restricted persistence. A private
+report helper groups schema-valid findings into closed, deterministic action
+items without removing the instance rows needed by future Finding Details.
+Seven NET rules,
 fifteen currently model-backed SEC rules, six currently model-backed GOV rules,
 and all six REL rules are implemented privately. NET-001
 and NET-009 require explicit operator attestation of effective origin
@@ -66,7 +69,7 @@ builders; this gate is not a public Analyze command or the model-data airlock.
 | Versioned run manifest lifecycle and APIM service/API/product/subscription/policy/network plus secret-safe named-value/backend/certificate and logger/diagnostic collectors | Remaining APIM, telemetry, and cost collectors |
 | Maintainer-only cumulative collection smoke script (eight registered checks through Diagnostics) | Full assessment orchestration and live acceptance |
 | Effective policy merge/flags plus ten implemented models with shared schema-gated persistence and saved-run loading | Remaining model builders and telemetry exposure refinement |
-| Private offline rule engine, seven NET checks, fifteen SEC checks, six GOV checks, all six REL checks, configurable priority scoring, and schema-gated findings | Remaining SEC/GOV catalog entries, PERF and other catalogs, and public Analyze orchestration |
+| Private offline rule engine, seven NET checks, fifteen SEC checks, six GOV checks, all six REL checks, configurable priority scoring, schema-gated findings, and closed action-item aggregation | Remaining SEC/GOV catalog entries, PERF and other catalogs, public Analyze orchestration, and Excel rendering |
 | Synthetic-fixture scaffold | Populated fixtures and offline integration pipeline |
 | Windows/Linux lint and test CI | Model-data airlock and local Copilot broker |
 | Copilot development instructions, agents, and skills | Assessment analyst agents and operator skills |
@@ -259,6 +262,16 @@ Probe alignment is derived only from routes whose backend pool and host target
 APIM, and certificate thresholds use the saved run start time so repeat analysis
 is deterministic. Unknown service, probe, or expiry facts produce one
 Info/NotEvaluated result rather than a pass.
+
+The private action-plan aggregator accepts only schema-valid findings with valid,
+unique finding keys. It groups rows by `ruleId`, counts only evaluated instance
+findings as affected, retains a sole NotEvaluated gap as an action with zero
+affected resources, selects up to five evaluated scopes by priority and ordinal
+scope, combines unique recommendations deterministically, and initializes
+tracking fields for future carry-forward. Inconsistent same-rule metadata fails
+closed. Action items are validated against `schemas/actions.schema.json` and
+sorted by maximum priority then rule ID. This is report shaping only: no
+workbook writer or public report command exists yet.
 
 The subscription model classifies AllApis/Product/Api scope, extracts a stable
 scope target, detects the built-in master subscription, and emits sorted
