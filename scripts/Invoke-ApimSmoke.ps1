@@ -194,6 +194,34 @@ catch {
     Complete-ApimSmokeCommand -ExitCode 4
 }
 [Console]::Out.WriteLine('SMOKE_OUTPUT_VALID: manifest and completed collector files verified.')
+try {
+    . (Join-Path $PSScriptRoot 'Write-ApimSecretScanTable.ps1')
+    $secretSummary = [System.Collections.Generic.List[object]]::new()
+    $onSecretSummary = {
+        param($Rows)
+        foreach ($row in $Rows) { $secretSummary.Add($row) }
+    }.GetNewClosure()
+    $clean = & $module {
+        param($runPath, $summaryCallback)
+        Test-ApimRunSecret -RunFolder $runPath -WriteLocationReport `
+            -OnSummary $summaryCallback
+    } (Join-Path $prepared.Config.Output.Root $result.RunId) `
+        $onSecretSummary 2>$null 3>$null 4>$null 5>$null 6>$null
+    if (-not $clean) {
+        [Console]::Error.WriteLine('SECRET_SCAN_FAIL: secret-like candidate detected; this may be a false positive.')
+        [Console]::Error.WriteLine('SECRET_SCAN_DETAILS: open secret-scan-locations.json in the newest run folder under Output.Root locally. It lists file locations and match categories, not values. Do not paste it into Copilot.')
+        Write-ApimSecretScanTable -Rows $secretSummary.ToArray()
+    }
+}
+catch {
+    [Console]::Error.WriteLine('SECRET_SCAN_ERROR: scan incomplete; inspect the restricted run locally.')
+    [Console]::Error.WriteLine('SECRET_SCAN_DETAILS: no complete locations report is available for this attempt; an existing report may be absent or stale. Resolve local scan/read/write errors and rerun.')
+    Complete-ApimSmokeCommand -ExitCode 4
+}
+if (-not $clean) {
+    Complete-ApimSmokeCommand -ExitCode 4
+}
+[Console]::Out.WriteLine('SECRET_SCAN_PASS: no supported secret patterns detected.')
 Write-ApimSmokeConsoleLine -Line (Format-ApimSmokeConsoleLine `
         -State Summary -SummaryStatus $result.Status `
         -CompletedCount @($result.Checks |

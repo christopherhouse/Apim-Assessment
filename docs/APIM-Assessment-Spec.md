@@ -1025,6 +1025,43 @@ Collection, deterministic analysis, Excel, and HTML rendering remain runnable wi
 | Portability | No hard-coded paths; works on Windows and Linux PowerShell 7. |
 | Presentation | Excel and self-contained HTML render locally, contain no remote dependencies, and meet basic accessibility/print requirements. |
 
+The T-312 local saved-run check scans supported text artifacts and XML parts
+inside Excel workbooks without extracting them. It detects recognizable JWTs,
+authorization credentials, private-key PEM blocks, credential-bearing URLs,
+and labeled key/password/secret or connection-string values, including decoded
+JSON strings and XML attributes/text. Exact redaction markers, named-value
+references, and policy expressions are not literal credentials. JWT header-name
+selectors and scheme-only Authorization/Proxy-Authorization values are metadata,
+not literal credentials. Bare "Bearer token"/"Bearer JWT" wording is ignored only
+in recognized descriptive JSON fields, XML descriptions/error-message attributes,
+and XML comments/processing instructions; credential-value contexts are not
+exempt. Literal JWT-policy `token-value` attributes, signing/decryption keys,
+and actual authorization credentials remain candidates. Known policy XML strings
+inside JSON/log records are parsed as XML, including comments, instructions, and
+mixed text; malformed serialized policies fail closed. Malformed,
+unreadable, linked, unsupported, or oversized artifacts fail the check rather
+than being skipped. Limits are 64 MiB per file and per expanded workbook, and
+16 MiB per workbook entry. A clean result means no supported secret pattern was
+found, not proof that arbitrary unlabeled/encoded secrets or identifying data
+are absent. This check neither redacts files nor replaces the model-data airlock.
+Operator entry points write restricted `secret-scan-locations.json` containing
+relative files, fixed match kinds, text/log line numbers, JSON pointers,
+positional XML paths (appended to the JSON pointer for embedded policy XML),
+and workbook part locations without captured values or
+excerpts. Report schema 1.1 includes a deterministic `artifactId` per file.
+On candidate failure, scripts show an end-of-script table before the final
+exit-code line: ordinal report row, artifact alias, fixed match kind, and nullable
+line/column. The core emits newly shaped allowlist-only rows; the shared formatter
+rejects unknown fields, kinds, aliases, or positions before printing. Actual
+filenames, structured paths, workbook parts, values, and excerpts never enter
+table rows. Console failure output explains how to open the report locally, never echoes
+its locations or source content, and distinguishes a candidate from a confirmed
+secret. Rescans initialize this scanner-owned report as `Incomplete` before
+scanning, then replace it on completion. Report-write failures also fail closed;
+error output warns that an existing report may be absent or stale.
+The report is excluded from rescans and capped at
+10,000 detections, with overflow failing closed.
+
 ---
 
 ## 16. Testing

@@ -61,6 +61,19 @@ collector file inventories, JSON collection shapes and item counts, and policy
 index/XML hashes before reporting a completed smoke. Validation failures return
 a fixed safe code and do not print restricted content. This is structural
 collection validation, not a full analysis, privacy audit, or report check.
+The smoke command also runs the local saved-run secret scanner before its final
+PASS. A separate maintainer-only script can scan an existing run, including
+compressed XML parts in its Excel reports. Both print safe statuses and, on
+candidates, a final table with row numbers, artifact aliases, match kinds,
+and available line/column positions;
+secret candidates and incomplete scans fail without printing values or paths.
+The commands write a restricted `secret-scan-locations.json` inside the run and
+point to it when candidates are found. It lists relative files, match categories,
+and source locations, never matched values or excerpts.
+JWT policy header selectors such as `header-name="Authorization"` and scheme-only
+authorization metadata are not credentials. Descriptive "Bearer token" wording
+also remains clean; actual embedded token values and literal signing/decryption
+keys are still checked, including policies serialized inside JSON or logs.
 
 All ten implemented model contracts now share a fail-closed schema gate.
 Writers validate every pending serialized snapshot before writing any file, and
@@ -76,6 +89,7 @@ builders; this gate is not a public Analyze command or the model-data airlock.
 | Guarded ARM transport with paging/retry | Public report command, carry-forward, and run comparison |
 | Versioned run manifest lifecycle with an exact scoring snapshot, plus APIM service/API/product/subscription/policy/network and secret-safe named-value/backend/certificate and logger/diagnostic collectors | Remaining APIM, telemetry, and cost collectors |
 | Maintainer-only cumulative collection smoke script with local output validation (eight registered checks) | Full assessment orchestration and live acceptance |
+| Local saved-run secret-scan script for supported text and Excel artifacts, also required by smoke | Independent model-safe package validation and promotion |
 | Effective policy merge/flags plus ten implemented models with shared schema-gated persistence and saved-run loading | Remaining model builders and telemetry exposure refinement |
 | Private offline rule engine, seven NET checks, fifteen SEC checks, six GOV checks, all six REL checks, configurable priority scoring, schema-gated findings, and closed action-item aggregation | Remaining SEC/GOV catalog entries, PERF and other catalogs, public Analyze orchestration, and Excel rendering |
 | Generated customer-neutral Excel template plus private validated-run population for actions, findings, APIs, policy, subscriptions, exposure, network summary, Summary assumptions, Run Info, rule catalog, and editable scoring weights | Public workbook rendering, tracking carry-forward, and future usage/cost/drift population |
@@ -140,6 +154,21 @@ Azure or policy exception messages. Rejected policy XML gets a bounded
 `POLICY_XML_REJECTED` code. `SMOKE_OUTPUT_VALID` means the saved collector
 output passed structural validation; `SMOKE_OUTPUT_INVALID` and exit 4 mean
 the saved run needs local inspection.
+`SECRET_SCAN_PASS` means no supported secret pattern was found.
+`SECRET_SCAN_FAIL` or `SECRET_SCAN_ERROR` prevents smoke success and returns
+exit 4. The separate `scripts/Test-ApimRunSecrets.ps1 -RunFolder <external-run>`
+command prints its own PASS/FAIL/ERROR and exit code (0/1/2) automatically.
+On a candidate, the error tells you to open `secret-scan-locations.json` locally
+in that run folder. Text/log locations include line numbers; JSON has property
+pointers, XML has positional paths, and Excel entries include their workbook
+part. A candidate is not a confirmed credential; review that location locally.
+The table appears before the final FAIL/exit-code line. Its row numbers match
+the local report's location order, and its artifact aliases match `artifactId`
+in report schema 1.1. Actual filenames, JSON/XML paths, and workbook parts stay
+in that restricted report rather than the console.
+Run it only in an ordinary local terminal, never through Copilot, for restricted
+output. It does not redact files, certify privacy, or detect every arbitrary
+unlabeled/encoded secret; the [runbook](docs/RUNBOOK.md) defines its limits.
 Configuration preflight now reports only a bounded category:
 `CONFIG_NOT_FOUND`, `CONFIG_INVALID`, `LOCATION_INVALID`, or
 `ENVIRONMENT_NOT_FOUND`. These identify which private setting to check without

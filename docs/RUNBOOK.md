@@ -193,9 +193,11 @@ checks after their synthetic acceptance. A failure is recorded in the manifest,
 independent checks continue, and dependent checks are Skipped; no false success
 is reported. Exit status is 0 when all registered collection checks complete, 1
 for configuration/preflight failure, 2 for Az module/context failure, 3 when
-collection is Partial, and 4 for an unexpected run or output-validation failure.
-Only these fixed statuses, check names, and bounded codes for failed checks
-appear on the console.
+collection is Partial, and 4 for an unexpected run, output-validation failure,
+secret candidate, or incomplete secret scan.
+Console output uses fixed statuses, check names, bounded failure codes, and
+the safe coarse candidate table described below; it never echoes source
+identifiers or matched values.
 The command shows preflight steps, one numbered result row per registered
 check, and a final completed-check count. An interactive terminal uses a
 colored emoji scorecard that replaces its active `WORKING` row in place; the
@@ -265,6 +267,15 @@ success. The terminal prints `SMOKE_OUTPUT_VALID` only after structural
 validation; it never prints saved content, paths, identifiers, or private
 validation exceptions. This is not independent content-safety certification,
 rule evaluation, model creation, or workbook rendering.
+The command then scans the whole newly saved run, including artifacts from
+failed/Partial collectors. `SECRET_SCAN_PASS` is required before the final
+PASS; `SECRET_SCAN_FAIL` (candidate found) or `SECRET_SCAN_ERROR` (scan incomplete)
+returns exit 4 instead. A clean scan does not upgrade Partial collection to
+success. No matched value, filename, private path, or exception detail is printed.
+On `SECRET_SCAN_FAIL`, the next error line tells you to open the fixed
+`secret-scan-locations.json` report in the newest run directory under the
+private config's `Output.Root`. That report is restricted local output, not
+model-safe data.
 Restricted raw output, manifest, and logs stay under `Output.Root`. This is
 **not** the full T-604 acceptance or a
 customer assessment: Analyze, rules, reports, and model-data promotion are not
@@ -323,8 +334,9 @@ available to automation.
 The single script defaults to
 `$HOME\apim-smoke-private\smoke.psd1`; if you use another private directory,
 pass `-Config (Join-Path $private 'smoke.psd1')`. `Test` must match the
-environment name in that config. Exit 0 requires all eight checks **and**
-saved-output validation to pass; `SMOKE_OUTPUT_VALID` with exit 3 means only
+environment name in that config. Exit 0 requires all eight checks,
+saved-output validation, and the secret scan to pass;
+`SMOKE_OUTPUT_VALID` and `SECRET_SCAN_PASS` with exit 3 mean only
 the completed checks' files validated and collection is still Partial.
 The command refuses an unacknowledged target, repo-local config or output
 roots, or a context whose subscription ID differs from the configured target.
@@ -407,6 +419,89 @@ section is missing, the field stays null and `diagnostics` remains in
 `missingInputs`. Missing per-API child files likewise remain unknown even when
 the service file exists, because an uncollected API override cannot be ruled
 out.
+
+## Local saved-run secret check
+
+An authorized maintainer can check a previously saved run in an **ordinary
+PowerShell 7.4+ terminal outside Copilot**. The run must be outside the repository;
+never paste its files or the contents of a failed scan into a model.
+Set `$runFolder` locally to the saved run directory, then run:
+
+```powershell
+.\scripts\Test-ApimRunSecrets.ps1 -RunFolder $runFolder
+```
+
+No Azure context, credentials, ImportExcel, or desktop Excel is needed. The
+script prints a fixed `SECRET_SCAN_PASS`, `SECRET_SCAN_FAIL`, or
+`SECRET_SCAN_ERROR` line and the exit code itself: 0 for no recognized pattern,
+1 for a secret candidate, 2 when a complete scan could not be performed. It
+requires a schema-valid run manifest and never modifies scanned source artifacts.
+It creates or replaces only its own `secret-scan-locations.json` in the run root.
+The report starts as `Incomplete`; only a completed scan changes it to `Clean`
+or `CandidateDetected`. Its own generated report is excluded from rescans.
+
+**Finding the candidate:** open the report locally when the console prints
+`SECRET_SCAN_DETAILS`. Each entry has a relative `file`, a fixed `kind`, a
+`location`, and optional `line`/`column`; Excel candidates also have a `part`.
+Open the indicated file in a local editor. Plain text has one-based line/column,
+logs have the one-based record line plus JSON pointer, JSON files have escaped
+JSON pointers, and XML/workbook parts have positional XPath expressions (for
+example, `/*[1]/*[2]/@*[1]`). Policies serialized in JSON/log strings combine
+the JSON pointer with that XPath; log records retain their source line.
+`decodedHtml` refers to entity-decoded text on the
+specified source line. A secret-like property name is represented by a
+zero-based `[member:N]` locator instead of copying that name. The report has no
+captured values, excerpts, or exception messages, but paths can identify
+infrastructure: **do not paste it, or the source file, into Copilot**.
+
+`CandidateDetected` means a heuristic matched, not that a credential has been
+confirmed. Verify that location locally before making any changes. The Basic
+authorization heuristic requires a decodable username/password payload; prose
+such as "Basic rule" is not a credential. Redacted values and full policy
+references should remain clean. JWT `header-name="Authorization"` selects the
+header to inspect; it does not supply a secret. Scheme-only authorization metadata
+and descriptive "Bearer token" wording are also not candidates. These exceptions
+do not exempt JWT policies: literal `token-value`, signing/decryption keys, and
+real authorization values are still checked, including embedded JSON/log policies.
+An `Incomplete` report is not a current list of
+all candidates; resolve the scan error locally and rerun. It
+may also be absent or stale if its initialization/write failed; the
+`SECRET_SCAN_ERROR` message explicitly warns not to trust an old report.
+The location report
+is capped at 10,000 detections; reaching that limit fails the scan, not truncates
+a success result. A clean rescan replaces the prior candidate list with an
+empty list.
+
+When candidates are found, both scripts also print a table immediately before
+their final FAIL/exit-code line. Columns are `#`, `Artifact`, `Match`, `Line`,
+and `Column`. These rows are newly shaped from an explicit allowlist and
+validated before any table output; unknown fields, aliases, kinds, or positions
+fail closed. An `artifact-0001` alias maps to the `artifactId` in report schema
+1.1; `#` is the one-based position in its `locations` array. Multiple rows from
+one file share an artifact alias. A dash means no physical source line/column
+is available: use that report entry's JSON pointer/XML path/workbook part.
+Full filenames, structured paths, excerpts, and values do not enter the
+console table. Clean and incomplete scans do not print candidate tables.
+
+Supported files are UTF-8 or BOM-marked UTF-16 `.json`, `.xml`, `.log`, `.jsonl`,
+`.txt`, `.md`, `.html`, and `.xlsx`. Logs/JSONL must contain valid JSON records.
+JSON strings/property names and XML attributes/text are decoded before checks.
+Excel archives are read without extraction; every non-directory part must be
+valid `.xml` or `.rels`, so embedded images/binaries/encrypted workbooks are
+rejected, not silently ignored. Limits are 64 MiB per file and per expanded
+workbook, and 16 MiB per workbook entry. Malformed, unreadable, linked,
+unsupported, or oversized files fail closed. Stop other writers before scanning;
+this check is not an atomic snapshot or promotion gate.
+
+Checks cover recognizable JWTs, Bearer/Basic credentials, private-key PEM
+blocks, credential-bearing URLs, and labeled key/password/secret values,
+including connection-string credentials. Exact `***REDACTED***` markers, full
+`{{named-value}}` references, and policy expressions are not literal credentials.
+Plain metadata flags, IDs, and policy hashes are not treated as secrets solely
+because of their length. A clean result is not proof that arbitrary unlabeled or
+encoded credentials, customer identifiers, or other restricted data are absent.
+This scanner is an accident-detection check, not redaction, remediation, or the
+future model-data airlock. It never authorizes sending a run to Copilot.
 
 ## Offline model fixture check
 
