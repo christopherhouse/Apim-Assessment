@@ -143,6 +143,11 @@ Describe 'Private action-plan workbook writer' {
 
         It 'renders validated run data into the current MVP workbook sheets' {
             $fixture = Get-ReportFixtureRun -Name 'complete'
+            $findingsHash = (
+                Get-FileHash -LiteralPath (
+                    Join-Path $fixture.RunPath 'findings.json'
+                ) -Algorithm SHA256
+            ).Hash
 
             $path = Export-ApimActionPlan -RunPath $fixture.RunPath
 
@@ -174,6 +179,15 @@ Describe 'Private action-plan workbook writer' {
                 $exposure = $package.Workbook.Worksheets[
                     'Exposure Map'
                 ].Tables['tblExposure']
+                $runInfo = $package.Workbook.Worksheets[
+                    'Run Info'
+                ].Tables['tblRun']
+                $rules = $package.Workbook.Worksheets[
+                    'Method & Rules'
+                ].Tables['tblRules']
+                $weights = $package.Workbook.Worksheets[
+                    'Method & Rules'
+                ].Tables['tblWeights']
 
                 $actions.Address.Rows | Should -Be 3
                 $details.Address.Rows | Should -Be 4
@@ -181,16 +195,38 @@ Describe 'Private action-plan workbook writer' {
                 $policy.Address.Rows | Should -Be 3
                 $subscriptions.Address.Rows | Should -Be 7
                 $exposure.Address.Rows | Should -Be 3
+                $runInfo.Address.Rows | Should -Be 23
+                $rules.Address.Rows | Should -Be (
+                    @(Get-ApimRuleCatalog `
+                            -CatalogPath $script:ApimReportRuleCatalogPath).Count +
+                    1
+                )
+                $weights.Address.Rows | Should -Be 15
                 (Get-ReportTableCell -Table $actions -DataRow 1 `
                     -Column 1).Text |
                     Should -Be 'APIM-SEC-003'
                 (Get-ReportTableCell -Table $actions -DataRow 1 `
                     -Column 6).Value | Should -Be 2
                 (Get-ReportTableCell -Table $actions -DataRow 1 `
-                    -Column 8).Value | Should -Be 9
+                    -Column 8).Formula |
+                    Should -Be (
+                        'MAXIFS(tblFindings[Priority],' +
+                        'tblFindings[Rule ID],[@[Rule ID]])'
+                    )
                 (Get-ReportTableCell -Table $details -DataRow 1 `
                     -Column 1).Text |
                     Should -Be $fixture.Findings[0].findingKey
+                (Get-ReportTableCell -Table $details -DataRow 1 `
+                    -Column 11).Formula |
+                    Should -Be (
+                        'ROUND(SUMIFS(tblWeights[Weight],' +
+                        'tblWeights[Dimension],"Severity",tblWeights[Value],' +
+                        '[@Severity])*SUMIFS(tblWeights[Weight],' +
+                        'tblWeights[Dimension],"Exposure",tblWeights[Value],' +
+                        '[@Exposure])*IF([@Usage]="",1,' +
+                        'SUMIFS(tblWeights[Weight],tblWeights[Dimension],' +
+                        '"Usage",tblWeights[Value],[@Usage])),1)'
+                    )
                 (Get-ReportTableCell -Table $apis -DataRow 1 `
                     -Column 1).Text | Should -Be 'orders-v1'
                 (Get-ReportTableCell -Table $policy -DataRow 1 `
@@ -201,10 +237,30 @@ Describe 'Private action-plan workbook writer' {
                 (Get-ReportTableCell -Table $exposure -DataRow 1 `
                     -Column 1).Text |
                     Should -Match '^agw-synthetic-prod'
+                (Get-ReportTableCell -Table $runInfo -DataRow 1 `
+                    -Column 1).Text | Should -Be 'Run'
+                (Get-ReportTableCell -Table $runInfo -DataRow 1 `
+                    -Column 10).Text | Should -Be 'synthetic-report'
+                (Get-ReportTableCell -Table $rules -DataRow 1 `
+                    -Column 1).Text | Should -Be 'APIM-GOV-001'
+                (Get-ReportTableCell -Table $weights -DataRow 1 `
+                    -Column 1).Text | Should -Be 'Severity'
+                (Get-ReportTableCell -Table $weights -DataRow 1 `
+                    -Column 2).Text | Should -Be 'High'
+                (Get-ReportTableCell -Table $weights -DataRow 1 `
+                    -Column 3).Value | Should -Be 3
+                (Get-ReportTableCell -Table $weights -DataRow 5 `
+                    -Column 2).Text | Should -Be 'DirectPublic'
+                (Get-ReportTableCell -Table $weights -DataRow 5 `
+                    -Column 3).Value | Should -Be 2.5
 
                 $summary = $package.Workbook.Worksheets['Summary']
                 $summary.Cells[4, 1].Text |
                     Should -Match 'NotEvaluated findings: 1'
+                $summary.Cells[4, 1].Text |
+                    Should -Match (
+                        'Usage, Cost, and Environment Drift remain deferred'
+                    )
                 $summary.Cells[7, 2].Formula |
                     Should -Be (
                         'ROWS(tblFindings[Rule ID])-' +
@@ -226,9 +282,6 @@ Describe 'Private action-plan workbook writer' {
                             Sheet = 'Environment Drift'
                             Table = 'tblDrift'
                         }
-                        @{ Sheet = 'Run Info'; Table = 'tblRun' }
-                        @{ Sheet = 'Method & Rules'; Table = 'tblRules' }
-                        @{ Sheet = 'Method & Rules'; Table = 'tblWeights' }
                     )) {
                     $table = $package.Workbook.Worksheets[
                         $entry.Sheet
@@ -241,10 +294,15 @@ Describe 'Private action-plan workbook writer' {
                             -Column $column).Value | Should -BeNullOrEmpty
                     }
                 }
+                $package.Workbook.CalcMode | Should -Be 'Automatic'
+                $package.Workbook.FullCalcOnLoad | Should -BeTrue
             }
             finally {
                 Close-ExcelPackage -ExcelPackage $package -NoSave
             }
+            (Get-FileHash -LiteralPath (
+                    Join-Path $fixture.RunPath 'findings.json'
+                ) -Algorithm SHA256).Hash | Should -Be $findingsHash
         }
 
         It 'appends a numeric suffix instead of overwriting a report' {
@@ -262,6 +320,37 @@ Describe 'Private action-plan workbook writer' {
                 )
             (Get-FileHash -LiteralPath $first -Algorithm SHA256).Hash |
                 Should -Be $firstHash
+        }
+
+        It 'keeps priority formulas bound to an edited workbook weight' {
+            $fixture = Get-ReportFixtureRun -Name 'weight-recalculation'
+            $path = Export-ApimActionPlan -RunPath $fixture.RunPath
+            $package = Open-ExcelPackage -Path $path
+            $method = $package.Workbook.Worksheets['Method & Rules']
+            $method.Cells[4, 15].Value = 4
+            Close-ExcelPackage -ExcelPackage $package
+            $package = Open-ExcelPackage -Path $path
+
+            try {
+                $details = $package.Workbook.Worksheets[
+                    'Finding Details'
+                ].Tables['tblFindings']
+                $actions = $package.Workbook.Worksheets[
+                    'Action Plan'
+                ].Tables['tblActions']
+                $method = $package.Workbook.Worksheets['Method & Rules']
+                $method.Cells[4, 15].Value | Should -Be 4
+                (Get-ReportTableCell -Table $details -DataRow 1 `
+                    -Column 11).Formula |
+                    Should -Match 'tblWeights\[Weight\]'
+                (Get-ReportTableCell -Table $actions -DataRow 1 `
+                    -Column 8).Formula |
+                    Should -Match 'tblFindings\[Priority\]'
+                $package.Workbook.FullCalcOnLoad | Should -BeTrue
+            }
+            finally {
+                Close-ExcelPackage -ExcelPackage $package -NoSave
+            }
         }
 
         It 'fails before output when findings are invalid' {
@@ -287,6 +376,24 @@ Describe 'Private action-plan workbook writer' {
             {
                 Export-ApimActionPlan -RunPath $fixture.RunPath
             } | Should -Throw "Required model 'apis' was unavailable."
+            @(Get-ChildItem -LiteralPath (
+                    Join-Path $fixture.RunPath 'report'
+                ) -File).Count | Should -Be 0
+        }
+
+        It 'fails before output when the saved scoring snapshot is missing' {
+            $fixture = Get-ReportFixtureRun -Name 'missing-scoring'
+            $manifestPath = Join-Path $fixture.RunPath 'manifest.json'
+            $manifest = Get-Content -LiteralPath $manifestPath -Raw |
+                ConvertFrom-Json -Depth 100
+            $manifest.PSObject.Properties.Remove('scoring')
+            Set-Content -LiteralPath $manifestPath -Value (
+                $manifest | ConvertTo-Json -Depth 100
+            )
+
+            {
+                Export-ApimActionPlan -RunPath $fixture.RunPath
+            } | Should -Throw
             @(Get-ChildItem -LiteralPath (
                     Join-Path $fixture.RunPath 'report'
                 ) -File).Count | Should -Be 0

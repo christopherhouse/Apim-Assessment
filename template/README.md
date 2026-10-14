@@ -5,7 +5,8 @@ specification section 12. It contains all fixed sheet/table names, title and
 header styling, frozen panes, column widths, conditional formatting, action
 tracking validation, Summary formulas/chart, and the assumptions/data-gap
 banner. The Exposure Map also includes a formatted network-summary block.
-Tables contain only an empty placeholder row.
+The Method & Rules weight column is highlighted and validates positive numeric
+entries. Tables contain only an empty placeholder row.
 
 Regenerate it from the repository root after installing pinned development
 dependencies:
@@ -21,5 +22,8 @@ workbook or add customer values to the generator.
 
 The private report writer copies this file and writes typed values into the
 existing table ranges; it does not use a real customer workbook as a template.
-Generated reports remain under an ignored restricted run folder and are never
-model-safe artifacts.
+It populates Run Info, the implemented rule catalog, and the exact scoring
+snapshot saved in manifest schema 1.1. Finding and action priority formulas bind
+to the editable weight table, and Excel is instructed to recalculate when the
+workbook opens. Generated reports remain under an ignored restricted run folder
+and are never model-safe artifacts.

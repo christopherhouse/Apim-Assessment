@@ -142,8 +142,7 @@ counts evaluated instance rows, retains NotEvaluated gaps with zero affected
 resources, selects deterministic top scopes, and validates the result against
 `schemas/actions.schema.json`. It does not itself write a workbook, carry
 tracking values forward, or expose models/findings to Copilot. The private
-writer below consumes its output; Run Info/rules/weights remain T-310 and
-tracking carry-forward remains T-507.
+writer below consumes its output; tracking carry-forward remains T-507.
 
 The checked-in workbook template can be regenerated and structurally tested
 offline after installing pinned development dependencies:
@@ -168,10 +167,16 @@ all registered model files, and findings before copying the trusted template.
 Current output fills actions, finding details, APIs, policy controls,
 subscriptions, exposure, network summary, and Summary assumptions under the
 run's `report` folder. It never overwrites an existing workbook and leaves no
-partial output on validation/template failure. Usage, Cost, Environment Drift,
-Run Info, and Method & Rules are intentionally empty pending their owning tasks.
-The generated workbook is restricted customer output and must never be sent to
-Copilot or another model.
+partial output on validation/template failure. It also expands the manifest
+into Run Info, writes the implemented rule catalog, and copies the manifest's
+exact scoring snapshot into editable positive-number weight cells. Finding
+Details formulas recalculate Severity × Exposure × Usage, with blank usage
+remaining the neutral 1.0 multiplier; Action Plan formulas select each rule's
+maximum recalculated detail priority. Weight edits change workbook values on
+recalculation but do not alter restricted `findings.json` or automatically
+resort action rows. Usage, Cost, and Environment Drift are intentionally empty
+pending their owning tasks. The generated workbook is restricted customer
+output and must never be sent to Copilot or another model.
 
 ## Reusable collection smoke (Microsoft-owned test APIM only)
 

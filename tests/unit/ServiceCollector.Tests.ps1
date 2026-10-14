@@ -1,6 +1,9 @@
 $repoRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 $fixturePath = Join-Path $repoRoot `
     'tests/fixtures/synthetic-reference/raw/service.json'
+$scoring = (Import-PowerShellDataFile (
+        Join-Path $repoRoot 'config/sample.psd1'
+    )).Scoring
 Import-Module (Join-Path $repoRoot 'ApimAssessment.psd1') -Force
 
 AfterAll {
@@ -8,10 +11,14 @@ AfterAll {
 }
 
 Describe 'APIM service collector' {
-    InModuleScope ApimAssessment -Parameters @{ FixturePath = $fixturePath } {
-        param($FixturePath)
+    InModuleScope ApimAssessment -Parameters @{
+        FixturePath = $fixturePath
+        Scoring = $scoring
+    } {
+        param($FixturePath, $Scoring)
 
         $script:serviceFixturePath = $FixturePath
+        $script:serviceScoring = $Scoring
 
         BeforeEach {
             $script:environment = @{
@@ -27,6 +34,7 @@ Describe 'APIM service collector' {
                     UsageDays = 90; SecurityLogDays = 30; CostMonths = 6
                 }
                 Edge = @{ Provider = 'SyntheticEdge'; Mode = 'AssumedReachable' }
+                Scoring = $script:serviceScoring
                 Output = @{
                     Root = (Join-Path $TestDrive ([guid]::NewGuid().ToString('N')))
                 }

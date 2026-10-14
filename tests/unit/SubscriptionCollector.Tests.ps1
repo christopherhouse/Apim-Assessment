@@ -2,6 +2,9 @@ $repoRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 $fixturePath = Join-Path $repoRoot (
     'tests/fixtures/synthetic-reference/raw/subscriptions.json'
 )
+$scoring = (Import-PowerShellDataFile (
+        Join-Path $repoRoot 'config/sample.psd1'
+    )).Scoring
 Import-Module (Join-Path $repoRoot 'ApimAssessment.psd1') -Force
 
 AfterAll {
@@ -9,10 +12,14 @@ AfterAll {
 }
 
 Describe 'APIM subscription collector' {
-    InModuleScope ApimAssessment -Parameters @{ FixturePath = $fixturePath } {
-        param($FixturePath)
+    InModuleScope ApimAssessment -Parameters @{
+        FixturePath = $fixturePath
+        Scoring = $scoring
+    } {
+        param($FixturePath, $Scoring)
 
         $script:subscriptionFixturePath = $FixturePath
+        $script:subscriptionScoring = $Scoring
 
         BeforeAll {
             function ConvertTo-SubscriptionCompactJson {
@@ -43,6 +50,7 @@ Describe 'APIM subscription collector' {
                 Edge = @{
                     Provider = 'SyntheticEdge'; Mode = 'AssumedReachable'
                 }
+                Scoring = $script:subscriptionScoring
                 Output = @{
                     Root = Join-Path $TestDrive (
                         [guid]::NewGuid().ToString('N')

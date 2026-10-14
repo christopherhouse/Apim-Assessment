@@ -28,6 +28,23 @@ Describe 'Run persistence and manifest lifecycle' {
                     UsageDays = 90; SecurityLogDays = 30; CostMonths = 6
                 }
                 Edge = @{ Provider = 'SyntheticEdge'; Mode = 'AssumedReachable' }
+                Scoring = @{
+                    Severity = @{ High = 3; Medium = 2; Low = 1; Info = 0.5 }
+                    Exposure = @{
+                        DirectPublic = 2.5
+                        ExternalInUse = 2
+                        ExternalUnintended = 2
+                        Restricted = 1.5
+                        Internal = 1
+                        Platform = 1.5
+                        Unknown = 1.5
+                    }
+                    Usage = @{
+                        InUse = 1.5
+                        Unused = 1
+                        NotApplicable = 1
+                    }
+                }
                 Output = @{ Root = $RestrictedRoot }
             }
             New-ApimRun -Config $config -EnvironmentName Prod `
@@ -57,6 +74,10 @@ Describe 'Run persistence and manifest lifecycle' {
             'Microsoft.ApiManagement/service/apim-synthetic-prod'
         )
         $manifest.stages.collect | Should -Be 'NotStarted'
+        $manifest.schemaVersion | Should -Be '1.1'
+        $manifest.scoring.severity.high | Should -Be 3
+        $manifest.scoring.exposure.directPublic | Should -Be 2.5
+        $manifest.scoring.usage.inUse | Should -Be 1.5
         $manifest.collectors.Count | Should -Be 0
         $manifest.completedUtc | Should -BeNullOrEmpty
     }
@@ -151,6 +172,25 @@ Describe 'Run persistence and manifest lifecycle' {
                     Edge = @{
                         Provider = 'SyntheticEdge'; Mode = 'AssumedReachable'
                     }
+                    Scoring = @{
+                        Severity = @{
+                            High = 3; Medium = 2; Low = 1; Info = 0.5
+                        }
+                        Exposure = @{
+                            DirectPublic = 2.5
+                            ExternalInUse = 2
+                            ExternalUnintended = 2
+                            Restricted = 1.5
+                            Internal = 1
+                            Platform = 1.5
+                            Unknown = 1.5
+                        }
+                        Usage = @{
+                            InUse = 1.5
+                            Unused = 1
+                            NotApplicable = 1
+                        }
+                    }
                     Output = @{ Root = $RestrictedRoot }
                 }
                 New-ApimRun -Config $config -EnvironmentName Prod `
@@ -181,6 +221,25 @@ Describe 'Run persistence and manifest lifecycle' {
                     }
                     Edge = @{
                         Provider = 'SyntheticEdge'; Mode = 'AssumedReachable'
+                    }
+                    Scoring = @{
+                        Severity = @{
+                            High = 3; Medium = 2; Low = 1; Info = 0.5
+                        }
+                        Exposure = @{
+                            DirectPublic = 2.5
+                            ExternalInUse = 2
+                            ExternalUnintended = 2
+                            Restricted = 1.5
+                            Internal = 1
+                            Platform = 1.5
+                            Unknown = 1.5
+                        }
+                        Usage = @{
+                            InUse = 1.5
+                            Unused = 1
+                            NotApplicable = 1
+                        }
                     }
                     Output = @{ Root = $RestrictedRoot }
                 }
