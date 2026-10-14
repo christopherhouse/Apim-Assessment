@@ -792,6 +792,19 @@ RBAC, product-classification, telemetry, or authorization evidence (D-32).
 | APIM-GOV-010 | Policy missing `<base/>` drops inherited controls | Medium | `baseMissing` |
 | APIM-GOV-011 | Environment drift (Dev/Test/Prod) | Low | drift across envs |
 
+T-305 currently implements GOV-001/002/005/006/008/010 against the closed API
+and operation models. Product membership, owner tags, and revision counts are
+definitive catalog facts. GOV-006 flags APIs without a version set and complete
+version sets with at most one distinct version; a set with an unknown member
+version remains NotEvaluated unless another known positive exists. GOV-008
+classifies API paths as `ApiVersionPrefix`, `VersionPrefix`,
+`OtherVersionSegment`, or `NoVersionSegment` and emits one service-level
+distribution finding when conventions differ. GOV-010 retains known
+missing-`<base/>` findings when another operation has Partial policy evidence;
+otherwise the incomplete fact is NotEvaluated (D-40). GOV-003 remains deferred
+until product ownership/approval is modeled, and GOV-009 until diagnostic
+enablement and sampling are modeled.
+
 ### 11.4 Reliability (REL) / Performance (PERF)
 | ID | Title | Sev | Logic |
 |---|---|---|---|

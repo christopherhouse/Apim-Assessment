@@ -78,6 +78,12 @@ positive case. The uploaded certificate is explicitly not Key Vault-backed and
 produces the baseline SEC-009 certificate finding; the secret named-value
 reference has a successful Key Vault status. Certificate model records retain
 only normalized expiry and Key Vault-backed status.
+The API/operation baseline produces six governance findings: both APIs lack an
+owner/team tag, `status-v1` has one non-current online revision, both version
+sets contain only one known version, and the orders operation has a missing
+`<base/>` path. Both APIs belong to products and use the same no-version-segment
+path convention, so GOV-001 and GOV-008 do not fire until focused tests mutate
+those facts.
 
 Planned T-201 counts: 60 APIs, four all-API subscriptions, 11 unused APIs,
 14 APIs without products, seven key-only external APIs, three missing `<base/>`

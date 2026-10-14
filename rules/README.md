@@ -1,6 +1,6 @@
 # Assessment rule catalogs
 
-Planned catalogs: `GOV`, `REL`, `PERF`, `POR`, and `COST.rules.ps1`.
+Planned catalogs: `REL`, `PERF`, `POR`, and `COST.rules.ps1`.
 Use the hashtable contract in specification section 10 and stable catalog IDs in
 section 11. The private rule engine, closed `findings.json` schema, and restricted writer
 are implemented. `NET.rules.ps1` contains NET-001/002/004/006/007/008/009.
@@ -37,6 +37,12 @@ not be approximated from partial fields. SEC-001 uses the
 closed service model's five recognized legacy TLS controls and keeps incomplete
 negative evidence unknown. SEC-002 treats an absent management API minimum as a
 finding, while SEC-019 uses only normalized identity type without identity IDs.
+`GOV.rules.ps1` contains GOV-001/002/005/006/008/010. Product membership,
+owner tags, online revisions, version sets, and paths use the closed API model;
+missing base inheritance uses the operation model. GOV-006 evaluates only
+complete version sets, GOV-008 emits one service-level convention distribution,
+and GOV-010 preserves known positives under unrelated Partial policy evidence.
+GOV-003 and GOV-009 require future product and diagnostic-posture models.
 The current synthetic NET fixture has two API route records and one App
 Gateway. Focused tests add one attested edge/origin assessment and one
 attested public portal route: NET-001 and NET-009 each yield one evaluated
