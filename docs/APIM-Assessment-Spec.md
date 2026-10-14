@@ -1025,6 +1025,18 @@ Collection, deterministic analysis, Excel, and HTML rendering remain runnable wi
 | Portability | No hard-coded paths; works on Windows and Linux PowerShell 7. |
 | Presentation | Excel and self-contained HTML render locally, contain no remote dependencies, and meet basic accessibility/print requirements. |
 
+The T-312 local saved-run check scans supported text artifacts and XML parts
+inside Excel workbooks without extracting them. It detects recognizable JWTs,
+authorization credentials, private-key PEM blocks, credential-bearing URLs,
+and labeled key/password/secret or connection-string values, including decoded
+JSON strings and XML attributes/text. Exact redaction markers, named-value
+references, and policy expressions are not literal credentials. Malformed,
+unreadable, linked, unsupported, or oversized artifacts fail the check rather
+than being skipped. Limits are 64 MiB per file and per expanded workbook, and
+16 MiB per workbook entry. A clean result means no supported secret pattern was
+found, not proof that arbitrary unlabeled/encoded secrets or identifying data
+are absent. This check neither redacts files nor replaces the model-data airlock.
+
 ---
 
 ## 16. Testing

@@ -193,7 +193,8 @@ checks after their synthetic acceptance. A failure is recorded in the manifest,
 independent checks continue, and dependent checks are Skipped; no false success
 is reported. Exit status is 0 when all registered collection checks complete, 1
 for configuration/preflight failure, 2 for Az module/context failure, 3 when
-collection is Partial, and 4 for an unexpected run or output-validation failure.
+collection is Partial, and 4 for an unexpected run, output-validation failure,
+secret candidate, or incomplete secret scan.
 Only these fixed statuses, check names, and bounded codes for failed checks
 appear on the console.
 The command shows preflight steps, one numbered result row per registered
@@ -265,6 +266,11 @@ success. The terminal prints `SMOKE_OUTPUT_VALID` only after structural
 validation; it never prints saved content, paths, identifiers, or private
 validation exceptions. This is not independent content-safety certification,
 rule evaluation, model creation, or workbook rendering.
+The command then scans the whole newly saved run, including artifacts from
+failed/Partial collectors. `SECRET_SCAN_PASS` is required before the final
+PASS; `SECRET_SCAN_FAIL` (candidate found) or `SECRET_SCAN_ERROR` (scan incomplete)
+returns exit 4 instead. A clean scan does not upgrade Partial collection to
+success. No candidate, filename, path, or exception detail is printed.
 Restricted raw output, manifest, and logs stay under `Output.Root`. This is
 **not** the full T-604 acceptance or a
 customer assessment: Analyze, rules, reports, and model-data promotion are not
@@ -323,8 +329,9 @@ available to automation.
 The single script defaults to
 `$HOME\apim-smoke-private\smoke.psd1`; if you use another private directory,
 pass `-Config (Join-Path $private 'smoke.psd1')`. `Test` must match the
-environment name in that config. Exit 0 requires all eight checks **and**
-saved-output validation to pass; `SMOKE_OUTPUT_VALID` with exit 3 means only
+environment name in that config. Exit 0 requires all eight checks,
+saved-output validation, and the secret scan to pass;
+`SMOKE_OUTPUT_VALID` and `SECRET_SCAN_PASS` with exit 3 mean only
 the completed checks' files validated and collection is still Partial.
 The command refuses an unacknowledged target, repo-local config or output
 roots, or a context whose subscription ID differs from the configured target.
@@ -407,6 +414,43 @@ section is missing, the field stays null and `diagnostics` remains in
 `missingInputs`. Missing per-API child files likewise remain unknown even when
 the service file exists, because an uncollected API override cannot be ruled
 out.
+
+## Local saved-run secret check
+
+An authorized maintainer can check a previously saved run in an **ordinary
+PowerShell 7.4+ terminal outside Copilot**. The run must be outside the repository;
+never paste its files or the contents of a failed scan into a model.
+Set `$runFolder` locally to the saved run directory, then run:
+
+```powershell
+.\scripts\Test-ApimRunSecrets.ps1 -RunFolder $runFolder
+```
+
+No Azure context, credentials, ImportExcel, or desktop Excel is needed. The
+script prints a fixed `SECRET_SCAN_PASS`, `SECRET_SCAN_FAIL`, or
+`SECRET_SCAN_ERROR` line and the exit code itself: 0 for no recognized pattern,
+1 for a secret candidate, 2 when a complete scan could not be performed. It
+requires a schema-valid run manifest and never modifies any artifact.
+
+Supported files are UTF-8 or BOM-marked UTF-16 `.json`, `.xml`, `.log`, `.jsonl`,
+`.txt`, `.md`, `.html`, and `.xlsx`. Logs/JSONL must contain valid JSON records.
+JSON strings/property names and XML attributes/text are decoded before checks.
+Excel archives are read without extraction; every non-directory part must be
+valid `.xml` or `.rels`, so embedded images/binaries/encrypted workbooks are
+rejected, not silently ignored. Limits are 64 MiB per file and per expanded
+workbook, and 16 MiB per workbook entry. Malformed, unreadable, linked,
+unsupported, or oversized files fail closed. Stop other writers before scanning;
+this check is not an atomic snapshot or promotion gate.
+
+Checks cover recognizable JWTs, Bearer/Basic credentials, private-key PEM
+blocks, credential-bearing URLs, and labeled key/password/secret values,
+including connection-string credentials. Exact `***REDACTED***` markers, full
+`{{named-value}}` references, and policy expressions are not literal credentials.
+Plain metadata flags, IDs, and policy hashes are not treated as secrets solely
+because of their length. A clean result is not proof that arbitrary unlabeled or
+encoded credentials, customer identifiers, or other restricted data are absent.
+This scanner is an accident-detection check, not redaction, remediation, or the
+future model-data airlock. It never authorizes sending a run to Copilot.
 
 ## Offline model fixture check
 

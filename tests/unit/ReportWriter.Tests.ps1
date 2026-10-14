@@ -157,6 +157,7 @@ Describe 'Private action-plan workbook writer' {
                     'Example APIM Assessment - Prod - 2026-10-13.xlsx'
                 )
             Test-Path -LiteralPath $path -PathType Leaf | Should -BeTrue
+            Test-ApimRunSecret -RunFolder $fixture.RunPath | Should -BeTrue
             $package = Open-ExcelPackage -Path $path
             try {
                 @($package.Workbook.Worksheets.Name) |

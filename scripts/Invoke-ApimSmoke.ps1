@@ -194,6 +194,22 @@ catch {
     Complete-ApimSmokeCommand -ExitCode 4
 }
 [Console]::Out.WriteLine('SMOKE_OUTPUT_VALID: manifest and completed collector files verified.')
+try {
+    $clean = & $module {
+        param($runPath)
+        Test-ApimRunSecret -RunFolder $runPath
+    } (Join-Path $prepared.Config.Output.Root $result.RunId) `
+        2>$null 3>$null 4>$null 5>$null 6>$null
+}
+catch {
+    [Console]::Error.WriteLine('SECRET_SCAN_ERROR: scan incomplete; inspect the restricted run locally.')
+    Complete-ApimSmokeCommand -ExitCode 4
+}
+if (-not $clean) {
+    [Console]::Error.WriteLine('SECRET_SCAN_FAIL: secret candidate detected; inspect the restricted run locally.')
+    Complete-ApimSmokeCommand -ExitCode 4
+}
+[Console]::Out.WriteLine('SECRET_SCAN_PASS: no supported secret patterns detected.')
 Write-ApimSmokeConsoleLine -Line (Format-ApimSmokeConsoleLine `
         -State Summary -SummaryStatus $result.Status `
         -CompletedCount @($result.Checks |
