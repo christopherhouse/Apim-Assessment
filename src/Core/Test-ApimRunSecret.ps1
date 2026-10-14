@@ -8,7 +8,9 @@ function Test-ApimRunSecret {
     param(
         [Parameter(Mandatory)]
         [ValidateNotNullOrEmpty()]
-        [string] $RunFolder
+        [string] $RunFolder,
+
+        [switch] $WriteLocationReport
     )
 
     $ErrorActionPreference = 'Stop'
@@ -17,6 +19,25 @@ function Test-ApimRunSecret {
     if (-not [System.IO.Directory]::Exists($root)) {
         throw 'Secret scan requires a saved run directory.'
     }
+    $reportName = 'secret-scan-locations.json'
+    $reportPath = Join-Path $root $reportName
+    $pathComparison = if ($IsWindows) {
+        [System.StringComparison]::OrdinalIgnoreCase
+    }
+    else { [System.StringComparison]::Ordinal }
+    if ($WriteLocationReport) {
+        Test-ConfigPathLink -Path $reportPath -Context 'Secret scan locations'
+        $null = Write-RunFile -RunPath $root -RelativePath $reportName -InputObject (
+            [ordered]@{
+                schemaVersion = '1.0'
+                status = 'Incomplete'
+                locations = @()
+            }
+        )
+    }
+    $locations = [System.Collections.Generic.List[object]]::new()
+    $currentFile = ''
+    $currentPart = $null
 
     $credentialName = '(?i)^(?:password|pwd|secret|client[-_ ]?secret|client[-_ ]?key|api[-_ ]?key|subscription[-_ ]?key|ocp-apim-subscription-key|primary[-_ ]?key|secondary[-_ ]?key|accountkey|sharedaccesskey|sharedaccesssignature|access[-_ ]?token|refresh[-_ ]?token|token|sig|authorization|proxy-authorization|x-api-key)$'
     $patterns = @(
@@ -35,6 +56,45 @@ function Test-ApimRunSecret {
                 [timespan]::FromSeconds(1))
         }
     )
+    $patternKinds = @(
+        'Jwt', 'PrivateKey', 'AuthorizationCredential',
+        'UrlUserInfo', 'UrlQueryCredential', 'CredentialAssignment'
+    )
+
+    function Protect-SecretLocationText {
+        param([AllowNull()][string] $Text)
+
+        $result = $Text
+        foreach ($expression in $expressions) {
+            $result = $expression.Replace($result, '***REDACTED***')
+        }
+        return $result
+    }
+
+    function Add-SecretScanLocation {
+        param(
+            [string] $Kind,
+            [AllowEmptyString()][string] $Location = '',
+            [Nullable[int]] $Line,
+            [Nullable[int]] $Column
+        )
+
+        if (-not $WriteLocationReport) { return }
+        if ($locations.Count -ge 10000) {
+            throw 'Secret scan location limit exceeded.'
+        }
+        $locations.Add([pscustomobject][ordered]@{
+            file = Protect-SecretLocationText -Text $currentFile
+            part = if ($null -eq $currentPart) {
+                $null
+            }
+            else { Protect-SecretLocationText -Text $currentPart }
+            kind = $Kind
+            location = Protect-SecretLocationText -Text $Location
+            line = $Line
+            column = $Column
+        })
+    }
 
     function Test-LiteralCredential {
         param([AllowNull()][string] $Value)
@@ -47,34 +107,96 @@ function Test-ApimRunSecret {
     }
 
     function Test-SecretText {
-        param([AllowEmptyString()][string] $Text)
+        param(
+            [AllowEmptyString()][string] $Text,
+            [AllowEmptyString()][string] $Location = '',
+            [Nullable[int]] $Line,
+            [switch] $TextCoordinates,
+            [switch] $NoLocation
+        )
 
-        foreach ($expression in $expressions) {
+        $found = $false
+        $lineStarts = [int[]] @()
+        if ($TextCoordinates -and $WriteLocationReport) {
+            $lineStarts = [int[]] @(
+                0
+                foreach ($newline in [regex]::Matches($Text, "`n")) {
+                    $newline.Index + 1
+                }
+            )
+        }
+        for ($index = 0; $index -lt $expressions.Count; $index++) {
+            $expression = $expressions[$index]
             foreach ($match in $expression.Matches($Text)) {
-                if (-not $match.Groups['credential'].Success) { return $true }
-                $value = [System.Uri]::UnescapeDataString(
-                    $match.Groups['credential'].Value
-                )
-                if (Test-LiteralCredential -Value $value) { return $true }
+                if ($match.Groups['credential'].Success) {
+                    $value = [System.Uri]::UnescapeDataString(
+                        $match.Groups['credential'].Value
+                    )
+                    if (-not (Test-LiteralCredential -Value $value)) { continue }
+                    if ($match.Value -match '^Basic\s+') {
+                        try {
+                            $payload = $value.PadRight(
+                                [int] ([math]::Ceiling($value.Length / 4.0) * 4), '='
+                            )
+                            $decoded = [System.Convert]::FromBase64String($payload)
+                        }
+                        catch [System.FormatException] { continue }
+                        if ($decoded -notcontains [byte] 58) { continue }
+                    }
+                }
+                $found = $true
+                if (-not $WriteLocationReport) { return $true }
+                if ($NoLocation) { continue }
+                $matchLine = $Line
+                $column = $null
+                if ($TextCoordinates) {
+                    $lineIndex = [System.Array]::BinarySearch($lineStarts, [int] $match.Index)
+                    if ($lineIndex -lt 0) { $lineIndex = -$lineIndex - 2 }
+                    $matchLine = $lineIndex + 1
+                    $column = $match.Index - $lineStarts[$lineIndex] + 1
+                }
+                Add-SecretScanLocation -Kind $patternKinds[$index] `
+                    -Location $Location -Line $matchLine -Column $column
             }
         }
-        return $false
+        return $found
     }
 
     function Test-SecretJsonElement {
-        param([System.Text.Json.JsonElement] $Element)
+        param(
+            [System.Text.Json.JsonElement] $Element,
+            [AllowEmptyString()][string] $Pointer = '',
+            [Nullable[int]] $Line
+        )
 
+        $found = $false
         switch ($Element.ValueKind) {
-            String { return Test-SecretText -Text $Element.GetString() }
+            String {
+                return Test-SecretText -Text $Element.GetString() `
+                    -Location $Pointer -Line $Line
+            }
             Array {
+                $index = 0
                 foreach ($child in $Element.EnumerateArray()) {
-                    if (Test-SecretJsonElement -Element $child) { return $true }
+                    $found = (Test-SecretJsonElement -Element $child `
+                            -Pointer "$Pointer/$index" -Line $Line) -or $found
+                    $index++
                 }
             }
             Object {
                 $sensitiveValue = $false
                 $literalValue = $false
+                $valuePointer = $Pointer
+                $index = 0
                 foreach ($property in $Element.EnumerateObject()) {
+                    $segment = $property.Name.Replace('~', '~0').Replace('/', '~1')
+                    $childPointer = "$Pointer/$segment"
+                    if (Test-SecretText -Text $property.Name -NoLocation) {
+                        $found = $true
+                        $childPointer = "$Pointer/[member:$index]"
+                        Add-SecretScanLocation -Kind JsonPropertyName `
+                            -Location $childPointer -Line $Line
+                    }
                     if ($property.Name -eq 'secret' -and
                         $property.Value.ValueKind -eq 'True') {
                         $sensitiveValue = $true
@@ -82,25 +204,31 @@ function Test-ApimRunSecret {
                     if ($property.Name -eq 'value' -and
                         (Test-SecretCredentialElement -Element $property.Value)) {
                         $literalValue = $true
+                        $valuePointer = $childPointer
                     }
                     if ($property.Name -in @('name', 'key') -and
                         $property.Value.ValueKind -eq 'String' -and
                         $property.Value.GetString() -match $credentialName) {
                         $sensitiveValue = $true
                     }
-                    if (Test-SecretText -Text $property.Name) { return $true }
                     if ($property.Name -match $credentialName -and
                         (Test-SecretCredentialElement -Element $property.Value)) {
-                        return $true
+                        $found = $true
+                        Add-SecretScanLocation -Kind JsonCredentialValue `
+                            -Location $childPointer -Line $Line
                     }
-                    if (Test-SecretJsonElement -Element $property.Value) {
-                        return $true
-                    }
+                    $found = (Test-SecretJsonElement -Element $property.Value `
+                            -Pointer $childPointer -Line $Line) -or $found
+                    $index++
                 }
-                if ($sensitiveValue -and $literalValue) { return $true }
+                if ($sensitiveValue -and $literalValue) {
+                    $found = $true
+                    Add-SecretScanLocation -Kind JsonCredentialValue `
+                        -Location $valuePointer -Line $Line
+                }
             }
         }
-        return $false
+        return $found
     }
 
     function Test-SecretCredentialElement {
@@ -126,6 +254,7 @@ function Test-ApimRunSecret {
     function Test-SecretXml {
         param([string] $Text)
 
+        $found = $false
         $settings = [System.Xml.XmlReaderSettings]::new()
         $settings.DtdProcessing = [System.Xml.DtdProcessing]::Prohibit
         $settings.XmlResolver = $null
@@ -136,27 +265,60 @@ function Test-ApimRunSecret {
             $document = [System.Xml.XmlDocument]::new()
             $document.XmlResolver = $null
             $document.Load($reader)
-            foreach ($node in $document.SelectNodes('//*')) {
-                foreach ($attribute in $node.Attributes) {
-                    if ((Test-SecretText -Text $attribute.Value) -or
-                        ($attribute.LocalName -match $credentialName -and
-                            (Test-LiteralCredential -Value $attribute.Value))) {
-                        return $true
+            $nodes = $document.SelectNodes('//*')
+            $xmlLocations = [System.Collections.Generic.Dictionary[System.Xml.XmlNode, string]]::new()
+            if ($WriteLocationReport) {
+                $childPositions = [System.Collections.Generic.Dictionary[System.Xml.XmlNode, int]]::new()
+                foreach ($node in $nodes) {
+                    $parent = $node.ParentNode
+                    if (-not $childPositions.ContainsKey($parent)) {
+                        $childPositions[$parent] = 0
                     }
+                    $childPositions[$parent]++
+                    $parentLocation = if ($xmlLocations.ContainsKey($parent)) {
+                        $xmlLocations[$parent]
+                    }
+                    else { '' }
+                    $xmlLocations[$node] = "$parentLocation/*[$($childPositions[$parent])]"
+                }
+            }
+            foreach ($node in $nodes) {
+                $nodeLocation = if ($WriteLocationReport) { $xmlLocations[$node] } else { '' }
+                $attributeIndex = 1
+                foreach ($attribute in $node.Attributes) {
+                    $attributeLocation = "$nodeLocation/@*[$attributeIndex]"
+                    $found = (Test-SecretText -Text $attribute.Value `
+                            -Location $attributeLocation) -or $found
+                    if ($attribute.LocalName -match $credentialName -and
+                        (Test-LiteralCredential -Value $attribute.Value)) {
+                        $found = $true
+                        Add-SecretScanLocation -Kind XmlCredentialValue `
+                            -Location $attributeLocation
+                    }
+                    $attributeIndex++
                 }
                 $leaf = @($node.ChildNodes | Where-Object NodeType -EQ Element).Count -eq 0
-                if ($leaf -and (Test-SecretText -Text $node.InnerText)) {
-                    return $true
+                if ($leaf) {
+                    $found = (Test-SecretText -Text $node.InnerText `
+                            -Location $nodeLocation) -or $found
                 }
                 if ($leaf -and $node.LocalName -match $credentialName -and
                     (Test-LiteralCredential -Value $node.InnerText)) {
-                    return $true
+                    $found = $true
+                    Add-SecretScanLocation -Kind XmlCredentialValue `
+                        -Location $nodeLocation
                 }
                 if ($node.LocalName -eq 'set-header' -and
                     $node.GetAttribute('name') -match $credentialName) {
                     foreach ($value in $node.SelectNodes('./value')) {
                         if (Test-LiteralCredential -Value $value.InnerText) {
-                            return $true
+                            $found = $true
+                            $valueLocation = if ($WriteLocationReport) {
+                                $xmlLocations[$value]
+                            }
+                            else { '' }
+                            Add-SecretScanLocation -Kind XmlCredentialValue `
+                                -Location $valueLocation
                         }
                     }
                 }
@@ -166,7 +328,7 @@ function Test-ApimRunSecret {
             $reader.Dispose()
             $stringReader.Dispose()
         }
-        return $false
+        return $found
     }
 
     function Read-SecretScanText {
@@ -202,11 +364,14 @@ function Test-ApimRunSecret {
             finally { $document.Dispose() }
         }
         elseif ($Extension -in @('.log', '.jsonl')) {
+            $lineNumber = 0
             foreach ($line in $Text -split '\r?\n') {
+                $lineNumber++
                 if ([string]::IsNullOrWhiteSpace($line)) { continue }
                 $document = [System.Text.Json.JsonDocument]::Parse($line)
                 try {
-                    $found = (Test-SecretJsonElement -Element $document.RootElement) -or $found
+                    $found = (Test-SecretJsonElement -Element $document.RootElement `
+                            -Line $lineNumber) -or $found
                 }
                 finally { $document.Dispose() }
             }
@@ -215,12 +380,16 @@ function Test-ApimRunSecret {
             $found = (Test-SecretXml -Text $Text) -or $found
         }
         elseif ($Extension -eq '.html') {
-            $found = (Test-SecretText -Text (
-                [System.Net.WebUtility]::HtmlDecode($Text)
-            )) -or $found
+            $lineNumber = 0
+            foreach ($line in $Text -split '\r?\n') {
+                $lineNumber++
+                $found = (Test-SecretText -Text (
+                    [System.Net.WebUtility]::HtmlDecode($line)
+                ) -Location decodedHtml -Line $lineNumber) -or $found
+            }
         }
         else {
-            $found = Test-SecretText -Text $Text
+            $found = Test-SecretText -Text $Text -TextCoordinates
         }
         return $found
     }
@@ -237,6 +406,13 @@ function Test-ApimRunSecret {
                 $pending.Push($item.FullName)
                 continue
             }
+            if ($WriteLocationReport -and
+                [string]::Equals($item.FullName, $reportPath,
+                    $pathComparison)) {
+                continue
+            }
+            $currentFile = [System.IO.Path]::GetRelativePath($root, $item.FullName)
+            $currentPart = $null
             if ($item.Length -gt 64MB) { throw 'Secret scan size limit exceeded.' }
             $extension = $item.Extension.ToLowerInvariant()
             if ($extension -notin @(
@@ -262,6 +438,7 @@ function Test-ApimRunSecret {
                         [System.StringComparer]::OrdinalIgnoreCase
                     )
                     foreach ($entry in $archive.Entries) {
+                        $currentPart = $entry.FullName
                         if (-not $names.Add($entry.FullName) -or
                             $entry.FullName -match '(?:^/|\\|:|(?:^|/)\.\.(?:/|$))') {
                             throw 'Secret scan rejected the workbook entry inventory.'
@@ -298,5 +475,15 @@ function Test-ApimRunSecret {
         }
     }
     $null = Get-RunManifest -RunPath $root
+    if ($WriteLocationReport) {
+        Test-ConfigPathLink -Path $reportPath -Context 'Secret scan locations'
+        $null = Write-RunFile -RunPath $root -RelativePath $reportName -InputObject (
+            [ordered]@{
+                schemaVersion = '1.0'
+                status = if ($foundSecret) { 'CandidateDetected' } else { 'Clean' }
+                locations = @($locations | Sort-Object file, part, location, line, column, kind -Unique)
+            }
+        )
+    }
     return -not $foundSecret
 }

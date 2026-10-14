@@ -197,16 +197,18 @@ catch {
 try {
     $clean = & $module {
         param($runPath)
-        Test-ApimRunSecret -RunFolder $runPath
+        Test-ApimRunSecret -RunFolder $runPath -WriteLocationReport
     } (Join-Path $prepared.Config.Output.Root $result.RunId) `
         2>$null 3>$null 4>$null 5>$null 6>$null
 }
 catch {
     [Console]::Error.WriteLine('SECRET_SCAN_ERROR: scan incomplete; inspect the restricted run locally.')
+    [Console]::Error.WriteLine('SECRET_SCAN_DETAILS: no complete locations report is available for this attempt; an existing report may be absent or stale. Resolve local scan/read/write errors and rerun.')
     Complete-ApimSmokeCommand -ExitCode 4
 }
 if (-not $clean) {
-    [Console]::Error.WriteLine('SECRET_SCAN_FAIL: secret candidate detected; inspect the restricted run locally.')
+    [Console]::Error.WriteLine('SECRET_SCAN_FAIL: secret-like candidate detected; this may be a false positive.')
+    [Console]::Error.WriteLine('SECRET_SCAN_DETAILS: open secret-scan-locations.json in the newest run folder under Output.Root locally. It lists file locations and match categories, not values. Do not paste it into Copilot.')
     Complete-ApimSmokeCommand -ExitCode 4
 }
 [Console]::Out.WriteLine('SECRET_SCAN_PASS: no supported secret patterns detected.')

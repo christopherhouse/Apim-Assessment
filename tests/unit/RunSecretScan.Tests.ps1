@@ -105,6 +105,113 @@ Describe 'Local saved-run secret scan' {
             Test-ApimRunSecret -RunFolder $script:scanRun.Path | Should -BeFalse
         }
 
+        It 'does not mistake Basic routing or authentication prose for a credential' {
+            Set-Content -LiteralPath (Join-Path $script:scanRun.Path 'description.txt') `
+                -Value 'Basic rule forwards every API. Basic authentication requires verification.'
+            Test-ApimRunSecret -RunFolder $script:scanRun.Path | Should -BeTrue
+        }
+
+        It 'reports all source locations without captured credential values or excerpts' {
+            $planted = 'synthetic-' + 'planted-value'
+            $json = '{"items":[{"password":"' + $planted + '"},{"apiKey":"' + $planted + '"}]}'
+            Set-Content -LiteralPath (Join-Path $script:scanRun.Path 'nested.json') -Value $json
+            Set-Content -LiteralPath (Join-Path $script:scanRun.Path 'policy.xml') `
+                -Value ('<policies><inbound><authentication-basic password="' + $planted +
+                    '"/><set-header name="x-api-key"><value>' + $planted +
+                    '</value></set-header></inbound></policies>')
+            Set-Content -LiteralPath (Join-Path $script:scanRun.Path 'plain.txt') `
+                -Value ("safe`nPassword=$planted`nBearer $planted")
+            Set-Content -LiteralPath (Join-Path $script:scanRun.Path 'run.log') `
+                -Value ('{"message":"safe"}' + "`n" + '{"password":"' + $planted + '"}')
+            Test-ApimRunSecret -RunFolder $script:scanRun.Path -WriteLocationReport |
+                Should -BeFalse
+            $reportText = Get-Content -LiteralPath (
+                Join-Path $script:scanRun.Path 'secret-scan-locations.json'
+            ) -Raw
+            $reportText | Should -Not -Match $planted
+            $report = $reportText | ConvertFrom-Json
+            $report.schemaVersion | Should -Be '1.0'
+            $report.status | Should -Be CandidateDetected
+            @($report.locations | Where-Object file -EQ 'nested.json').location |
+                Should -Be @('/items/0/password', '/items/1/apiKey')
+            @($report.locations | Where-Object file -EQ 'policy.xml').location |
+                Should -Contain '/*[1]/*[1]/*[1]/@*[1]'
+            @($report.locations | Where-Object file -EQ 'policy.xml').location |
+                Should -Contain '/*[1]/*[1]/*[2]/*[1]'
+            $plain = @($report.locations | Where-Object file -EQ 'plain.txt')
+            $plain.line | Should -Be @(2, 3)
+            $plain.column | Should -Be @(1, 1)
+            ($report.locations | Where-Object file -EQ 'run.log').line | Should -Be 2
+            ($report.locations | Where-Object file -EQ 'run.log').location |
+                Should -Be '/password'
+            $reportText | Should -Not -Match [regex]::Escape($script:scanRun.Path)
+        }
+
+        It 'reports workbook parts and positional XML paths without values' {
+            $path = Join-Path $script:scanRun.Path 'report.xlsx'
+            Write-SecretScanWorkbook -Path $path -Parts @{
+                '[Content_Types].xml' = '<Types/>'
+                'xl/workbook.xml' = '<workbook/>'
+                'xl/sharedStrings.xml' = '<sst><si><t>Bearer synthetic-planted-value</t></si></sst>'
+                'xl/worksheets/sheet1.xml' = '<worksheet><sheetData><row><c><is><t>Bearer synthetic-planted-value</t></is></c></row></sheetData></worksheet>'
+            }
+            Test-ApimRunSecret -RunFolder $script:scanRun.Path -WriteLocationReport |
+                Should -BeFalse
+            $report = Get-Content -LiteralPath (
+                Join-Path $script:scanRun.Path 'secret-scan-locations.json'
+            ) -Raw | ConvertFrom-Json
+            $report.locations.part | Should -Be @(
+                'xl/sharedStrings.xml', 'xl/worksheets/sheet1.xml'
+            )
+            $report.locations.location | Should -Be @(
+                '/*[1]/*[1]/*[1]', '/*[1]/*[1]/*[1]/*[1]/*[1]/*[1]'
+            )
+        }
+
+        It 'refreshes candidate locations on rescans and marks failed rescans incomplete' {
+            $path = Join-Path $script:scanRun.Path 'planted.json'
+            $reportPath = Join-Path $script:scanRun.Path 'secret-scan-locations.json'
+            Set-Content -LiteralPath $path -Value '{"password":"synthetic-planted-value"}'
+            Test-ApimRunSecret -RunFolder $script:scanRun.Path -WriteLocationReport |
+                Should -BeFalse
+            Set-Content -LiteralPath $path -Value '{"password":"***REDACTED***"}'
+            Test-ApimRunSecret -RunFolder $script:scanRun.Path -WriteLocationReport |
+                Should -BeTrue
+            $report = Get-Content -LiteralPath $reportPath -Raw | ConvertFrom-Json
+            $report.status | Should -Be Clean
+            $report.locations.Count | Should -Be 0
+            Set-Content -LiteralPath $path -Value '{invalid'
+            { Test-ApimRunSecret -RunFolder $script:scanRun.Path -WriteLocationReport } |
+                Should -Throw
+            $report = Get-Content -LiteralPath $reportPath -Raw | ConvertFrom-Json
+            $report.status | Should -Be Incomplete
+            $report.locations.Count | Should -Be 0
+        }
+
+        It 'does not persist secret-like property names in location paths' {
+            Set-Content -LiteralPath (Join-Path $script:scanRun.Path 'property.json') `
+                -Value '{"eyJsynthetic.synthetic.payload":"safe"}'
+            Test-ApimRunSecret -RunFolder $script:scanRun.Path -WriteLocationReport |
+                Should -BeFalse
+            $text = Get-Content -LiteralPath (
+                Join-Path $script:scanRun.Path 'secret-scan-locations.json'
+            ) -Raw
+            $text | Should -Not -Match 'eyJsynthetic'
+            ($text | ConvertFrom-Json).locations.location | Should -Be '/[member:0]'
+        }
+
+        It 'fails closed rather than presenting a truncated location report' {
+            Set-Content -LiteralPath (Join-Path $script:scanRun.Path 'many.txt') `
+                -Value (('Bearer synthetic-planted-value' + "`n") * 10001)
+            { Test-ApimRunSecret -RunFolder $script:scanRun.Path -WriteLocationReport } |
+                Should -Throw '*location limit*'
+            $report = Get-Content -LiteralPath (
+                Join-Path $script:scanRun.Path 'secret-scan-locations.json'
+            ) -Raw | ConvertFrom-Json
+            $report.status | Should -Be Incomplete
+            $report.locations.Count | Should -Be 0
+        }
+
         It 'fails closed for <Name>' -ForEach @(
             @{ Name = 'malformed JSON'; Extension = '.json'; Text = '{invalid' }
             @{ Name = 'malformed XML'; Extension = '.xml'; Text = '<invalid>' }
@@ -304,14 +411,20 @@ exit $LASTEXITCODE
                 -Value 'Password=synthetic-planted-value'
             $output = & pwsh -NoProfile -File $entrypoint -RunFolder $script:scanRun.Path 2>&1
             $LASTEXITCODE | Should -Be 1
-            ($output -join "`n") | Should -Be (
-                'SECRET_SCAN_FAIL: secret candidate detected; inspect the run locally. Exit code: 1.'
+            $output[-2] | Should -Be (
+                'SECRET_SCAN_DETAILS: open secret-scan-locations.json in the supplied run folder locally. It lists file locations and match categories, not values. Do not paste it into Copilot.'
+            )
+            $output[-1] | Should -Be (
+                'SECRET_SCAN_FAIL: secret-like candidate detected; this may be a false positive. Exit code: 1.'
             )
             Set-Content -LiteralPath (Join-Path $script:scanRun.Path 'unsupported.bin') `
                 -Value 'synthetic'
             $output = & pwsh -NoProfile -File $entrypoint -RunFolder $script:scanRun.Path 2>&1
             $LASTEXITCODE | Should -Be 2
-            ($output -join "`n") | Should -Be (
+            $output[-2] | Should -Be (
+                'SECRET_SCAN_DETAILS: no complete locations report is available for this attempt; an existing report may be absent or stale. Resolve local scan/read/write errors and rerun.'
+            )
+            $output[-1] | Should -Be (
                 'SECRET_SCAN_ERROR: scan incomplete; inspect the run locally. Exit code: 2.'
             )
         }

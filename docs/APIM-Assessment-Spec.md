@@ -1036,6 +1036,16 @@ than being skipped. Limits are 64 MiB per file and per expanded workbook, and
 16 MiB per workbook entry. A clean result means no supported secret pattern was
 found, not proof that arbitrary unlabeled/encoded secrets or identifying data
 are absent. This check neither redacts files nor replaces the model-data airlock.
+Operator entry points write restricted `secret-scan-locations.json` containing
+relative files, fixed match kinds, text/log line numbers, JSON pointers,
+positional XML paths, and workbook part locations without captured values or
+excerpts. Console failure output explains how to open it locally, never echoes
+its locations or source content, and distinguishes a candidate from a confirmed
+secret. Rescans initialize this scanner-owned report as `Incomplete` before
+scanning, then replace it on completion. Report-write failures also fail closed;
+error output warns that an existing report may be absent or stale.
+The report is excluded from rescans and capped at
+10,000 detections, with overflow failing closed.
 
 ---
 

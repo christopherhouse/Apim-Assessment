@@ -271,6 +271,10 @@ failed/Partial collectors. `SECRET_SCAN_PASS` is required before the final
 PASS; `SECRET_SCAN_FAIL` (candidate found) or `SECRET_SCAN_ERROR` (scan incomplete)
 returns exit 4 instead. A clean scan does not upgrade Partial collection to
 success. No candidate, filename, path, or exception detail is printed.
+On `SECRET_SCAN_FAIL`, the next error line tells you to open the fixed
+`secret-scan-locations.json` report in the newest run directory under the
+private config's `Output.Root`. That report is restricted local output, not
+model-safe data.
 Restricted raw output, manifest, and logs stay under `Output.Root`. This is
 **not** the full T-604 acceptance or a
 customer assessment: Analyze, rules, reports, and model-data promotion are not
@@ -430,7 +434,35 @@ No Azure context, credentials, ImportExcel, or desktop Excel is needed. The
 script prints a fixed `SECRET_SCAN_PASS`, `SECRET_SCAN_FAIL`, or
 `SECRET_SCAN_ERROR` line and the exit code itself: 0 for no recognized pattern,
 1 for a secret candidate, 2 when a complete scan could not be performed. It
-requires a schema-valid run manifest and never modifies any artifact.
+requires a schema-valid run manifest and never modifies scanned source artifacts.
+It creates or replaces only its own `secret-scan-locations.json` in the run root.
+The report starts as `Incomplete`; only a completed scan changes it to `Clean`
+or `CandidateDetected`. Its own generated report is excluded from rescans.
+
+**Finding the candidate:** open the report locally when the console prints
+`SECRET_SCAN_DETAILS`. Each entry has a relative `file`, a fixed `kind`, a
+`location`, and optional `line`/`column`; Excel candidates also have a `part`.
+Open the indicated file in a local editor. Plain text has one-based line/column,
+logs have the one-based record line plus JSON pointer, JSON files have escaped
+JSON pointers, and XML/workbook parts have positional XPath expressions (for
+example, `/*[1]/*[2]/@*[1]`). `decodedHtml` refers to entity-decoded text on the
+specified source line. A secret-like property name is represented by a
+zero-based `[member:N]` locator instead of copying that name. The report has no
+captured values, excerpts, or exception messages, but paths can identify
+infrastructure: **do not paste it, or the source file, into Copilot**.
+
+`CandidateDetected` means a heuristic matched, not that a credential has been
+confirmed. Verify that location locally before making any changes. The Basic
+authorization heuristic requires a decodable username/password payload; prose
+such as "Basic rule" is not a credential. Redacted values and full policy
+references should remain clean. An `Incomplete` report is not a current list of
+all candidates; resolve the scan error locally and rerun. It
+may also be absent or stale if its initialization/write failed; the
+`SECRET_SCAN_ERROR` message explicitly warns not to trust an old report.
+The location report
+is capped at 10,000 detections; reaching that limit fails the scan, not truncates
+a success result. A clean rescan replaces the prior candidate list with an
+empty list.
 
 Supported files are UTF-8 or BOM-marked UTF-16 `.json`, `.xml`, `.log`, `.jsonl`,
 `.txt`, `.md`, `.html`, and `.xlsx`. Logs/JSONL must contain valid JSON records.

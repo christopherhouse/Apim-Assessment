@@ -65,6 +65,9 @@ The smoke command also runs the local saved-run secret scanner before its final
 PASS. A separate maintainer-only script can scan an existing run, including
 compressed XML parts in its Excel reports. Both print fixed safe statuses only;
 secret candidates and incomplete scans fail without printing values or paths.
+The commands write a restricted `secret-scan-locations.json` inside the run and
+point to it when candidates are found. It lists relative files, match categories,
+and source locations, never matched values or excerpts.
 
 All ten implemented model contracts now share a fail-closed schema gate.
 Writers validate every pending serialized snapshot before writing any file, and
@@ -149,6 +152,10 @@ the saved run needs local inspection.
 `SECRET_SCAN_FAIL` or `SECRET_SCAN_ERROR` prevents smoke success and returns
 exit 4. The separate `scripts/Test-ApimRunSecrets.ps1 -RunFolder <external-run>`
 command prints its own PASS/FAIL/ERROR and exit code (0/1/2) automatically.
+On a candidate, the error tells you to open `secret-scan-locations.json` locally
+in that run folder. Text/log locations include line numbers; JSON has property
+pointers, XML has positional paths, and Excel entries include their workbook
+part. A candidate is not a confirmed credential; review that location locally.
 Run it only in an ordinary local terminal, never through Copilot, for restricted
 output. It does not redact files, certify privacy, or detect every arbitrary
 unlabeled/encoded secret; the [runbook](docs/RUNBOOK.md) defines its limits.
