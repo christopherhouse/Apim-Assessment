@@ -24,15 +24,15 @@ network, and pre-telemetry exposure model records from saved inputs. A private
 offline rule engine now loads rule
 definitions, evaluates available model-backed scopes, and validates deterministic
 findings against a closed schema before restricted persistence. Seven NET rules
-and eleven currently model-backed SEC rules are implemented privately. NET-001
+and twelve currently model-backed SEC rules are implemented privately. NET-001
 and NET-009 require explicit operator attestation of effective origin
 authentication and endpoint-owner need; without it, they produce
 Info/NotEvaluated rather than guessing. The SEC catalog covers reachable weak
 or absent caller authentication, active all-API subscriptions, hard-coded
 policy credentials, secret-like plain-text named values, disabled HTTPS backend
-certificate validation, Key Vault-backed secret/certificate health, unsafe CORS,
-diagnostic body/sensitive-header logging, subscription tracing, and production
-mock/trace policy. Remaining collectors
+certificate validation, Key Vault-backed secret/certificate health, unapproved
+plain-HTTP backend targets, unsafe CORS, diagnostic body/sensitive-header
+logging, subscription tracing, and production mock/trace policy. Remaining collectors
 and models, telemetry-based exposure refinement, the rest of the SEC catalog,
 other rule catalogs, the model-data airlock, Copilot operator workflow,
 assessment CLI entry points, and report templates are not implemented.
@@ -61,7 +61,7 @@ builders; this gate is not a public Analyze command or the model-data airlock.
 | Versioned run manifest lifecycle and APIM service/API/product/subscription/policy/network plus secret-safe named-value/backend/certificate and logger/diagnostic collectors | Remaining APIM, telemetry, and cost collectors |
 | Maintainer-only cumulative collection smoke script (eight registered checks through Diagnostics) | Full assessment orchestration and live acceptance |
 | Effective policy merge/flags plus nine implemented models with shared schema-gated persistence and saved-run loading | Remaining model builders and telemetry exposure refinement |
-| Private offline rule engine, seven NET checks, eleven SEC checks, configurable priority scoring, and schema-gated findings | Remaining SEC/GOV/REL catalog entries and public Analyze orchestration |
+| Private offline rule engine, seven NET checks, twelve SEC checks, configurable priority scoring, and schema-gated findings | Remaining SEC/GOV/REL catalog entries and public Analyze orchestration |
 | Synthetic-fixture scaffold | Populated fixtures and offline integration pipeline |
 | Windows/Linux lint and test CI | Model-data airlock and local Copilot broker |
 | Copilot development instructions, agents, and skills | Assessment analyst agents and operator skills |
@@ -210,7 +210,7 @@ and broad APIM-subnet inbound NSG rules plus explicitly operator-attested
 edge-origin authentication and auxiliary endpoint need. A known empty gateway
 inventory is not a WAF/TLS failure; an unavailable inventory is NotEvaluated.
 NET-001 and NET-009 remain NotEvaluated when the required attestation is absent.
-The eleven private SEC checks evaluate only facts represented by current closed
+The twelve private SEC checks evaluate only facts represented by current closed
 models; known positive evidence is retained when unrelated records are
 incomplete, while wholly unknown applicable evidence produces one
 Info/NotEvaluated finding. Collected service/API diagnostics now populate
@@ -222,9 +222,12 @@ retains known Key Vault findings when another fact is unavailable, and emits one
 NotEvaluated result when required evidence is unavailable without a known
 positive.
 SEC-010 applies only to HTTPS backends and treats missing validation facts as
-NotEvaluated when no explicit disablement is known. Service/security posture,
-configurable plain-HTTP exceptions, backend intent/mapping, and product
-classification remain deferred. There is no public
+NotEvaluated when no explicit disablement is known. SEC-011 evaluates backend
+schemes and operation-level policy overrides, suppresses only exact targets in
+the optional validated `RuleExceptions` allowlist, and keeps Partial policy
+evidence NotEvaluated when no known unapproved target exists. Service/security
+posture, backend intent/mapping, and product classification remain deferred.
+There is no public
 evaluation command, report, or model-safe promotion yet; do not expose these
 private findings or models to an agent.
 

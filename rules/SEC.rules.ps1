@@ -398,6 +398,115 @@ Set-StrictMode -Version Latest
         Enabled = $true
     }
     @{
+        Id = 'APIM-SEC-011'
+        Title = 'Backend target uses unapproved plain HTTP'
+        Pillar = 'Security'
+        Mcsb = 'DP-3'
+        Severity = 'Medium'
+        Scope = @('Backend', 'Operation')
+        Requires = @(
+            'model/backends.json',
+            'model/operations.json'
+        )
+        DataGaps = {
+            param($ctx)
+            $backendExceptions = @()
+            $operationExceptions = @()
+            if ($ctx.Config.Contains('RuleExceptions')) {
+                $backendExceptions = @(
+                    $ctx.Config.RuleExceptions.
+                        ApprovedPlainHttpBackendIds
+                )
+                $operationExceptions = @(
+                    $ctx.Config.RuleExceptions.
+                        ApprovedPlainHttpOperationKeys
+                )
+            }
+            $positiveBackend = @($ctx.Models.backends | Where-Object {
+                    $_.scheme -eq 'http' -and
+                    $_.backendId -notin $backendExceptions
+                })
+            $positiveOperation = @($ctx.Models.operations | Where-Object {
+                    $_.backendOverrideHttp -and
+                    "$($_.apiId)/$($_.operationId)" -notin
+                        $operationExceptions
+                })
+            if ($positiveBackend.Count -eq 0 -and
+                $positiveOperation.Count -eq 0 -and
+                @($ctx.Models.operations | Where-Object {
+                        $_.policyEvaluationStatus -eq 'Partial' -and
+                        "$($_.apiId)/$($_.operationId)" -notin
+                            $operationExceptions
+                    }).Count -gt 0) {
+                'model/operations.json#backendOverrideHttp'
+            }
+        }
+        Applies = {
+            param($x, $ctx)
+            $null = $ctx
+            if ($null -ne $x.PSObject.Properties['backendId']) {
+                return $x.scheme -eq 'http'
+            }
+            return $x.backendOverrideHttp
+        }
+        Test = {
+            param($x, $ctx)
+            $backendExceptions = @()
+            $operationExceptions = @()
+            if ($ctx.Config.Contains('RuleExceptions')) {
+                $backendExceptions = @(
+                    $ctx.Config.RuleExceptions.
+                        ApprovedPlainHttpBackendIds
+                )
+                $operationExceptions = @(
+                    $ctx.Config.RuleExceptions.
+                        ApprovedPlainHttpOperationKeys
+                )
+            }
+            if ($null -ne $x.PSObject.Properties['backendId']) {
+                return $x.backendId -notin $backendExceptions
+            }
+            return "$($x.apiId)/$($x.operationId)" -notin
+                $operationExceptions
+        }
+        Evidence = {
+            param($x, $ctx)
+            $null = $ctx
+            $isBackend = $null -ne $x.PSObject.Properties['backendId']
+            [ordered]@{
+                assetType = if ($isBackend) { 'Backend' } else { 'Operation' }
+                scheme = if ($isBackend) { $x.scheme } else { 'http' }
+                method = if ($isBackend) { $null } else { $x.method }
+                path = if ($isBackend) { $null } else { $x.fullPath }
+                backendOverrideHttp = if ($isBackend) {
+                    $false
+                }
+                else {
+                    $x.backendOverrideHttp
+                }
+                approvedException = $false
+            }
+        }
+        EvidenceText = {
+            param($x, $ctx)
+            $null = $ctx
+            if ($null -ne $x.PSObject.Properties['backendId']) {
+                return 'Backend entity uses plain HTTP without an approved internal-service exception.'
+            }
+            return "Operation $($x.method) $($x.fullPath) overrides its backend target to plain HTTP without an approved exception."
+        }
+        Recommendation = 'Use HTTPS for backend traffic, or document the exact internal target in the approved exception allowlist after validating compensating network controls.'
+        Effort = 'M'
+        References = @()
+        SourceFiles = @(
+            'raw/backends.json',
+            'raw/policies/',
+            'model/backends.json',
+            'model/operations.json'
+        )
+        Enabled = $true
+    }
+    @{
         Id = 'APIM-SEC-012'
         Title = 'API policy permits unsafe credentialed cross-origin requests'
         Pillar = 'Security'

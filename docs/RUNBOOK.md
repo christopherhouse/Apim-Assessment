@@ -69,7 +69,7 @@ model. With no attestation, both emit Info/NotEvaluated rather than asserting
 absent authentication or unnecessary publication. No full saved-run
 Analyze path, findings report, or model-safe promotion is available yet.
 `rules/SEC.rules.ps1` includes
-SEC-003/004/005/007/008/009/010/012/014/015/020. Rules with
+SEC-003/004/005/007/008/009/010/011/012/014/015/020. Rules with
 unknown applicable facts emit one Info/NotEvaluated finding unless other
 records already provide definitive positive evidence. SEC-014 consumes
 model-derived diagnostic body and sensitive-request-header facts; incomplete
@@ -80,8 +80,22 @@ requires both closed models, and emits one NotEvaluated result when required
 Key Vault facts are unknown without a known positive finding. SEC-010 evaluates
 only HTTPS backends, ignores non-applicable HTTP TLS
 flags, and emits NotEvaluated when no positive finding exists but an HTTPS
-validation fact is missing. Never pass restricted models or findings to
-Copilot.
+validation fact is missing. SEC-011 evaluates the closed backend `scheme` and
+operation `backendOverrideHttp` facts. Its optional configuration is exact and
+case-insensitive:
+
+```powershell
+RuleExceptions = @{
+    ApprovedPlainHttpBackendIds = @('approved-backend')
+    ApprovedPlainHttpOperationKeys = @('api-id/operation-id')
+}
+```
+
+Omitting `RuleExceptions`, or leaving both arrays empty, approves nothing.
+Entries suppress only the named backend or operation; they do not classify an
+API as internal. If no known unapproved HTTP target exists, Partial operation
+policy evidence remains NotEvaluated. Never pass restricted models or findings
+to Copilot.
 
 ## Reusable collection smoke (Microsoft-owned test APIM only)
 

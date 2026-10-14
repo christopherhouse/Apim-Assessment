@@ -407,6 +407,43 @@ function Get-Config {
         Get-RequiredConfigValue $thresholds 'Error5xxPct' 'Thresholds'
     ) -Context 'Thresholds.Error5xxPct' -Minimum 0
 
+    if ($config.Contains('RuleExceptions')) {
+        $ruleExceptions = $config.RuleExceptions
+        Test-ConfigMap -Value $ruleExceptions -Context 'RuleExceptions'
+        foreach ($key in @(
+                'ApprovedPlainHttpBackendIds',
+                'ApprovedPlainHttpOperationKeys'
+            )) {
+            $values = Get-RequiredConfigValue $ruleExceptions $key `
+                'RuleExceptions'
+            Test-ConfigStringArray -Value $values `
+                -Context "RuleExceptions.$key" -AllowEmpty
+            $uniqueValues = [System.Collections.Generic.HashSet[string]]::new(
+                [System.StringComparer]::OrdinalIgnoreCase
+            )
+            foreach ($value in @($values)) {
+                if (-not $uniqueValues.Add([string] $value)) {
+                    throw "Configuration 'RuleExceptions.$key' contains a duplicate value."
+                }
+                $segments = @(([string] $value).Split('/'))
+                $expectedSegments = if (
+                    $key -eq 'ApprovedPlainHttpOperationKeys'
+                ) {
+                    2
+                }
+                else {
+                    1
+                }
+                if ($segments.Count -ne $expectedSegments -or
+                    @($segments | Where-Object {
+                            $_ -cnotmatch '^[A-Za-z0-9][A-Za-z0-9._-]*$'
+                        }).Count -gt 0) {
+                    throw "Configuration 'RuleExceptions.$key' contains an invalid target key."
+                }
+            }
+        }
+    }
+
     $privacy = Get-RequiredConfigValue $config 'Privacy' 'root'
     Test-ConfigMap -Value $privacy -Context 'Privacy'
     foreach ($key in @('StoreUserIdentities', 'RedactPolicySecrets')) {

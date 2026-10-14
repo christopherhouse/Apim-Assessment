@@ -185,6 +185,10 @@ tool/path isolation.
     Usage    = @{ InUse=1.5; Unused=1; NotApplicable=1 }
   }
   Thresholds = @{ CertExpiryDays=60; BackendP95Ms=2000; Error5xxPct=1.0; UnusedDays=90; SubscriptionStaleDays=180; MaxWriteRolePrincipals=5 }
+  RuleExceptions = @{
+    ApprovedPlainHttpBackendIds = @()
+    ApprovedPlainHttpOperationKeys = @() # exact apiId/operationId keys
+  }
   Privacy   = @{ StoreUserIdentities=$false; RedactPolicySecrets=$true }
   AnalysisPackage = @{
     UsageMode='Bucketed'                  # exact values prohibited
@@ -201,7 +205,10 @@ tool/path isolation.
 Validation: `Get-Config` validates required keys and nested types, GUIDs, enums,
 positive numeric settings, strictly ascending usage buckets, and absolute
 non-overlapping output roots, then returns normalized paths without creating
-them. Existing symbolic links/junctions in either root are rejected.
+them. The optional `RuleExceptions` map accepts only non-empty, unique
+case-insensitive resource-name segments for exact backend IDs and
+`apiId/operationId` keys; absent or empty arrays approve nothing. Existing
+symbolic links/junctions in either root are rejected.
 `-AgentAssisted` additionally requires at least one `-CopilotVisiblePath`, rejects
 a restricted root that overlaps any supplied visible path, and fails closed if
 the broker cannot supply the complete visible-path set. T-319 adds the
@@ -716,7 +723,7 @@ publication; both remain NotEvaluated without corroboration (D-30/D-31).
 | APIM-SEC-008 | Secret-like named values stored as plain text | Medium | DP-7 | NamedValue | `secret=false` and name/value matches secret pattern |
 | APIM-SEC-009 | Secrets/certificates not Key Vault–backed or Key Vault sync failing | Medium | DP-7 | NamedValue/Certificate | `keyVault` null for secret values / `lastStatus.code != Success` |
 | APIM-SEC-010 | Backend TLS certificate validation disabled | Medium | DP-3 | Backend | `validateCertificateChain=false` or `validateCertificateName=false` |
-| APIM-SEC-011 | Backend over plain HTTP | Medium | DP-3 | Backend/Api | backend URL or `set-backend-service` base-url `http://` (non-internal service exception configurable) |
+| APIM-SEC-011 | Backend over plain HTTP | Medium | DP-3 | Backend/Operation | backend `scheme=http` or structural `set-backend-service` HTTP override, excluding only exact configured targets |
 | APIM-SEC-012 | Unsafe CORS (wildcard origin with credentials) | Medium | DP-3 | Api | `corsUnsafe` |
 | APIM-SEC-013 | No backend authentication (managed identity/cert) | Low | IM-3 | Api | `backendAuth=false` and backend not anonymous by design (configurable allowlist) |
 | APIM-SEC-014 | Bodies or sensitive headers logged | Medium | LT-3 | Api/Service | diagnostics `body.bytes > 0` or headers include `Authorization`, `Ocp-Apim-Subscription-Key`, `Cookie` |
@@ -728,7 +735,7 @@ publication; both remain NotEvaluated without corroboration (D-30/D-31).
 | APIM-SEC-020 | Mock or trace policies in production | Medium | n/a | Operation | `mockOrTrace` (env = Prod) |
 
 T-304 currently implements
-SEC-003/004/005/007/008/009/010/012/014/015/020 against the closed API,
+SEC-003/004/005/007/008/009/010/011/012/014/015/020 against the closed API,
 operation, subscription, named-value, backend, and certificate models. Known
 positive evidence remains
 evaluated when another record has an unavailable fact; if all otherwise
@@ -745,9 +752,13 @@ non-applicable, and missing HTTPS validation facts produce NotEvaluated when no
 positive finding is known. SEC-014 consumes the collected diagnostic contract
 through the API model and evaluates known body/sensitive-request-header logging
 in saved runs. Incomplete diagnostic evidence remains null and produces
-NotEvaluated when no positive fact is known (D-35/D-36). SEC-011 remains
-deferred pending a configurable approved-internal HTTP exception, and SEC-013
-pending backend-to-API mapping plus anonymous-by-design owner intent. Other
+NotEvaluated when no positive fact is known (D-35/D-36). SEC-011 evaluates
+backend entities from the closed URL scheme and operation-level policy
+overrides from the structural `backendOverrideHttp` flag. Its optional exception
+map suppresses only exact backend IDs or `apiId/operationId` keys and does not
+infer internal status; Partial operation policy evidence produces NotEvaluated
+when no unapproved HTTP target is known (D-38). SEC-013 remains pending
+backend-to-API mapping plus anonymous-by-design owner intent. Other
 deferred rules still require service/security, product-classification,
 telemetry, or authorization evidence (D-32).
 
