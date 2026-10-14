@@ -40,13 +40,14 @@ function Invoke-ApimReport {
         [string] $PreviousReport
     )
 
-    if ($PSBoundParameters.ContainsKey('PreviousReport')) {
-        return [pscustomobject]@{ Status = 'Failed'; ExitCode = 1; ErrorCode = 'CAPABILITY_UNAVAILABLE' }
-    }
     try {
         Test-ApimSavedFindingReplay -RunPath $RunFolder
         Set-RunStageStatus -RunPath $RunFolder -Stage report -Status InProgress
-        $workbook = Export-ApimActionPlan -RunPath $RunFolder
+        $arguments = @{ RunPath = $RunFolder }
+        if ($PSBoundParameters.ContainsKey('PreviousReport')) {
+            $arguments.PreviousReport = $PreviousReport
+        }
+        $workbook = Export-ApimActionPlan @arguments
         $null = Export-ApimExecutiveHtml -RunPath $RunFolder -WorkbookPath $workbook
         $null = Write-RunFile -RunPath $RunFolder -RelativePath 'restricted/latest-reports.json' `
             -InputObject @{ schemaVersion = '1.0'

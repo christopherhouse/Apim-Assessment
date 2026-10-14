@@ -25,6 +25,12 @@ BeforeAll {
         'Cost',
         'Environment Drift',
         'Run Info',
+        'Resolved Since Last Run',
+        'Not Reassessed',
+        'Run Comparison',
+        'Comparison Gaps',
+        'Comparison Pillars',
+        'Comparison KPIs',
         'Method & Rules'
     )
     $script:expectedTables = [ordered]@{
@@ -38,6 +44,12 @@ BeforeAll {
         'Cost' = @('tblCost')
         'Environment Drift' = @('tblDrift')
         'Run Info' = @('tblRun')
+        'Resolved Since Last Run' = @('tblResolvedTracking')
+        'Not Reassessed' = @('tblUnassessedTracking')
+        'Run Comparison' = @('tblComparison')
+        'Comparison Gaps' = @('tblComparisonGaps')
+        'Comparison Pillars' = @('tblComparisonPillars')
+        'Comparison KPIs' = @('tblComparisonKpis')
         'Method & Rules' = @('tblRules', 'tblWeights')
     }
 }

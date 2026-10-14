@@ -164,7 +164,9 @@ function Get-ApimReportTableMapping {
             'tblExposure',
             'tblRun',
             'tblRules',
-            'tblWeights'
+            'tblWeights',
+            'tblComparison', 'tblComparisonGaps', 'tblComparisonPillars',
+            'tblComparisonKpis', 'tblResolvedTracking', 'tblUnassessedTracking'
         )]
         [string] $TableName
     )
@@ -208,10 +210,10 @@ function Get-ApimReportTableMapping {
                 Effort = 'effort'
                 'Source Files' = 'sourceFiles'
                 Evaluation = 'evaluation'
-                Owner = $null
+                Owner = 'owner'
                 Status = 'status'
-                'Target Date' = $null
-                Notes = $null
+                'Target Date' = 'targetDate'
+                Notes = 'notes'
             }
         }
         tblApis {
@@ -317,6 +319,32 @@ function Get-ApimReportTableMapping {
                 'Restricted Operations' = 'restrictedOperations'
                 'Model Status' = 'modelStatus'
                 'Missing Inputs' = 'missingInputs'
+            }
+        }
+        { $_ -cin @('tblComparison', 'tblComparisonGaps') } {
+            return [ordered]@{
+                'Finding Key' = 'findingKey'; 'Rule ID' = 'ruleId'; Pillar = 'pillar'
+                Change = 'change'; 'Previous Severity' = 'previousSeverity'
+                'Current Severity' = 'currentSeverity'; 'Severity Changed' = 'severityChanged'
+                Reason = 'reason'
+            }
+        }
+        tblComparisonPillars {
+            return [ordered]@{
+                Pillar = 'pillar'; New = 'new'; Resolved = 'resolved'
+                Persisting = 'persisting'; 'Not Reassessed' = 'notReassessed'
+            }
+        }
+        tblComparisonKpis {
+            return [ordered]@{
+                Metric = 'metric'; Baseline = 'baseline'; Current = 'current'
+                Delta = 'delta'; Reason = 'reason'
+            }
+        }
+        { $_ -cin @('tblResolvedTracking', 'tblUnassessedTracking') } {
+            return [ordered]@{
+                Kind = 'kind'; Key = 'key'; 'Rule ID' = 'ruleId'; Change = 'change'
+                Owner = 'owner'; Status = 'status'; 'Target Date' = 'targetDate'; Notes = 'notes'
             }
         }
         tblRun {
@@ -927,7 +955,9 @@ function Export-ApimActionPlan {
         [string] $RunPath,
 
         [ValidateNotNullOrEmpty()]
-        [string] $TemplatePath = $script:ApimReportTemplatePath
+        [string] $TemplatePath = $script:ApimReportTemplatePath,
+
+        [string] $PreviousReport
     )
 
     Import-ApimReportDependency
@@ -935,12 +965,28 @@ function Export-ApimActionPlan {
     $models = Get-ApimModelSet -RunPath $RunPath
     [object[]] $findings = @(Get-ApimFindingSet -RunPath $RunPath)
     [object[]] $actions = @(Get-ApimActionPlan -Findings $findings)
+    $comparison = Get-ApimSavedComparison -RunPath $RunPath
+    $trackingArguments = @{
+        RunPath = $RunPath; Manifest = $manifest; Models = $models
+        Actions = $actions; Findings = $findings; Comparison = $comparison
+    }
+    if ($PSBoundParameters.ContainsKey('PreviousReport')) {
+        $trackingArguments.PreviousReport = $PreviousReport
+    }
+    $tracking = Merge-ApimPriorTracking @trackingArguments
     Test-ConfigPathLink -Path $script:ApimReportRuleCatalogPath `
         -Context 'Rule catalog path'
     [object[]] $rules = @(Get-ApimRuleCatalog `
             -CatalogPath $script:ApimReportRuleCatalogPath)
     [object[]] $runRows = @(ConvertTo-ApimReportRunRowSet `
             -Manifest $manifest)
+    $settingsPath = Resolve-RunFilePath -RunPath $RunPath -RelativePath 'restricted/run-settings.json'
+    Test-ConfigPathLink -Path $settingsPath -Context 'Report settings'
+    if (Test-Path -LiteralPath $settingsPath -PathType Leaf) {
+        $snapshot = Get-ApimComparisonSnapshot -RunPath $RunPath
+        $runRows += ConvertTo-ApimReportRunRow -Section Lifecycle -Name 'Snapshot SHA256' `
+            -Value $snapshot.identity.sha256
+    }
     [object[]] $ruleRows = @(ConvertTo-ApimReportRuleRowSet -Rules $rules)
     [object[]] $weightRows = @(ConvertTo-ApimReportWeightRowSet `
             -Manifest $manifest)
@@ -970,12 +1016,12 @@ function Export-ApimActionPlan {
                 @{
                     Worksheet = 'Action Plan'
                     Table = 'tblActions'
-                    Records = $actions
+                    Records = $tracking.actions
                 }
                 @{
                     Worksheet = 'Finding Details'
                     Table = 'tblFindings'
-                    Records = $findings
+                    Records = $tracking.findings
                 }
                 @{
                     Worksheet = 'API Inventory'
@@ -1012,6 +1058,12 @@ function Export-ApimActionPlan {
                     Table = 'tblWeights'
                     Records = $weightRows
                 }
+                @{ Worksheet = 'Resolved Since Last Run'; Table = 'tblResolvedTracking'; Records = $tracking.resolved }
+                @{ Worksheet = 'Not Reassessed'; Table = 'tblUnassessedTracking'; Records = $tracking.notReassessed }
+                @{ Worksheet = 'Run Comparison'; Table = 'tblComparison'; Records = @(if ($null -ne $comparison) { $comparison.changes }) }
+                @{ Worksheet = 'Comparison Gaps'; Table = 'tblComparisonGaps'; Records = @(if ($null -ne $comparison) { $comparison.gaps }) }
+                @{ Worksheet = 'Comparison Pillars'; Table = 'tblComparisonPillars'; Records = @(if ($null -ne $comparison) { $comparison.pillars }) }
+                @{ Worksheet = 'Comparison KPIs'; Table = 'tblComparisonKpis'; Records = @(if ($null -ne $comparison) { $comparison.kpis }) }
             )) {
             $mapping = Get-ApimReportTableMapping `
                 -TableName $definition.Table

@@ -14,9 +14,6 @@ function Test-ApimRuntimeCapability {
             throw 'CAPABILITY_UNAVAILABLE'
         }
     }
-    if (@($Options.Keys) -ccontains 'PreviousReport') {
-        throw 'CAPABILITY_UNAVAILABLE'
-    }
 }
 
 function Set-ApimStageFailure {
@@ -133,6 +130,9 @@ function Invoke-ApimAssessment {
 
     try {
         Test-ApimRuntimeCapability -Options $PSBoundParameters
+        if ($Stage -ceq 'Collect' -and $PSBoundParameters.ContainsKey('PreviousReport')) {
+            throw 'CAPABILITY_UNAVAILABLE'
+        }
     }
     catch {
         return [pscustomobject]@{
@@ -154,7 +154,11 @@ function Invoke-ApimAssessment {
                 ExitCode = 4; ErrorCode = 'ANALYSIS_FAILED'
             }
         }
-        $report = Invoke-ApimReport -RunFolder $runPath
+        $reportArguments = @{ RunFolder = $runPath }
+        if ($PSBoundParameters.ContainsKey('PreviousReport')) {
+            $reportArguments.PreviousReport = $PreviousReport
+        }
+        $report = Invoke-ApimReport @reportArguments
         if ($report.ExitCode -ne 0) {
             return [pscustomobject]@{
                 RunId = $collection.RunId; Status = 'Failed'

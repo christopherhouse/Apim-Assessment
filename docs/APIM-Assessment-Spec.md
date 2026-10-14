@@ -1042,6 +1042,14 @@ local registries retain relative artifact paths without returning them to a mode
 ### 12.3 Carry-forward (`Merge-PriorTracking`)
 With `-PreviousReport <path>`: read `Action Plan` and `Finding Details` tracking columns, join on `ruleId` (actions) / `findingKey` (details), copy `Owner/Status/Target Date/Notes`. Unmatched prior rows are listed in a `Resolved Since Last Run` section with their tracking values.
 
+D-55 qualifies unmatched rows: only a comparison bound to the prior workbook
+snapshot can place comparable evaluated absences in Resolved Since Last Run.
+Otherwise retain them in Not Reassessed. Older toolkit workbooks without that
+binding still support matching tracking. These template-owned history tables
+are separate from current findings/actions and their KPIs. Imported formulas,
+invalid fields, duplicate keys, unsafe paths, and incompatible scope reject;
+operator tracking never mutates deterministic findings.
+
 ### 12.4 File naming
 `<Customer> APIM Assessment - <Env> - <yyyy-MM-dd>.xlsx`. Never overwrite; append `-2`, `-3` if exists.
 
@@ -1062,16 +1070,31 @@ AI-authored narrative uses only model-safe aliases. During local rendering, alia
 ## 13. Run comparison (`Compare-ApimRun`)
 Input two run folders. Output `diff.json` and a `Run Comparison` sheet: `New`, `Resolved`, `Persisting` (with severity change), counts by pillar; KPI deltas (reachable APIs, unused APIs, all-API subscriptions, monthly cost).
 
+D-55 bounds the implemented command to distinct saved runs for the same APIM,
+environment, tenant and customer using supported current-version contracts.
+Preserve historical severity rather than rewriting the baseline through today's
+catalog. Current reporting still requires full deterministic replay. Changed
+settings, historical replay mismatch, Partial required evidence and unavailable
+reassessment qualify absences as NotReassessed; they are not confirmed fixes.
+Missing usage/cost KPIs and deltas remain null with fixed reasons until those
+model contracts exist. Six additional template sheets provide comparison,
+assessment gaps, pillar/KPI summaries, and resolved/not-reassessed tracking.
+Restricted comparison bindings reject modified or stale results at report time.
+The baseline is unchanged; Compare writes a new current Excel/HTML pair.
+HTML lifecycle narrative and cross-environment drift are outside this slice.
+
 ---
 
 ## 14. CLI
 
 The implemented operational slice (D-50) exposes Collect, Analyze, Excel/HTML Report,
-and Assessment over the eight current collectors, ten model contracts, and
+and Assessment plus offline Compare over the eight current collectors, ten model contracts, and
 installed catalog. Analyze/Report are offline. Cost, Log Analytics, Git,
-carry-forward, custom/filtered catalogs, and run comparison below remain future
+custom/filtered catalogs, and cross-environment drift below remain future
 capabilities: unsupported requests fail explicitly. The skip switches confirm
 default exclusions; explicit `:$false` requests an unavailable capability.
+Report and full Assessment accept PreviousReport; collection-only Assessment
+rejects it rather than silently ignoring tracking.
 `-SkipLogs` does not exclude diagnostic-configuration collection. Only
 Cloudflare/AssumedReachable edge configuration and six usage bands are supported.
 `-Stage Collect` on Assessment selects collection only; `-Resume` reuses a run

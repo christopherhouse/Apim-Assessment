@@ -5,7 +5,7 @@ deterministic PowerShell performs **Collect -> Analyze -> Render**, while a
 constrained GitHub Copilot workflow performs **Review -> Synthesize** over an
 independently validated, model-safe package. Implemented outputs include versioned
 JSON evidence, deterministic findings, an Excel action plan, and a self-contained
-HTML executive presentation. Run comparisons remain planned.
+HTML executive presentation, tracking carry-forward, and saved-run comparison.
 
 ## Current status
 
@@ -15,8 +15,9 @@ module imports and contains private configuration validation, structured logging
 a guarded ARM transport, schema-validated run persistence, and internal APIM
 service/API/product/subscription/policy/network collectors plus allowlisted
 named-value/backend/certificate and logger/diagnostic collectors, and exports
-four implemented assessment commands: `Invoke-ApimCollect`,
-`Invoke-ApimAnalyze`, `Invoke-ApimReport`, and `Invoke-ApimAssessment`.
+five implemented assessment commands: `Invoke-ApimCollect`,
+`Invoke-ApimAnalyze`, `Invoke-ApimReport`, `Invoke-ApimAssessment`, and
+`Compare-ApimRun`.
 Effective policy inheritance, fragment expansion, scope attribution, and
 normalized hashing plus deterministic policy-flag extraction are implemented as
 private offline model helpers. Private schema-validated builders now produce the
@@ -42,7 +43,7 @@ plain-HTTP backend targets, unsafe CORS, diagnostic body/sensitive-header
 logging, subscription tracing, missing managed identity, and production
 mock/trace policy. Remaining collectors
 and models, telemetry-based exposure refinement, the rest of the SEC catalog,
-the remaining GOV and other rule catalogs, and run comparison
+the remaining GOV and other rule catalogs
 are not implemented. The offline Excel writer now
 populates the implemented deterministic report sheets, Run Info, the implemented
 rule catalog, and editable scoring weights from a validated saved run.
@@ -121,16 +122,16 @@ data. The coding-agent checks use synthetic data only.
 
 | Available | Planned |
 |---|---|
-| Module manifest, deterministic source loader, and four bounded public assessment entry points | Remaining collectors and model capabilities |
+| Module manifest, deterministic source loader, and five bounded public commands | Remaining collectors and model capabilities |
 | Strict private configuration validation and closed allowlisted saved-run analysis settings | Actual host isolation and approval acceptance |
 | Structured JSON-lines logging; validated resume and prerequisite-aware collector isolation | Full live workflow acceptance |
-| Guarded ARM transport with paging/retry | Carry-forward and run comparison |
+| Guarded ARM transport with paging/retry; offline tracking carry-forward and saved-run comparison | Cross-environment policy/API drift |
 | Versioned run manifest lifecycle with an exact scoring snapshot, plus APIM service/API/product/subscription/policy/network and secret-safe named-value/backend/certificate and logger/diagnostic collectors | Remaining APIM, telemetry, and cost collectors |
 | Maintainer-only cumulative collection smoke script with local output validation (eight registered checks) | Full live assessment acceptance |
 | Local saved-run secret-scan script for supported text and Excel artifacts, also required by smoke | Host-enforced model-safe admission acceptance |
 | Effective policy merge/flags plus ten implemented models with shared schema-gated persistence and saved-run loading | Remaining model builders and telemetry exposure refinement |
 | Offline raw-to-model Analyze, seven NET checks, fifteen SEC checks, six GOV checks, all six REL checks, configurable priority scoring, schema-gated findings, and closed action-item aggregation | Remaining SEC/GOV catalog entries, PERF and other catalogs |
-| Public validated-run Excel/HTML rendering, local charts/diagrams, deterministic fallback, and validated approved-code synthesis | Tracking carry-forward and future usage/cost/drift population |
+| Public validated-run Excel/HTML rendering, tracking carry-forward, Run Comparison views, local charts/diagrams, deterministic fallback, and validated approved-code synthesis | Future usage/cost/drift population |
 | Compact raw-to-Excel/HTML and actual stdio broker integration plus a deterministic 60-API synthetic model generator and offline airlock canary/mutation integration | Full scaled raw collection fixture and live acceptance |
 | Closed model-safe contracts, allowlist package construction, independent privacy validation, hash attestation, immutable promotion, and digest-bound semantic proposal validation | Actual isolated Copilot/host admission acceptance |
 | Windows/Linux lint and test CI | Owner visual/live go-no-go approval |
@@ -163,6 +164,8 @@ artifact IDs reach a model, and operators resolve them locally.
 .\Invoke-ApimCollect.ps1 -Config <private-config.psd1> -Environment Prod -Resume <run-folder>
 .\Invoke-ApimAnalyze.ps1 -RunFolder <run-folder>
 .\Invoke-ApimReport.ps1 -RunFolder <run-folder>
+.\Invoke-ApimReport.ps1 -RunFolder <run-folder> -PreviousReport <previous-workbook.xlsx>
+.\Compare-ApimRun.ps1 -Baseline <baseline-run-folder> -Current <current-run-folder>
 ```
 
 The current slice runs eight implemented collectors and the installed rule
@@ -172,8 +175,8 @@ Az.Accounts and Az.ResourceGraph; Excel requires pinned ImportExcel 7.8.10.
 implemented child-collection concurrency. Cost, Log Analytics usage/security
 queries, and Git collection are excluded by default; `-SkipCost`, `-SkipLogs`,
 and `-SkipGit` explicitly confirm those exclusions. Passing any skip switch as
-`:$false`, or requesting previous-report carry-forward, custom/filtered rules,
-or run comparison, fails explicitly rather than pretending to implement it.
+`:$false`, or requesting custom/filtered rules or Analyze's cross-environment
+`-CompareRuns`, fails explicitly rather than pretending to implement it.
 `-SkipLogs` does not skip the existing diagnostic-configuration collector.
 HTML is included in Report. Assisted access requires the separately admitted
 broker and owner-approved isolated host; it is never enabled by these commands.
@@ -185,6 +188,25 @@ owned stale files and invalidates Analyze/Report/package stage state. Analysis
 never reads stale files from failed collectors. Missing required model evidence
 produces Info/NotEvaluated findings where possible and blocks downstream reports.
 Reports also reject findings that disagree with complete deterministic replay.
+`-PreviousReport` copies only operator tracking from a scope-matched toolkit
+workbook into new report rows, never into `findings.json`. It is supported by
+Report and full Assessment, not collection-only Assessment. Imported formulas,
+duplicate keys, invalid tracking fields, unsafe paths, and incompatible scope
+reject before workbook publication.
+
+`Compare-ApimRun` operates offline on distinct saved runs for the same APIM and
+environment. It saves restricted `diff.json` and renders a new Excel/HTML pair,
+with Excel comparison, pillar, KPI, and data-gap views. Historical severity is
+preserved. Changed settings, historical replay disagreement, and incomplete
+reassessment qualify disappearing findings as NotReassessed, not remediation.
+Resolved means absent from comparable evaluated snapshots, not independently
+verified remediation. Unavailable usage/cost KPIs and deltas remain null with
+explicit reasons. Unmatched tracking requires a matching bound comparison to
+appear as resolved; older workbooks without a snapshot binding remain usable
+for matching tracking but their unmatched rows stay Not Reassessed.
+Stale/tampered comparison artifacts reject reporting; rerun Compare to refresh.
+Tracking, exact comparison data, and report paths never enter model-safe
+packages or new broker arguments. HTML retains its existing executive content.
 CLI output is status-only, with matching process exit codes: 0 success, 1
 config/capability error, 2 authentication error, 3 collector failures, and 4
 analysis/report/runtime-state failure. See the runbook for operator setup and
@@ -405,14 +427,14 @@ unique finding keys. It groups rows by `ruleId`, counts only evaluated instance
 findings as affected, retains a sole NotEvaluated gap as an action with zero
 affected resources, selects up to five evaluated scopes by priority and ordinal
 scope, combines unique recommendations deterministically, and initializes
-tracking fields for future carry-forward. Inconsistent same-rule metadata fails
+tracking defaults for the report-only carry-forward projection. Inconsistent same-rule metadata fails
 closed. Action items are validated against `schemas/actions.schema.json` and
 sorted by maximum priority then rule ID. This helper performs report shaping
 only; the separate workbook writer consumes it through the public Report command.
 
 The checked-in `template/ApimActionPlan.xlsx` is generated by
 `scripts/New-ApimActionPlanTemplate.ps1` with pinned ImportExcel. It contains the
-fixed Summary and report sheets, twelve named empty tables, navy title bands,
+fixed Summary and report sheets, eighteen named empty tables, navy title bands,
 frozen headers, fixed widths, finding/policy/exposure conditional formatting,
 the action-status dropdown, positive-number validation and highlighting for
 editable weights, Summary formulas, a pillar/severity chart, and an
@@ -520,7 +542,7 @@ src/
   Model/                    Policy merge/flags, ten model contracts, offline analysis
   Rules/                    Rule engine and priority scoring
   Package/                  Airlock, narrow broker, digest-bound semantic output gates
-  Report/                   Paired Excel/HTML export; carry-forward remains planned
+  Report/                   Paired Excel/HTML export, tracking and saved-run comparison
 rules/                      Implemented and planned rule catalogs
 queries/                    Log Analytics and Resource Graph KQL (planned)
 schemas/                    Closed versioned run, model, report and broker contracts

@@ -4,7 +4,7 @@ BeforeAll {
     New-Item -ItemType Directory -Path $packageRepo | Out-Null
     foreach ($file in @('ApimAssessment.psd1', 'ApimAssessment.psm1', 'README.md', 'CONTRIBUTING.md',
             'Invoke-ApimCollect.ps1', 'Invoke-ApimAnalyze.ps1',
-            'Invoke-ApimReport.ps1', 'Invoke-ApimAssessment.ps1')) {
+            'Invoke-ApimReport.ps1', 'Invoke-ApimAssessment.ps1', 'Compare-ApimRun.ps1')) {
         Copy-Item -LiteralPath (Join-Path $repoRoot $file) -Destination $packageRepo
     }
     foreach ($directory in @('scripts', 'src', 'rules', 'queries', 'schemas', 'template', 'docs', 'config')) {
@@ -35,6 +35,8 @@ Describe 'Release source package' {
             $entries | Should -Contain 'Invoke-ApimAnalyze.ps1'
             $entries | Should -Contain 'Invoke-ApimReport.ps1'
             $entries | Should -Contain 'Invoke-ApimAssessment.ps1'
+            $entries | Should -Contain 'Compare-ApimRun.ps1'
+            $entries | Should -Contain 'schemas/comparison.schema.json'
             $entries | Should -Contain 'config/sample.psd1'
             $entries | Should -Contain 'schemas/manifest.schema.json'
             $entries | Should -Contain 'template/ApimActionPlan.xlsx'

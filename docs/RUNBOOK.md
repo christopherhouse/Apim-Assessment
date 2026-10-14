@@ -20,12 +20,13 @@ SEC catalog entries, six model-backed GOV catalog entries, all six REL catalog
 entries, a closed findings schema, and private closed action-item aggregation
 plus a customer-neutral generated Excel action-plan template are available for
 offline synthetic testing. A private report writer can populate the current
-deterministic workbook sheets from a validated saved run. Four bounded public
+deterministic workbook sheets from a validated saved run. Five bounded public
 commands now connect collection, offline analysis, and paired Excel/HTML
 reporting, including validated resume. A synthetic-tested narrow stdio broker,
 four broker-only assessment profiles, semantic output validation and four
 operator skills are implemented. Remaining collectors/models, telemetry-based
-exposure refinement, rule catalogs and run comparison are not implemented.
+exposure refinement and rule catalogs are not implemented. Offline tracking
+carry-forward and same-APIM/environment saved-run comparison are available.
 Actual clean Copilot-session/tool isolation, approved roots/ACLs, organization
 approval and visual/live G3 acceptance remain owner gates.
 
@@ -81,9 +82,9 @@ SecurityAssets, Diagnostics, Policies, and Network. It accepts only
 Cloudflare/AssumedReachable edge settings and six increasing usage thresholds.
 `-SkipCost`, `-SkipLogs`, and `-SkipGit` confirm default exclusions of future
 cost, Log Analytics queries, and Git collection. Diagnostic settings are still
-collected. Explicit `:$false` on those switches is rejected. `-PreviousReport`,
-Analyze's `-RulesPath`/`-OnlyRules`/`-CompareRuns`, and comparison commands
-remain unavailable; none silently falls back to a speculative capability.
+collected. Explicit `:$false` on those switches is rejected.
+Analyze's `-RulesPath`/`-OnlyRules`/`-CompareRuns` remain unavailable; none silently
+falls back to a speculative capability.
 
 Resume verifies exact configuration/settings compatibility and run identity,
 then validates completed collector output before reuse. Failed, partial,
@@ -119,6 +120,65 @@ two certificates, eight indexed policies, and nine network files. The separate
 .\scripts\Invoke-Checks.ps1 -TestPath .\tests\unit\RuntimeEntryPoint.Tests.ps1
 .\scripts\Invoke-Checks.ps1 -TestPath .\tests\integration\OperationalRuntime.Tests.ps1
 ```
+
+## Offline tracking and saved-run comparison
+
+Run these commands in an ordinary local terminal for restricted saved data,
+never through a coding agent. Automated acceptance uses synthetic fixtures only.
+
+```powershell
+.\Invoke-ApimReport.ps1 -RunFolder <current-run> -PreviousReport <prior-workbook.xlsx>
+.\Invoke-ApimAssessment.ps1 -Config <private-config.psd1> -Environment Prod -PreviousReport <prior-workbook.xlsx>
+.\Compare-ApimRun.ps1 -Baseline <baseline-run> -Current <current-run>
+# After comparison, regenerate with tracking; the still-valid diff is included.
+.\Invoke-ApimReport.ps1 -RunFolder <current-run> -PreviousReport <prior-workbook.xlsx>
+```
+
+Carry-forward accepts `.xlsx` toolkit workbooks with scope-matched Run Info,
+Action Plan and Finding Details tables. Only Owner, Status, Target Date, and
+Notes are copied, joining actions by rule ID and details by finding key.
+Intentional blanks remain blank. New rows retain defaults. Dates must be Excel
+dates or invariant `yyyy-MM-dd`; allowed statuses are Open, In progress, Done,
+Accepted risk, Not applicable, or blank. Formula-bearing imported key/tracking
+cells, duplicate/missing keys/headers, invalid types/status/dates, linked paths,
+external links, macros, malformed archives, or scope mismatch fail. Text is
+written literally. The prior workbook is never saved or overwritten.
+Supported workbook bounds are 64 MiB compressed/expanded, 16 MiB per ZIP entry,
+and 9,997 rows per table. Collection-only Assessment rejects PreviousReport.
+
+Compare requires disjoint run directories with completed analysis, supported
+saved settings/models/findings, and matching customer, tenant, APIM resource,
+and environment. It preserves historical findings; the current run must still
+match deterministic replay. The supported settings loader currently requires
+the installed tool version for both runs. Cross-environment drift and arbitrary
+historical schema/version migration remain unavailable.
+
+Results stay in current-run `diff.json` and a new non-overwriting report pair.
+Run Comparison lists comparable New/Resolved/Persisting findings, including
+previous/current severity. Comparison Gaps lists NotReassessed rows; Comparison
+Pillars and Comparison KPIs retain counts and availability reasons. Unknown
+reachability produces a null reachable-API KPI; active AllApis counts use
+collected subscription state/scope. Unused APIs and monthly cost remain null
+because complete telemetry/cost contracts are not implemented.
+
+Changed settings, historical replay disagreement, and Partial required evidence
+prevent unqualified absence claims. Resolved means absent from comparable
+evaluated snapshots, not independently verified remediation. NotEvaluated rows
+are never resolved risks. Unmatched tracking is listed in Not Reassessed unless
+a comparison bound to that prior workbook snapshot supports resolution; then it
+appears in Resolved Since Last Run. Old toolkit workbooks without snapshot
+bindings can carry matching tracking, but unmatched rows stay Not Reassessed.
+These history tables do not affect current findings or Summary counts.
+
+The restricted `comparison-binding.json` sidecar binds diff contents to the
+current input digest. Missing, changed or stale bindings fail Report with exit 4.
+Rerun Compare from the intended baseline/current runs to refresh, rather than
+editing comparison artifacts. The baseline is read-only. These hashes detect
+accidental changes under the operator-owned filesystem threat model; they are
+not signatures or proof against a malicious local writer. All lifecycle errors
+return bounded statuses, never workbook cells, identifiers, paths, or excerpts.
+Neither tracking nor comparison enters the model-safe package/tool surface.
+HTML retains its existing deterministic executive content and paired basename.
 
 ## Narrow model-safe broker (owner admission required)
 
@@ -262,7 +322,7 @@ Get-Module ApimAssessment
 .\scripts\Invoke-Checks.ps1
 ```
 
-These commands do not connect to Azure. The module exports four implemented
+These commands do not connect to Azure. The module exports five implemented
 assessment functions; the internal persistence and collector helpers remain
 private. ARM and collector behavior, including parallel throttle enforcement, is
 exercised through mocked or synthetic offline tests only. Missing development
@@ -369,7 +429,7 @@ counts evaluated instance rows, retains NotEvaluated gaps with zero affected
 resources, selects deterministic top scopes, and validates the result against
 `schemas/actions.schema.json`. It does not itself write a workbook, carry
 tracking values forward, or expose models/findings to Copilot. The private
-writer below consumes its output; tracking carry-forward remains T-507.
+writer consumes its output through a separate report-only tracking projection.
 
 The checked-in workbook template can be regenerated and structurally tested
 offline after installing pinned development dependencies:

@@ -13,5 +13,5 @@ foreach ($area in @('Core', 'Collect', 'Model', 'Rules', 'Package', 'Report')) {
 
 Export-ModuleMember -Function @(
     'Invoke-ApimCollect', 'Invoke-ApimAnalyze', 'Invoke-ApimReport',
-    'Invoke-ApimAssessment'
+    'Invoke-ApimAssessment', 'Compare-ApimRun'
 ) -Alias @()
