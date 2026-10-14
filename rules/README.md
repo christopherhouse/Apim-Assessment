@@ -9,22 +9,27 @@ the closed network model; absent/unknown attestations remain NotEvaluated.
 Synthetic definitions in unit tests exercise the contract. The current
 engine supports Service, Api, Operation, Subscription, NamedValue, Backend,
 Certificate, Route, and Network targets backed by the implemented models. A rule
-must list its target model
-in `Requires` and every additional model it reads; rule callbacks receive the
-target and a context with `Config`, `Models`, and `Manifest`.
+may declare one scope or a non-empty unique array of scopes. It must list every
+target model in `Requires` plus every additional model it reads; the same
+callbacks evaluate each target independently, while a missing required model or
+fact still produces one NotEvaluated finding for the rule. `TargetField` remains
+limited to a single Route scope. Rule callbacks receive the target and a context
+with `Config`, `Models`, and `Manifest`.
 NET-009's Route target is the allowlisted `network.auxiliaryRoutes` field,
 not an API route in `exposure.json`.
 `SEC.rules.ps1` contains
-SEC-003/004/005/007/008/010/012/014/015/020. These rules use only the
+SEC-003/004/005/007/008/009/010/012/014/015/020. These rules use only the
 implemented API, operation, subscription, named-value, and backend models.
 Positive evidence
 is retained when another record is incomplete; otherwise unknown applicable
 facts produce one NotEvaluated finding. SEC-008 uses derived structural
-locations without retaining values. SEC-010 applies only to HTTPS backends and
-keeps missing validation facts unknown. The remaining SEC rules require future
-service/security, multi-scope Key Vault, configurable plain-HTTP exception,
-backend intent/mapping, product-classification, telemetry, or authorization
-evidence and must not be approximated from partial fields.
+locations without retaining values. SEC-009 evaluates named-value and
+certificate Key Vault posture under one stable rule ID and preserves known
+positives when another fact is unavailable. SEC-010 applies only to HTTPS
+backends and keeps missing validation facts unknown. The remaining SEC rules
+require future service/security, configurable plain-HTTP exception, backend
+intent/mapping, product-classification, telemetry, or authorization evidence
+and must not be approximated from partial fields.
 The current synthetic NET fixture has two API route records and one App
 Gateway. Focused tests add one attested edge/origin assessment and one
 attested public portal route: NET-001 and NET-009 each yield one evaluated

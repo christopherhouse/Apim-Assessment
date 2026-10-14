@@ -373,13 +373,14 @@ validate every pending model array against its closed schema before writing any
 of them.
 
 The shared model gate currently covers `apis`, `operations`, `policyMatrix`,
-`subscriptions`, `network`, and `exposure` (D-19). Pending outputs are serialized
-once, validated with `Test-Json -SchemaFile`, and only those validated snapshots
-are persisted. The private saved-run loader requires every implemented model
-file and validates the complete set before returning anything to downstream
-analysis. Missing files, unknown model names, unavailable schemas, and invalid
-JSON/schema data fail closed. Future model contracts join the gate with their
-builders; public Analyze orchestration remains T-311.
+`subscriptions`, `namedValues`, `backends`, `certificates`, `network`, and
+`exposure` (D-19/D-36). Pending outputs are serialized once, validated with
+`Test-Json -SchemaFile`, and only those validated snapshots are persisted. The
+private saved-run loader requires every implemented model file and validates the
+complete set before returning anything to downstream analysis. Missing files,
+unknown model names, unavailable schemas, and invalid JSON/schema data fail
+closed. Future model contracts join the gate with their builders; public Analyze
+orchestration remains T-311.
 
 ### 8.1 `model/apis.json` (one row per API, current revision)
 | Field | Type | Derivation |
@@ -594,7 +595,7 @@ Edge layer: with `Edge.Mode = AssumedReachable`, every public listener is treate
   Pillar         = 'Security'                 # Security|Reliability|OperationalExcellence|CostOptimization|PerformanceEfficiency
   Mcsb           = 'IM-1'                     # or 'n/a'
   Severity       = 'High'                     # High|Medium|Low|Info
-  Scope          = 'Api'                      # Service|Api|Operation|Subscription|Backend|NamedValue|Certificate|Route|Portal|Cost|Network
+  Scope          = 'Api'                      # one implemented scope, or a unique non-empty array for one multi-scope rule ID
   Requires       = @('model/apis.json')       # model inputs; missing → Not evaluated
   Applies        = { param($x, $ctx) $x.reachability -eq 'Reachable' }   # optional pre-filter
   Test           = { param($x, $ctx) $x.callerAuth -in 'SubscriptionKeyOnly','None' }  # $true = finding
@@ -613,6 +614,11 @@ Backend, Certificate, Route, and Network targets backed by registered model
 contracts. Portal and Cost targets remain deferred until their model contracts
 exist (D-29/D-36). Rules must declare their target model and any additional
 model they use in `Requires`.
+`Scope` may be a single implemented scope or a non-empty, unique array of
+implemented scopes. A multi-scope rule uses the same callbacks for each target,
+must require every target model, retains one catalog ID, and still emits only
+one Info/NotEvaluated finding when a required model or declared fact is
+unavailable. `TargetField` remains restricted to one Route scope (D-37).
 An optional `DataGaps = { param($ctx) ... }` callback declares unavailable
 required facts within valid models using `model/<name>.json#<field>` references
 to declared `Requires` files. The engine emits one Info/NotEvaluated finding
@@ -722,23 +728,28 @@ publication; both remain NotEvaluated without corroboration (D-30/D-31).
 | APIM-SEC-020 | Mock or trace policies in production | Medium | n/a | Operation | `mockOrTrace` (env = Prod) |
 
 T-304 currently implements
-SEC-003/004/005/007/008/010/012/014/015/020 against the closed API, operation,
-subscription, named-value, and backend models. Known positive evidence remains
+SEC-003/004/005/007/008/009/010/012/014/015/020 against the closed API,
+operation, subscription, named-value, backend, and certificate models. Known
+positive evidence remains
 evaluated when another record has an unavailable fact; if all otherwise
 applicable evidence is unknown, the rule emits one Info/NotEvaluated finding.
 SEC-008 uses only the derived secret flag and structural pattern locations;
-values are never evidence. SEC-010 applies only to HTTPS backends with an
-explicitly false chain or hostname-validation flag. HTTP TLS flags are
+values are never evidence. SEC-009 uses one rule ID across NamedValue and
+Certificate scopes. It flags secret named values without Key Vault, unsuccessful
+named-value Key Vault synchronization, and certificates without Key Vault; a
+known positive remains evaluated when another Key Vault fact is unavailable.
+If no positive is known, missing Key Vault backing/status produces one
+NotEvaluated finding for the rule (D-37). SEC-010 applies only to HTTPS backends
+with an explicitly false chain or hostname-validation flag. HTTP TLS flags are
 non-applicable, and missing HTTPS validation facts produce NotEvaluated when no
 positive finding is known. SEC-014 consumes the collected diagnostic contract
 through the API model and evaluates known body/sensitive-request-header logging
 in saved runs. Incomplete diagnostic evidence remains null and produces
-NotEvaluated when no positive fact is known (D-35/D-36). SEC-009 remains
-deferred pending a deliberate one-rule/multi-scope contract, SEC-011 pending a
-configurable approved-internal HTTP exception, and SEC-013 pending
-backend-to-API mapping plus anonymous-by-design owner intent. Other deferred
-rules still require service/security, product-classification, telemetry, or
-authorization evidence (D-32).
+NotEvaluated when no positive fact is known (D-35/D-36). SEC-011 remains
+deferred pending a configurable approved-internal HTTP exception, and SEC-013
+pending backend-to-API mapping plus anonymous-by-design owner intent. Other
+deferred rules still require service/security, product-classification,
+telemetry, or authorization evidence (D-32).
 
 ### 11.3 Governance / Operational Excellence (GOV)
 | ID | Title | Sev | Logic |

@@ -17,6 +17,41 @@ $script:ApimRuleScopes = @{
     Network = 'network'
 }
 
+function Resolve-ApimRuleScope {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [object] $Scope
+    )
+
+    if ($null -eq $Scope -or
+        ($Scope -is [array] -and $Scope.Count -eq 0)) {
+        throw 'Rule definition has an invalid contract.'
+    }
+    [object[]] $candidates = if ($Scope -is [string]) {
+        @($Scope)
+    }
+    elseif ($Scope -is [array]) {
+        @($Scope)
+    }
+    else {
+        throw 'Rule definition has an invalid contract.'
+    }
+    $scopes = [System.Collections.Generic.List[string]]::new()
+    $unique = [System.Collections.Generic.HashSet[string]]::new(
+        [System.StringComparer]::Ordinal
+    )
+    foreach ($candidate in $candidates) {
+        if ($candidate -isnot [string] -or
+            $candidate -cnotin @($script:ApimRuleScopes.Keys) -or
+            -not $unique.Add([string] $candidate)) {
+            throw 'Rule definition has an invalid contract.'
+        }
+        $scopes.Add([string] $candidate)
+    }
+    return $scopes.ToArray()
+}
+
 function Assert-ApimRule {
     [CmdletBinding()]
     param(
@@ -46,7 +81,6 @@ function Assert-ApimRule {
             'CostOptimization', 'PerformanceEfficiency'
         ) -or
         $Rule.Severity -cnotin @('High', 'Medium', 'Low', 'Info') -or
-        $Rule.Scope -cnotin @($script:ApimRuleScopes.Keys) -or
         $Rule.Effort -cnotin @('S', 'M', 'L') -or
         $Rule.Test -isnot [scriptblock] -or
         $Rule.Evidence -isnot [scriptblock] -or
@@ -55,14 +89,17 @@ function Assert-ApimRule {
             $Rule.Applies -isnot [scriptblock]) -or
         ($Rule.Contains('DataGaps') -and $null -ne $Rule.DataGaps -and
             $Rule.DataGaps -isnot [scriptblock]) -or
-        ($Rule.Contains('TargetField') -and
-            ($Rule.Scope -cne 'Route' -or
-                $Rule.TargetField -cne 'auxiliaryRoutes')) -or
         $Rule.Enabled -isnot [bool] -or
         $Rule.Requires -isnot [array] -or
         $Rule.SourceFiles -isnot [array] -or
         $Rule.SourceFiles.Count -eq 0 -or
         $Rule.References -isnot [array]) {
+        throw 'Rule definition has an invalid contract.'
+    }
+    $scopes = @(Resolve-ApimRuleScope -Scope $Rule.Scope)
+    if ($Rule.Contains('TargetField') -and
+        ($scopes.Count -ne 1 -or $scopes[0] -cne 'Route' -or
+            $Rule.TargetField -cne 'auxiliaryRoutes')) {
         throw 'Rule definition has an invalid contract.'
     }
     foreach ($required in $Rule.Requires) {
@@ -129,20 +166,23 @@ function Get-ApimRuleTarget {
         [System.Collections.IDictionary] $Rule,
 
         [Parameter(Mandatory)]
+        [string] $Scope,
+
+        [Parameter(Mandatory)]
         [System.Collections.IDictionary] $Models,
 
         [Parameter(Mandatory)]
         [object] $Manifest
     )
 
-    if ($Rule.Scope -eq 'Service') {
+    if ($Scope -eq 'Service') {
         return $Manifest.apim
     }
     $name = if ($Rule.Contains('TargetField')) {
         'network'
     }
     else {
-        $script:ApimRuleScopes[$Rule.Scope]
+        $script:ApimRuleScopes[$Scope]
     }
     if (-not $Models.Contains($name) -or $null -eq $Models[$name]) {
         throw "Rule target model '$name' was unavailable."
@@ -306,6 +346,7 @@ function Invoke-ApimRuleEngine {
         if (-not $rule.Enabled) {
             continue
         }
+        $ruleScopes = @(Resolve-ApimRuleScope -Scope $rule.Scope)
         $missing = [System.Collections.Generic.List[string]]::new()
         foreach ($required in $rule.Requires) {
             $name = $required.Substring(6, $required.Length - 11)
@@ -327,16 +368,18 @@ function Invoke-ApimRuleEngine {
                 Test-ApimModelJson -Name $name -Json $json
             }
         }
-        $targetModel = if ($rule.Contains('TargetField')) {
-            'network'
-        }
-        else {
-            $script:ApimRuleScopes[$rule.Scope]
-        }
-        if ($null -ne $targetModel) {
-            $targetPath = "model/$targetModel.json"
-            if ($targetPath -cnotin $rule.Requires) {
-                throw 'Rule definition must require its target model.'
+        foreach ($ruleScope in $ruleScopes) {
+            $targetModel = if ($rule.Contains('TargetField')) {
+                'network'
+            }
+            else {
+                $script:ApimRuleScopes[$ruleScope]
+            }
+            if ($null -ne $targetModel) {
+                $targetPath = "model/$targetModel.json"
+                if ($targetPath -cnotin $rule.Requires) {
+                    throw 'Rule definition must require its target model.'
+                }
             }
         }
         if ($missing.Count -eq 0 -and $rule.Contains('DataGaps') -and
@@ -383,73 +426,77 @@ function Invoke-ApimRuleEngine {
             continue
         }
 
-        foreach ($target in @(Get-ApimRuleTarget -Rule $rule `
-                    -Models $Models -Manifest $Manifest)) {
-            if ($rule.Contains('Applies') -and $null -ne $rule.Applies) {
-                $applies = & $rule.Applies $target $ctx
-                if ($applies -isnot [bool]) {
-                    throw 'Rule Applies must return a Boolean.'
+        foreach ($ruleScope in $ruleScopes) {
+            foreach ($target in @(Get-ApimRuleTarget -Rule $rule `
+                        -Scope $ruleScope -Models $Models `
+                        -Manifest $Manifest)) {
+                if ($rule.Contains('Applies') -and $null -ne $rule.Applies) {
+                    $applies = & $rule.Applies $target $ctx
+                    if ($applies -isnot [bool]) {
+                        throw 'Rule Applies must return a Boolean.'
+                    }
+                    if (-not $applies) {
+                        continue
+                    }
                 }
-                if (-not $applies) {
+                $test = & $rule.Test $target $ctx
+                if ($test -isnot [bool]) {
+                    throw 'Rule Test must return a Boolean.'
+                }
+                if (-not $test) {
                     continue
                 }
+                $evidence = & $rule.Evidence $target $ctx
+                $evidenceText = & $rule.EvidenceText $target $ctx
+                if ($evidence -isnot [System.Collections.IDictionary] -or
+                    $evidenceText -isnot [string]) {
+                    throw 'Rule evidence has an invalid contract.'
+                }
+                $scope = Get-ApimRuleScopeKey -Scope $ruleScope `
+                    -Target $target
+                $exposure = if ($ruleScope -in @('Service', 'Network')) {
+                    'Platform'
+                }
+                elseif ($null -ne $target.PSObject.Properties['exposure'] -and
+                    $null -ne $target.exposure) {
+                    [string] $target.exposure
+                }
+                else {
+                    'Unknown'
+                }
+                $usage = if ($ruleScope -in @('Service', 'Network')) {
+                    'NotApplicable'
+                }
+                elseif ($null -ne $target.PSObject.Properties['calls90d'] -and
+                    $null -ne $target.calls90d) {
+                    if ($target.calls90d -gt 0) { 'InUse' } else { 'Unused' }
+                }
+                else {
+                    $null
+                }
+                $findings.Add([ordered]@{
+                        findingKey = "$($rule.Id)|$resource|$scope"
+                        ruleId = $rule.Id
+                        title = $rule.Title
+                        pillar = $rule.Pillar
+                        mcsb = $rule.Mcsb
+                        severity = $rule.Severity
+                        scope = $scope
+                        resource = $resource
+                        exposure = $exposure
+                        usage = $usage
+                        priorityScore = Get-ApimRulePriority `
+                            -Severity $rule.Severity -Exposure $exposure `
+                            -Usage $usage -Config $Config
+                        evidence = $evidence
+                        evidenceText = $evidenceText
+                        recommendation = $rule.Recommendation
+                        effort = $rule.Effort
+                        sourceFiles = @($rule.SourceFiles)
+                        status = 'Open'
+                        evaluation = 'Evaluated'
+                    })
             }
-            $test = & $rule.Test $target $ctx
-            if ($test -isnot [bool]) {
-                throw 'Rule Test must return a Boolean.'
-            }
-            if (-not $test) {
-                continue
-            }
-            $evidence = & $rule.Evidence $target $ctx
-            $evidenceText = & $rule.EvidenceText $target $ctx
-            if ($evidence -isnot [System.Collections.IDictionary] -or
-                $evidenceText -isnot [string]) {
-                throw 'Rule evidence has an invalid contract.'
-            }
-            $scope = Get-ApimRuleScopeKey -Scope $rule.Scope -Target $target
-            $exposure = if ($rule.Scope -in @('Service', 'Network')) {
-                'Platform'
-            }
-            elseif ($null -ne $target.PSObject.Properties['exposure'] -and
-                $null -ne $target.exposure) {
-                [string] $target.exposure
-            }
-            else {
-                'Unknown'
-            }
-            $usage = if ($rule.Scope -in @('Service', 'Network')) {
-                'NotApplicable'
-            }
-            elseif ($null -ne $target.PSObject.Properties['calls90d'] -and
-                $null -ne $target.calls90d) {
-                if ($target.calls90d -gt 0) { 'InUse' } else { 'Unused' }
-            }
-            else {
-                $null
-            }
-            $findings.Add([ordered]@{
-                    findingKey = "$($rule.Id)|$resource|$scope"
-                    ruleId = $rule.Id
-                    title = $rule.Title
-                    pillar = $rule.Pillar
-                    mcsb = $rule.Mcsb
-                    severity = $rule.Severity
-                    scope = $scope
-                    resource = $resource
-                    exposure = $exposure
-                    usage = $usage
-                    priorityScore = Get-ApimRulePriority `
-                        -Severity $rule.Severity -Exposure $exposure `
-                        -Usage $usage -Config $Config
-                    evidence = $evidence
-                    evidenceText = $evidenceText
-                    recommendation = $rule.Recommendation
-                    effort = $rule.Effort
-                    sourceFiles = @($rule.SourceFiles)
-                    status = 'Open'
-                    evaluation = 'Evaluated'
-                })
         }
     }
     [object[]] $sorted = $findings.ToArray()

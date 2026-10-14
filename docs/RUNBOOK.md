@@ -15,7 +15,7 @@ normalize/hash them, and extract deterministic policy flags. Private offline
 builders create schema-validated API, operation, policy-matrix, subscription,
 named-value, backend, certificate, network, and pre-telemetry exposure records
 from saved synthetic-equivalent inputs. A private rule engine, seven NET catalog
-entries, ten model-backed
+entries, eleven model-backed
 SEC catalog entries, and a
 closed findings schema are available for offline synthetic testing. Full
 collection/analyze orchestration, remaining collectors and models,
@@ -69,13 +69,16 @@ model. With no attestation, both emit Info/NotEvaluated rather than asserting
 absent authentication or unnecessary publication. No full saved-run
 Analyze path, findings report, or model-safe promotion is available yet.
 `rules/SEC.rules.ps1` includes
-SEC-003/004/005/007/008/010/012/014/015/020. Rules with
+SEC-003/004/005/007/008/009/010/012/014/015/020. Rules with
 unknown applicable facts emit one Info/NotEvaluated finding unless other
 records already provide definitive positive evidence. SEC-014 consumes
 model-derived diagnostic body and sensitive-request-header facts; incomplete
 normalized settings remain null and can still produce NotEvaluated rather than a
 false pass. SEC-008 uses only structural named-value locations and never secret
-values. SEC-010 evaluates only HTTPS backends, ignores non-applicable HTTP TLS
+values. SEC-009 uses one rule ID across named-value and certificate targets,
+requires both closed models, and emits one NotEvaluated result when required
+Key Vault facts are unknown without a known positive finding. SEC-010 evaluates
+only HTTPS backends, ignores non-applicable HTTP TLS
 flags, and emits NotEvaluated when no positive finding exists but an HTTPS
 validation fact is missing. Never pass restricted models or findings to
 Copilot.

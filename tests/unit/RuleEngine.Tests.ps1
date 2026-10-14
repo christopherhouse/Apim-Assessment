@@ -268,6 +268,95 @@ Describe 'Private offline rule engine and findings contract' {
                 Should -Be "APIM-SEC-003|apim-example-prod|$($result[0].scope)"
         }
 
+        It 'evaluates one rule ID across multiple model-backed scopes' {
+            $models = [ordered]@{
+                namedValues = Get-Content -LiteralPath (
+                    Join-Path $script:ruleRepoRoot (
+                        'tests/fixtures/synthetic-reference/model/namedValues.json'
+                    )
+                ) -Raw | ConvertFrom-Json -Depth 100 -NoEnumerate
+                certificates = Get-Content -LiteralPath (
+                    Join-Path $script:ruleRepoRoot (
+                        'tests/fixtures/synthetic-reference/model/certificates.json'
+                    )
+                ) -Raw | ConvertFrom-Json -Depth 100 -NoEnumerate
+            }
+            $models.namedValues[0].keyVaultStatus = 'Failed'
+            $rule = Get-SyntheticRule
+            $rule.Scope = @('NamedValue', 'Certificate')
+            $rule.Requires = @(
+                'model/namedValues.json',
+                'model/certificates.json'
+            )
+            $rule.Applies = $null
+            $rule.Test = {
+                param($x, $ctx)
+                $null = $ctx
+                if ($null -ne $x.PSObject.Properties['namedValueId']) {
+                    return $x.keyVaultStatus -eq 'Failed'
+                }
+                return $x.keyVaultBacked -eq $false
+            }
+            $rule.Evidence = {
+                param($x, $ctx)
+                $null = $ctx
+                @{
+                    assetType = if (
+                        $null -ne $x.PSObject.Properties['namedValueId']
+                    ) {
+                        'NamedValue'
+                    }
+                    else {
+                        'Certificate'
+                    }
+                }
+            }
+
+            $result = @(Invoke-ApimRuleEngine -Rules @($rule) `
+                    -Models $models -Manifest $script:ruleManifest `
+                    -Config $script:ruleConfig)
+
+            $result.Count | Should -Be 2
+            @($result.ruleId | Select-Object -Unique) |
+                Should -Be @('APIM-SEC-003')
+            @($result.scope) | Should -Be @(
+                'certificate:uploaded-certificate',
+                'named-value:key-vault-reference'
+            )
+            @($result.findingKey | Select-Object -Unique).Count |
+                Should -Be 2
+        }
+
+        It 'requires every target model for a multi-scope rule' {
+            $rule = Get-SyntheticRule
+            $rule.Scope = @('NamedValue', 'Certificate')
+            $rule.Requires = @('model/namedValues.json')
+            $models = [ordered]@{
+                namedValues = Get-Content -LiteralPath (
+                    Join-Path $script:ruleRepoRoot (
+                        'tests/fixtures/synthetic-reference/model/namedValues.json'
+                    )
+                ) -Raw | ConvertFrom-Json -Depth 100 -NoEnumerate
+            }
+
+            {
+                Invoke-ApimRuleEngine -Rules @($rule) -Models $models `
+                    -Manifest $script:ruleManifest -Config $script:ruleConfig
+            } | Should -Throw 'Rule definition must require its target model.'
+
+            $rule.Requires = @(
+                'model/namedValues.json',
+                'model/certificates.json'
+            )
+            $finding = @(Invoke-ApimRuleEngine -Rules @($rule) `
+                    -Models $models -Manifest $script:ruleManifest `
+                    -Config $script:ruleConfig)
+            $finding.Count | Should -Be 1
+            $finding[0].scope | Should -Be 'missing-input'
+            $finding[0].evidence.missingInputs |
+                Should -Be @('model/certificates.json')
+        }
+
         It 'evaluates a service rule from the validated manifest' {
             $rule = Get-SyntheticRule
             $rule.Scope = 'Service'
@@ -406,6 +495,27 @@ Describe 'Private offline rule engine and findings contract' {
                 Invoke-ApimRuleEngine -Rules @($rule) -Models $script:ruleModels `
                     -Manifest $script:ruleManifest -Config $script:ruleConfig
             } | Should -Throw 'Rule definition must require its target model.'
+        }
+
+        It 'rejects empty, duplicate, unsupported, or field-targeted multi-scopes' `
+            -TestCases @(
+                @{ Scope = @(); TargetField = $null }
+                @{ Scope = @('Api', 'Api'); TargetField = $null }
+                @{ Scope = @('Api', 'Portal'); TargetField = $null }
+                @{ Scope = @('Route', 'Api'); TargetField = 'auxiliaryRoutes' }
+            ) {
+            param($Scope, $TargetField)
+
+            $rule = Get-SyntheticRule
+            $rule.Scope = $Scope
+            if ($null -ne $TargetField) {
+                $rule.TargetField = $TargetField
+            }
+            {
+                Invoke-ApimRuleEngine -Rules @($rule) `
+                    -Models $script:ruleModels -Manifest $script:ruleManifest `
+                    -Config $script:ruleConfig
+            } | Should -Throw 'Rule definition has an invalid contract.'
         }
 
         It 'validates findings before writing and preserves the output on invalid input' {

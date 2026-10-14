@@ -226,6 +226,116 @@ Set-StrictMode -Version Latest
         Enabled = $true
     }
     @{
+        Id = 'APIM-SEC-009'
+        Title = 'Secret or certificate is not healthy in Key Vault'
+        Pillar = 'Security'
+        Mcsb = 'DP-7'
+        Severity = 'Medium'
+        Scope = @('NamedValue', 'Certificate')
+        Requires = @(
+            'model/namedValues.json',
+            'model/certificates.json'
+        )
+        DataGaps = {
+            param($ctx)
+            $positiveNamedValue = @($ctx.Models.namedValues | Where-Object {
+                    $_.secret -and (
+                        $_.keyVaultBacked -eq $false -or
+                        ($null -ne $_.keyVaultStatus -and
+                            $_.keyVaultStatus -cne 'Success')
+                    )
+                })
+            $positiveCertificate = @(
+                $ctx.Models.certificates | Where-Object {
+                    $_.keyVaultBacked -eq $false
+                }
+            )
+            if ($positiveNamedValue.Count -eq 0 -and
+                $positiveCertificate.Count -eq 0) {
+                if (@($ctx.Models.namedValues | Where-Object {
+                            $_.secret -and
+                            $null -eq $_.keyVaultBacked
+                        }).Count -gt 0) {
+                    'model/namedValues.json#keyVaultBacked'
+                }
+                if (@($ctx.Models.namedValues | Where-Object {
+                            $_.secret -and
+                            $_.keyVaultBacked -eq $true -and
+                            $null -eq $_.keyVaultStatus
+                        }).Count -gt 0) {
+                    'model/namedValues.json#keyVaultStatus'
+                }
+                if (@($ctx.Models.certificates | Where-Object {
+                            $null -eq $_.keyVaultBacked
+                        }).Count -gt 0) {
+                    'model/certificates.json#keyVaultBacked'
+                }
+            }
+        }
+        Applies = {
+            param($x, $ctx)
+            $null = $ctx
+            if ($null -ne $x.PSObject.Properties['namedValueId']) {
+                return $x.secret
+            }
+            return $true
+        }
+        Test = {
+            param($x, $ctx)
+            $null = $ctx
+            if ($null -ne $x.PSObject.Properties['namedValueId']) {
+                return $x.keyVaultBacked -eq $false -or
+                    ($null -ne $x.keyVaultStatus -and
+                        $x.keyVaultStatus -cne 'Success')
+            }
+            return $x.keyVaultBacked -eq $false
+        }
+        Evidence = {
+            param($x, $ctx)
+            $null = $ctx
+            $isNamedValue = (
+                $null -ne $x.PSObject.Properties['namedValueId']
+            )
+            [ordered]@{
+                assetType = if ($isNamedValue) {
+                    'NamedValue'
+                }
+                else {
+                    'Certificate'
+                }
+                secret = if ($isNamedValue) { $x.secret } else { $null }
+                keyVaultBacked = $x.keyVaultBacked
+                keyVaultStatus = if ($isNamedValue) {
+                    $x.keyVaultStatus
+                }
+                else {
+                    $null
+                }
+            }
+        }
+        EvidenceText = {
+            param($x, $ctx)
+            $null = $ctx
+            if ($null -ne $x.PSObject.Properties['namedValueId']) {
+                if ($x.keyVaultBacked -eq $false) {
+                    return 'Secret named value is not backed by Key Vault.'
+                }
+                return 'Key Vault synchronization for a secret named value is not successful.'
+            }
+            return 'Certificate is not backed by Key Vault.'
+        }
+        Recommendation = 'Use an approved Key Vault reference for secrets and certificates, and investigate unsuccessful synchronization through the authorized operational process.'
+        Effort = 'M'
+        References = @()
+        SourceFiles = @(
+            'raw/namedValues.json',
+            'raw/certificates.json',
+            'model/namedValues.json',
+            'model/certificates.json'
+        )
+        Enabled = $true
+    }
+    @{
         Id = 'APIM-SEC-010'
         Title = 'HTTPS backend certificate validation is disabled'
         Pillar = 'Security'
