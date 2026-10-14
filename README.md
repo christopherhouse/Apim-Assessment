@@ -24,8 +24,9 @@ backend, certificate, network, and pre-telemetry exposure model records from
 saved inputs. A private
 offline rule engine now loads rule
 definitions, evaluates available model-backed scopes, and validates deterministic
-findings against a closed schema before restricted persistence. Seven NET rules
-and fifteen currently model-backed SEC rules are implemented privately. NET-001
+findings against a closed schema before restricted persistence. Seven NET rules,
+fifteen currently model-backed SEC rules, and six currently model-backed GOV
+rules are implemented privately. NET-001
 and NET-009 require explicit operator attestation of effective origin
 authentication and endpoint-owner need; without it, they produce
 Info/NotEvaluated rather than guessing. The SEC catalog covers reachable weak
@@ -37,8 +38,9 @@ plain-HTTP backend targets, unsafe CORS, diagnostic body/sensitive-header
 logging, subscription tracing, missing managed identity, and production
 mock/trace policy. Remaining collectors
 and models, telemetry-based exposure refinement, the rest of the SEC catalog,
-other rule catalogs, the model-data airlock, Copilot operator workflow,
-assessment CLI entry points, and report templates are not implemented.
+the remaining GOV and other rule catalogs, the model-data airlock, Copilot
+operator workflow, assessment CLI entry points, and report templates are not
+implemented.
 
 An independent, **maintainer-only collection smoke command** now exercises all
 eight implemented collector checks in dependency order against a Microsoft-owned test
@@ -64,7 +66,7 @@ builders; this gate is not a public Analyze command or the model-data airlock.
 | Versioned run manifest lifecycle and APIM service/API/product/subscription/policy/network plus secret-safe named-value/backend/certificate and logger/diagnostic collectors | Remaining APIM, telemetry, and cost collectors |
 | Maintainer-only cumulative collection smoke script (eight registered checks through Diagnostics) | Full assessment orchestration and live acceptance |
 | Effective policy merge/flags plus ten implemented models with shared schema-gated persistence and saved-run loading | Remaining model builders and telemetry exposure refinement |
-| Private offline rule engine, seven NET checks, fifteen SEC checks, configurable priority scoring, and schema-gated findings | Remaining SEC/GOV/REL catalog entries and public Analyze orchestration |
+| Private offline rule engine, seven NET checks, fifteen SEC checks, six GOV checks, configurable priority scoring, and schema-gated findings | Remaining SEC/GOV/REL catalog entries and public Analyze orchestration |
 | Synthetic-fixture scaffold | Populated fixtures and offline integration pipeline |
 | Windows/Linux lint and test CI | Model-data airlock and local Copilot broker |
 | Copilot development instructions, agents, and skills | Assessment analyst agents and operator skills |
@@ -236,6 +238,14 @@ backend intent/mapping, and product classification remain deferred.
 There is no public
 evaluation command, report, or model-safe promotion yet; do not expose these
 private findings or models to an agent.
+
+The six private GOV checks use only complete API catalog and effective-policy
+facts for product membership, owner tags, online non-current revisions,
+version-set maturity, path-version convention consistency, and missing
+`<base/>` inheritance. Known missing-base findings remain evaluated when another
+operation is Partial; otherwise incomplete version or policy evidence produces
+one Info/NotEvaluated result. Product ownership/approval and diagnostic
+enablement/sampling remain deferred to their own closed models.
 
 The subscription model classifies AllApis/Product/Api scope, extracts a stable
 scope target, detects the built-in master subscription, and emits sorted

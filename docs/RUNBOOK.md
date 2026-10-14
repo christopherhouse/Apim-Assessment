@@ -16,7 +16,7 @@ builders create schema-validated API, operation, policy-matrix, subscription,
 service-security, named-value, backend, certificate, network, and pre-telemetry
 exposure records from saved synthetic-equivalent inputs. A private rule engine,
 seven NET catalog entries, fifteen model-backed
-SEC catalog entries, and a
+SEC catalog entries, six model-backed GOV catalog entries, and a
 closed findings schema are available for offline synthetic testing. Full
 collection/analyze orchestration, remaining collectors and models,
 telemetry-based exposure refinement, rule catalogs, the model-data airlock, Copilot
@@ -101,6 +101,15 @@ evidence is NotEvaluated. SEC-002 treats an absent minimum management API
 version as a finding. SEC-019 evaluates only normalized managed-identity type
 and never retains user-assigned identity IDs. Never pass restricted models or
 findings to Copilot.
+
+`rules/GOV.rules.ps1` includes GOV-001/002/005/006/008/010. These rules use
+closed API and operation facts only. GOV-006 flags unversioned APIs and complete
+version sets with one known version; an incomplete set is NotEvaluated unless
+another known positive exists. GOV-008 emits one service-level finding with
+bounded convention counts rather than one row per API. GOV-010 preserves a
+known missing-`<base/>` operation finding when another policy is Partial.
+GOV-003 and GOV-009 remain unavailable until product ownership/approval and
+diagnostic enablement/sampling are modeled.
 
 ## Reusable collection smoke (Microsoft-owned test APIM only)
 
