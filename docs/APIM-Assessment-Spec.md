@@ -471,6 +471,7 @@ the deterministic `data-scope` and unresolved-fragment status attributes.
 ### 8.5 Other model files
 | File | Grain | Key fields |
 |---|---|---|
+| `service.json` | single object | nullable `legacyTlsEnabled`, `enabledLegacyTlsControls[]`, nullable `minApiVersion`, normalized `managedIdentity`, completeness metadata |
 | `policyMatrix.json` | API | `apiId` + one column per control: `callerAuth`, `rateLimit`, `ipFilter`, `corsSafe`, `backendAuth`, `noHardcodedSecret`, `basePresent`, `noMockTrace` with values `Pass`/`Fail`/`NA` |
 | `subscriptions.json` | subscription | `subscriptionId`, `displayName`, `scopeType` (`AllApis`/`Product`/`Api`), `scopeTarget`, `state`, `ownerType`, `createdDate`, `expirationDate`, `allowTracing`, `calls90d`, `lastUsed`, `isBuiltInMaster`, `flags[]` |
 | `namedValues.json` | named value | `namedValueId`, `secret`, nullable `keyVaultBacked`/`keyVaultStatus`, structural `secretPatternLocations[]`, derived `plainTextSecretLike`, completeness metadata |
@@ -484,6 +485,16 @@ the deterministic `data-scope` and unresolved-fragment status attributes.
 | `drift.json` | API (and scope) × env | `presentDev/Test/Prod/Git`, `hashDev/Test/Prod/Git`, `matches` (`All`, `ProdOnly`, `Differs`), `note` (requires prior runs for other envs or a multi-env run) |
 | `portal.json` | single object | portal status, published revision, sign-in/sign-up settings, identity providers, custom domain, products visible to which groups |
 | `openApiQuality.json` | API | Spectral error/warn counts, score |
+
+The closed service-security model recognizes gateway TLS 1.0, TLS 1.1, 3DES,
+and backend TLS 1.0/TLS 1.1 custom properties. Any explicit enablement sets
+`legacyTlsEnabled=true` and retains only normalized control names. All five
+controls must be explicitly disabled to produce false; otherwise, no known
+enablement produces null plus `missingInputs=["legacyTlsControls"]`. The model
+retains the minimum management API version or null and normalizes service
+identity to `None`, `SystemAssigned`, `UserAssigned`, or
+`SystemAssignedUserAssigned`; resource IDs and user-assigned identity IDs are
+not retained (D-39).
 
 Subscription scope is derived from a full ARM service resource path or the
 documented relative scope: the service root or `/apis` is `AllApis`,
@@ -713,7 +724,7 @@ publication; both remain NotEvaluated without corroboration (D-30/D-31).
 ### 11.2 Security (SEC)
 | ID | Title | Sev | MCSB | Scope | Logic |
 |---|---|---|---|---|---|
-| APIM-SEC-001 | Legacy TLS/ciphers enabled (gateway or backend side) | Medium | DP-3 | Service | `customProperties` TLS10/TLS11/SSL30/TripleDes168 true |
+| APIM-SEC-001 | Legacy TLS/ciphers enabled (gateway or backend side) | Medium | DP-3 | Service | recognized gateway/backend TLS10/TLS11 or gateway TripleDes168 explicitly true |
 | APIM-SEC-002 | Minimum management API version not enforced | Low | AM-1 | Service | `apiVersionConstraint.minApiVersion` null |
 | APIM-SEC-003 | Reachable API has no caller auth beyond subscription key | High | IM-1 | Api | Applies reachable; `callerAuth ∈ {SubscriptionKeyOnly}` |
 | APIM-SEC-004 | Reachable API requires no subscription and no auth | High | IM-1 | Api | reachable; `subscriptionRequired=false` and no JWT/mTLS |
@@ -735,8 +746,9 @@ publication; both remain NotEvaluated without corroboration (D-30/D-31).
 | APIM-SEC-020 | Mock or trace policies in production | Medium | n/a | Operation | `mockOrTrace` (env = Prod) |
 
 T-304 currently implements
-SEC-003/004/005/007/008/009/010/011/012/014/015/020 against the closed API,
-operation, subscription, named-value, backend, and certificate models. Known
+SEC-001/002/003/004/005/007/008/009/010/011/012/014/015/019/020 against the
+closed service-security, API, operation, subscription, named-value, backend,
+and certificate models. Known
 positive evidence remains
 evaluated when another record has an unavailable fact; if all otherwise
 applicable evidence is unknown, the rule emits one Info/NotEvaluated finding.
@@ -757,10 +769,13 @@ backend entities from the closed URL scheme and operation-level policy
 overrides from the structural `backendOverrideHttp` flag. Its optional exception
 map suppresses only exact backend IDs or `apiId/operationId` keys and does not
 infer internal status; Partial operation policy evidence produces NotEvaluated
-when no unapproved HTTP target is known (D-38). SEC-013 remains pending
-backend-to-API mapping plus anonymous-by-design owner intent. Other
-deferred rules still require service/security, product-classification,
-telemetry, or authorization evidence (D-32).
+when no unapproved HTTP target is known (D-38). SEC-001 preserves explicit
+legacy TLS enablement when another control is unknown; otherwise incomplete
+negative evidence remains NotEvaluated. SEC-002 and SEC-019 use definitive
+absence of a minimum management API version or managed identity, respectively
+(D-39). SEC-013 remains pending backend-to-API mapping plus
+anonymous-by-design owner intent. Other deferred rules still require Defender,
+RBAC, product-classification, telemetry, or authorization evidence (D-32).
 
 ### 11.3 Governance / Operational Excellence (GOV)
 | ID | Title | Sev | Logic |

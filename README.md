@@ -19,20 +19,23 @@ assessment commands.
 Effective policy inheritance, fragment expansion, scope attribution, and
 normalized hashing plus deterministic policy-flag extraction are implemented as
 private offline model helpers. Private schema-validated builders now produce the
-API, operation, policy-matrix, subscription, named-value, backend, certificate,
-network, and pre-telemetry exposure model records from saved inputs. A private
+service-security, API, operation, policy-matrix, subscription, named-value,
+backend, certificate, network, and pre-telemetry exposure model records from
+saved inputs. A private
 offline rule engine now loads rule
 definitions, evaluates available model-backed scopes, and validates deterministic
 findings against a closed schema before restricted persistence. Seven NET rules
-and twelve currently model-backed SEC rules are implemented privately. NET-001
+and fifteen currently model-backed SEC rules are implemented privately. NET-001
 and NET-009 require explicit operator attestation of effective origin
 authentication and endpoint-owner need; without it, they produce
 Info/NotEvaluated rather than guessing. The SEC catalog covers reachable weak
+legacy TLS/cipher enablement, missing management API version constraints,
 or absent caller authentication, active all-API subscriptions, hard-coded
 policy credentials, secret-like plain-text named values, disabled HTTPS backend
 certificate validation, Key Vault-backed secret/certificate health, unapproved
 plain-HTTP backend targets, unsafe CORS, diagnostic body/sensitive-header
-logging, subscription tracing, and production mock/trace policy. Remaining collectors
+logging, subscription tracing, missing managed identity, and production
+mock/trace policy. Remaining collectors
 and models, telemetry-based exposure refinement, the rest of the SEC catalog,
 other rule catalogs, the model-data airlock, Copilot operator workflow,
 assessment CLI entry points, and report templates are not implemented.
@@ -46,9 +49,9 @@ test APIM; the newly registered SecurityAssets and Diagnostics checks have
 synthetic acceptance but still need maintainer-only live validation. No agent
 used live Azure resources or inspected restricted output.
 
-All nine implemented model contracts now share a fail-closed schema gate.
+All ten implemented model contracts now share a fail-closed schema gate.
 Writers validate every pending serialized snapshot before writing any file, and
-the private saved-run loader requires all nine files to validate before returning
+the private saved-run loader requires all ten files to validate before returning
 models for downstream analysis. Future model contracts remain deferred with their
 builders; this gate is not a public Analyze command or the model-data airlock.
 
@@ -60,8 +63,8 @@ builders; this gate is not a public Analyze command or the model-data airlock.
 | Guarded ARM transport with paging/retry | Excel report, carry-forward, and run comparison |
 | Versioned run manifest lifecycle and APIM service/API/product/subscription/policy/network plus secret-safe named-value/backend/certificate and logger/diagnostic collectors | Remaining APIM, telemetry, and cost collectors |
 | Maintainer-only cumulative collection smoke script (eight registered checks through Diagnostics) | Full assessment orchestration and live acceptance |
-| Effective policy merge/flags plus nine implemented models with shared schema-gated persistence and saved-run loading | Remaining model builders and telemetry exposure refinement |
-| Private offline rule engine, seven NET checks, twelve SEC checks, configurable priority scoring, and schema-gated findings | Remaining SEC/GOV/REL catalog entries and public Analyze orchestration |
+| Effective policy merge/flags plus ten implemented models with shared schema-gated persistence and saved-run loading | Remaining model builders and telemetry exposure refinement |
+| Private offline rule engine, seven NET checks, fifteen SEC checks, configurable priority scoring, and schema-gated findings | Remaining SEC/GOV/REL catalog entries and public Analyze orchestration |
 | Synthetic-fixture scaffold | Populated fixtures and offline integration pipeline |
 | Windows/Linux lint and test CI | Model-data airlock and local Copilot broker |
 | Copilot development instructions, agents, and skills | Assessment analyst agents and operator skills |
@@ -210,7 +213,7 @@ and broad APIM-subnet inbound NSG rules plus explicitly operator-attested
 edge-origin authentication and auxiliary endpoint need. A known empty gateway
 inventory is not a WAF/TLS failure; an unavailable inventory is NotEvaluated.
 NET-001 and NET-009 remain NotEvaluated when the required attestation is absent.
-The twelve private SEC checks evaluate only facts represented by current closed
+The fifteen private SEC checks evaluate only facts represented by current closed
 models; known positive evidence is retained when unrelated records are
 incomplete, while wholly unknown applicable evidence produces one
 Info/NotEvaluated finding. Collected service/API diagnostics now populate
@@ -225,8 +228,11 @@ SEC-010 applies only to HTTPS backends and treats missing validation facts as
 NotEvaluated when no explicit disablement is known. SEC-011 evaluates backend
 schemes and operation-level policy overrides, suppresses only exact targets in
 the optional validated `RuleExceptions` allowlist, and keeps Partial policy
-evidence NotEvaluated when no known unapproved target exists. Service/security
-posture, backend intent/mapping, and product classification remain deferred.
+evidence NotEvaluated when no known unapproved target exists. SEC-001/002/019
+use the closed service-security model for explicit legacy TLS settings, minimum
+management API version enforcement, and normalized managed-identity posture;
+incomplete legacy TLS evidence remains NotEvaluated. Defender/RBAC posture,
+backend intent/mapping, and product classification remain deferred.
 There is no public
 evaluation command, report, or model-safe promotion yet; do not expose these
 private findings or models to an agent.

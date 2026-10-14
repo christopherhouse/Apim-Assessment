@@ -31,6 +31,9 @@ Describe 'Evidence-backed SEC catalog' {
 
             function Get-SyntheticSecModelSet {
                 return [ordered]@{
+                    service = Get-Content -LiteralPath (
+                        Join-Path $script:secFixtureRoot 'service.json'
+                    ) -Raw | ConvertFrom-Json -Depth 100
                     apis = Get-Content -LiteralPath (
                         Join-Path $script:secFixtureRoot 'apis.exposure.json'
                     ) -Raw | ConvertFrom-Json -Depth 100 -NoEnumerate
@@ -73,17 +76,75 @@ Describe 'Evidence-backed SEC catalog' {
             }
         }
 
-        It 'loads the twelve currently model-backed SEC rules with empty references' {
+        It 'loads the fifteen currently model-backed SEC rules with empty references' {
             @($script:secRules.Id) | Should -Be @(
-                'APIM-SEC-003', 'APIM-SEC-004', 'APIM-SEC-005',
-                'APIM-SEC-007', 'APIM-SEC-008', 'APIM-SEC-009',
-                'APIM-SEC-010', 'APIM-SEC-011', 'APIM-SEC-012',
-                'APIM-SEC-014', 'APIM-SEC-015', 'APIM-SEC-020'
+                'APIM-SEC-001', 'APIM-SEC-002', 'APIM-SEC-003',
+                'APIM-SEC-004', 'APIM-SEC-005', 'APIM-SEC-007',
+                'APIM-SEC-008', 'APIM-SEC-009', 'APIM-SEC-010',
+                'APIM-SEC-011', 'APIM-SEC-012', 'APIM-SEC-014',
+                'APIM-SEC-015', 'APIM-SEC-019', 'APIM-SEC-020'
             )
             foreach ($rule in $script:secRules) {
                 $rule.References.Count | Should -Be 0
                 $rule.Enabled | Should -BeTrue
             }
+        }
+
+        It 'flags explicitly enabled legacy TLS controls' {
+            $models = Get-SyntheticSecModelSet
+            $models.service.legacyTlsEnabled = $true
+            $models.service.enabledLegacyTlsControls = @(
+                'BackendTls10',
+                'GatewayTripleDes168'
+            )
+
+            $found = @(Get-SyntheticSecFinding -RuleId 'APIM-SEC-001' `
+                    -Models $models)
+            $found.Count | Should -Be 1
+            $found[0].scope | Should -Be 'service'
+            $found[0].evidence.legacyTlsEnabled | Should -BeTrue
+            $found[0].evidence.enabledLegacyTlsControls | Should -Be @(
+                'BackendTls10',
+                'GatewayTripleDes168'
+            )
+            $found[0].sourceFiles | Should -Contain 'raw/service.json'
+
+            $models.service.legacyTlsEnabled = $false
+            $models.service.enabledLegacyTlsControls = @()
+            @(Get-SyntheticSecFinding -RuleId 'APIM-SEC-001' `
+                    -Models $models).Count | Should -Be 0
+        }
+
+        It 'flags an absent minimum management API version' {
+            $models = Get-SyntheticSecModelSet
+            $models.service.minApiVersion = $null
+
+            $found = @(Get-SyntheticSecFinding -RuleId 'APIM-SEC-002' `
+                    -Models $models)
+            $found.Count | Should -Be 1
+            $found[0].scope | Should -Be 'service'
+            $found[0].evidence.minApiVersion | Should -BeNullOrEmpty
+            $found[0].sourceFiles | Should -Contain 'model/service.json'
+
+            $models.service.minApiVersion = '2021-08-01'
+            @(Get-SyntheticSecFinding -RuleId 'APIM-SEC-002' `
+                    -Models $models).Count | Should -Be 0
+        }
+
+        It 'flags a service without a managed identity' {
+            $models = Get-SyntheticSecModelSet
+            $models.service.managedIdentity = 'None'
+
+            $found = @(Get-SyntheticSecFinding -RuleId 'APIM-SEC-019' `
+                    -Models $models)
+            $found.Count | Should -Be 1
+            $found[0].scope | Should -Be 'service'
+            $found[0].evidence.managedIdentity | Should -Be 'None'
+            $found[0].sourceFiles | Should -Contain 'raw/service.json'
+
+            $models.service.managedIdentity = 'SystemAssigned'
+            @(Get-SyntheticSecFinding -RuleId 'APIM-SEC-019' `
+                    -Models $models).Count | Should -Be 0
         }
 
         It 'flags reachable subscription-key-only APIs and preserves traceable evidence' {
@@ -345,6 +406,7 @@ Describe 'Evidence-backed SEC catalog' {
 
         It 'marks unknown applicable facts NotEvaluated instead of passing' `
             -TestCases @(
+                @{ Id = 'APIM-SEC-001'; Missing = 'legacyTlsEnabled'; Setup = 'Sec001' }
                 @{ Id = 'APIM-SEC-003'; Missing = 'callerAuth'; Setup = 'Sec003' }
                 @{ Id = 'APIM-SEC-004'; Missing = 'callerAuth'; Setup = 'Sec004' }
                 @{ Id = 'APIM-SEC-009'; Missing = 'keyVaultStatus'; Setup = 'Sec009' }
@@ -358,6 +420,9 @@ Describe 'Evidence-backed SEC catalog' {
 
             $models = Get-SyntheticSecModelSet
             switch ($Setup) {
+                Sec001 {
+                    $models.service.legacyTlsEnabled = $null
+                }
                 Sec003 {
                     $models.apis[1].callerAuth = $null
                 }
@@ -404,7 +469,10 @@ Describe 'Evidence-backed SEC catalog' {
             $finding[0].severity | Should -Be 'Info'
             $finding[0].evidence.missingInputs |
                 Should -Contain "model/$(
-                    if ($Id -eq 'APIM-SEC-015') {
+                    if ($Id -eq 'APIM-SEC-001') {
+                        'service'
+                    }
+                    elseif ($Id -eq 'APIM-SEC-015') {
                         'subscriptions'
                     }
                     elseif ($Id -eq 'APIM-SEC-009') {
@@ -451,12 +519,19 @@ Describe 'Evidence-backed SEC catalog' {
             $models.apis[1].callerAuth = 'None'
             $models.operations[0].mockOrTrace = $true
             $models.backends[0].tlsValidationName = $false
+            $models.service.legacyTlsEnabled = $true
+            $models.service.enabledLegacyTlsControls = @('GatewayTls10')
+            $models.service.minApiVersion = $null
+            $models.service.managedIdentity = 'None'
             $findings = @(Invoke-ApimRuleEngine -Rules $script:secRules `
                     -Models $models -Manifest $script:secRulesManifest `
                     -Config $script:secRulesConfig)
+            @($findings.ruleId) | Should -Contain 'APIM-SEC-001'
+            @($findings.ruleId) | Should -Contain 'APIM-SEC-002'
             @($findings.ruleId) | Should -Contain 'APIM-SEC-004'
             @($findings.ruleId) | Should -Contain 'APIM-SEC-009'
             @($findings.ruleId) | Should -Contain 'APIM-SEC-011'
+            @($findings.ruleId) | Should -Contain 'APIM-SEC-019'
             @($findings.ruleId) | Should -Contain 'APIM-SEC-020'
             $first = Write-ApimFindingSet -RunPath (
                 Join-Path $TestDrive 'sec-first'

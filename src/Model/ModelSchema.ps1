@@ -6,6 +6,7 @@ $modelSchemaRoot = Join-Path (
     Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 ) 'schemas'
 $script:ApimModelSchemaPaths = [ordered]@{
+    service = Join-Path $modelSchemaRoot 'service.schema.json'
     apis = Join-Path $modelSchemaRoot 'apis.schema.json'
     operations = Join-Path $modelSchemaRoot 'operations.schema.json'
     policyMatrix = Join-Path $modelSchemaRoot 'policyMatrix.schema.json'
