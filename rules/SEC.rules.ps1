@@ -4,6 +4,82 @@ Set-StrictMode -Version Latest
 
 @(
     @{
+        Id = 'APIM-SEC-001'
+        Title = 'Legacy TLS protocol or cipher is enabled'
+        Pillar = 'Security'
+        Mcsb = 'DP-3'
+        Severity = 'Medium'
+        Scope = 'Service'
+        Requires = @('model/service.json')
+        DataGaps = {
+            param($ctx)
+            if ($null -eq $ctx.Models.service.legacyTlsEnabled) {
+                'model/service.json#legacyTlsEnabled'
+            }
+        }
+        Test = {
+            param($x, $ctx)
+            $null = $x
+            $ctx.Models.service.legacyTlsEnabled -eq $true
+        }
+        Evidence = {
+            param($x, $ctx)
+            $null = $x
+            [ordered]@{
+                legacyTlsEnabled = (
+                    $ctx.Models.service.legacyTlsEnabled
+                )
+                enabledLegacyTlsControls = @(
+                    $ctx.Models.service.enabledLegacyTlsControls
+                )
+            }
+        }
+        EvidenceText = {
+            param($x, $ctx)
+            $null = $x
+            "Legacy TLS controls are enabled: $(
+                @($ctx.Models.service.enabledLegacyTlsControls) -join ', '
+            )."
+        }
+        Recommendation = 'Review client and backend compatibility, then disable legacy TLS protocols and the 3DES cipher where the service tier supports configuration.'
+        Effort = 'M'
+        References = @()
+        SourceFiles = @('raw/service.json', 'model/service.json')
+        Enabled = $true
+    }
+    @{
+        Id = 'APIM-SEC-002'
+        Title = 'Minimum management API version is not enforced'
+        Pillar = 'Security'
+        Mcsb = 'AM-1'
+        Severity = 'Low'
+        Scope = 'Service'
+        Requires = @('model/service.json')
+        Test = {
+            param($x, $ctx)
+            $null = $x
+            $null -eq $ctx.Models.service.minApiVersion
+        }
+        Evidence = {
+            param($x, $ctx)
+            $null = $x
+            [ordered]@{
+                minApiVersion = $ctx.Models.service.minApiVersion
+            }
+        }
+        EvidenceText = {
+            param($x, $ctx)
+            $null = $x
+            $null = $ctx
+            'The APIM service does not enforce a minimum management API version.'
+        }
+        Recommendation = 'Define and maintain an approved minimum management API version for APIM control-plane requests.'
+        Effort = 'S'
+        References = @()
+        SourceFiles = @('raw/service.json', 'model/service.json')
+        Enabled = $true
+    }
+    @{
         Id = 'APIM-SEC-003'
         Title = 'Reachable API has no caller authentication beyond a subscription key'
         Pillar = 'Security'
@@ -652,6 +728,38 @@ Set-StrictMode -Version Latest
         Effort = 'S'
         References = @()
         SourceFiles = @('raw/subscriptions.json', 'model/subscriptions.json')
+        Enabled = $true
+    }
+    @{
+        Id = 'APIM-SEC-019'
+        Title = 'APIM service has no managed identity'
+        Pillar = 'Security'
+        Mcsb = 'IM-3'
+        Severity = 'Low'
+        Scope = 'Service'
+        Requires = @('model/service.json')
+        Test = {
+            param($x, $ctx)
+            $null = $x
+            $ctx.Models.service.managedIdentity -eq 'None'
+        }
+        Evidence = {
+            param($x, $ctx)
+            $null = $x
+            [ordered]@{
+                managedIdentity = $ctx.Models.service.managedIdentity
+            }
+        }
+        EvidenceText = {
+            param($x, $ctx)
+            $null = $x
+            $null = $ctx
+            'The APIM service has no system-assigned or user-assigned managed identity.'
+        }
+        Recommendation = 'Review APIM dependencies that support managed identity and enable an appropriate service identity where it reduces credential use.'
+        Effort = 'S'
+        References = @()
+        SourceFiles = @('raw/service.json', 'model/service.json')
         Enabled = $true
     }
     @{

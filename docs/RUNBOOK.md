@@ -13,9 +13,9 @@ collectors, and an internal network collector for Application Gateway/WAF and
 Resource Graph evidence. Private offline helpers now merge effective policies,
 normalize/hash them, and extract deterministic policy flags. Private offline
 builders create schema-validated API, operation, policy-matrix, subscription,
-named-value, backend, certificate, network, and pre-telemetry exposure records
-from saved synthetic-equivalent inputs. A private rule engine, seven NET catalog
-entries, eleven model-backed
+service-security, named-value, backend, certificate, network, and pre-telemetry
+exposure records from saved synthetic-equivalent inputs. A private rule engine,
+seven NET catalog entries, fifteen model-backed
 SEC catalog entries, and a
 closed findings schema are available for offline synthetic testing. Full
 collection/analyze orchestration, remaining collectors and models,
@@ -23,7 +23,7 @@ telemetry-based exposure refinement, rule catalogs, the model-data airlock, Copi
 operator workflow, reports/comparison, and Excel/HTML templates are not
 implemented.
 
-All nine implemented model contracts share a private schema gate for pending
+All ten implemented model contracts share a private schema gate for pending
 writes and complete saved-run loading. Private findings are validated against
 `schemas/findings.schema.json` before restricted persistence. This does not add
 a public Analyze command or authorize model/findings access to an agent.
@@ -69,7 +69,7 @@ model. With no attestation, both emit Info/NotEvaluated rather than asserting
 absent authentication or unnecessary publication. No full saved-run
 Analyze path, findings report, or model-safe promotion is available yet.
 `rules/SEC.rules.ps1` includes
-SEC-003/004/005/007/008/009/010/011/012/014/015/020. Rules with
+SEC-001/002/003/004/005/007/008/009/010/011/012/014/015/019/020. Rules with
 unknown applicable facts emit one Info/NotEvaluated finding unless other
 records already provide definitive positive evidence. SEC-014 consumes
 model-derived diagnostic body and sensitive-request-header facts; incomplete
@@ -94,8 +94,13 @@ RuleExceptions = @{
 Omitting `RuleExceptions`, or leaving both arrays empty, approves nothing.
 Entries suppress only the named backend or operation; they do not classify an
 API as internal. If no known unapproved HTTP target exists, Partial operation
-policy evidence remains NotEvaluated. Never pass restricted models or findings
-to Copilot.
+policy evidence remains NotEvaluated. SEC-001 evaluates only five normalized
+client/backend legacy TLS controls; an explicit enablement remains a finding
+when another control is unknown, while no enablement plus incomplete control
+evidence is NotEvaluated. SEC-002 treats an absent minimum management API
+version as a finding. SEC-019 evaluates only normalized managed-identity type
+and never retains user-assigned identity IDs. Never pass restricted models or
+findings to Copilot.
 
 ## Reusable collection smoke (Microsoft-owned test APIM only)
 
@@ -311,10 +316,10 @@ only then persist those same snapshots. Schema failure leaves existing outputs
 unchanged; individual writes remain atomic, but a later I/O failure is not a
 multi-file transaction.
 
-The private saved-run loader requires `apis.json`, `operations.json`,
+The private saved-run loader requires `service.json`, `apis.json`, `operations.json`,
 `policyMatrix.json`, `subscriptions.json`, `namedValues.json`, `backends.json`,
 `certificates.json`, `network.json`, and `exposure.json` under `model`. It
-returns no models until all nine validate. Missing/invalid files, unavailable
+returns no models until all ten validate. Missing/invalid files, unavailable
 schemas, and linked paths fail closed; other run artifacts are not loaded.
 Explicit null/Partial/missing-input metadata remains intact, as do empty and
 singleton arrays. Future model contracts join the gate with their builders.

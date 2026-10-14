@@ -59,6 +59,12 @@ both remain `exposure=Unknown`, Medium confidence, and Partial because route
 usage is not yet available. `model/apis.exposure.json` records the corresponding
 post-exposure API backfill separately from the pre-exposure `model/apis.json`
 fixture used by the API-model tests.
+The service-security model fixture records all five recognized legacy TLS
+controls as explicitly disabled, a minimum management API version, and a
+system-assigned identity. Its baseline therefore produces no SEC-001, SEC-002,
+or SEC-019 finding. Focused tests mutate each structural fact for positive and
+missing-evidence cases; no resource or user-assigned identity IDs enter the
+model.
 The security-asset model fixtures contain three sorted named values, two
 backends, and two certificates. `partner-api-key` has only structural
 `displayName`/`value` secret-pattern locations and produces the expected

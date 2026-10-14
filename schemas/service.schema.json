@@ -1,0 +1,64 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.invalid/apim-assessment/schemas/service.schema.json",
+  "title": "APIM Assessment Service Security Model",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "legacyTlsEnabled",
+    "enabledLegacyTlsControls",
+    "minApiVersion",
+    "managedIdentity",
+    "modelStatus",
+    "missingInputs"
+  ],
+  "properties": {
+    "legacyTlsEnabled": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "enabledLegacyTlsControls": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "GatewayTls10",
+          "GatewayTls11",
+          "GatewayTripleDes168",
+          "BackendTls10",
+          "BackendTls11"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "minApiVersion": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "managedIdentity": {
+      "enum": [
+        "None",
+        "SystemAssigned",
+        "UserAssigned",
+        "SystemAssignedUserAssigned"
+      ]
+    },
+    "modelStatus": {
+      "enum": [
+        "Complete",
+        "Partial"
+      ]
+    },
+    "missingInputs": {
+      "type": "array",
+      "items": {
+        "const": "legacyTlsControls"
+      },
+      "uniqueItems": true
+    }
+  }
+}

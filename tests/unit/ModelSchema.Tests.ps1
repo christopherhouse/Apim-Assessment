@@ -18,7 +18,7 @@ Describe 'Shared model schema gate' {
                 )
                 $models = [ordered]@{}
                 foreach ($name in @(
-                        'apis', 'operations', 'policyMatrix',
+                        'service', 'apis', 'operations', 'policyMatrix',
                         'subscriptions', 'namedValues', 'backends',
                         'certificates', 'network', 'exposure'
                     )) {
@@ -40,7 +40,7 @@ Describe 'Shared model schema gate' {
             $models = Get-SchemaGateFixture
             $runPath = Join-Path $TestDrive 'complete'
             $paths = @(Write-ApimModelSet -RunPath $runPath -Models $models)
-            $paths.Count | Should -Be 9
+            $paths.Count | Should -Be 10
             $before = @($paths | ForEach-Object {
                     (Get-FileHash -LiteralPath $_ -Algorithm SHA256).Hash
                 })
@@ -92,6 +92,7 @@ Describe 'Shared model schema gate' {
         It 'rejects unknown fields in <Name> before creating any model output' `
             -TestCases @(
                 @{ Name = 'apis' }
+                @{ Name = 'service' }
                 @{ Name = 'operations' }
                 @{ Name = 'policyMatrix' }
                 @{ Name = 'subscriptions' }
@@ -104,7 +105,7 @@ Describe 'Shared model schema gate' {
             param($Name)
 
             $models = Get-SchemaGateFixture
-            $record = if ($Name -eq 'network') {
+            $record = if ($Name -in @('service', 'network')) {
                 $models[$Name]
             }
             else {
@@ -122,6 +123,7 @@ Describe 'Shared model schema gate' {
 
         It 'rejects the wrong top-level shape for <Name>' -TestCases @(
             @{ Name = 'apis' }
+            @{ Name = 'service' }
             @{ Name = 'operations' }
             @{ Name = 'policyMatrix' }
             @{ Name = 'subscriptions' }
@@ -134,7 +136,7 @@ Describe 'Shared model schema gate' {
             param($Name)
 
             $models = Get-SchemaGateFixture
-            if ($Name -eq 'network') {
+            if ($Name -in @('service', 'network')) {
                 $models[$Name] = @($models[$Name])
             }
             else {
@@ -217,7 +219,7 @@ Describe 'Shared model schema gate' {
 
             $script:schemaGateSnapshots[(Join-Path 'model' 'exposure.json')] |
                 Should -Be $expected
-            Should -Invoke Write-RunFile -Times 9 -Exactly `
+            Should -Invoke Write-RunFile -Times 10 -Exactly `
                 -ParameterFilter { $Format -eq 'Text' }
         }
 
@@ -238,7 +240,7 @@ Describe 'Shared model schema gate' {
             }
             else {
                 Mock Test-Json { throw 'synthetic-private-canary' }
-                $expectedMessage = "Model 'apis' failed schema validation."
+                $expectedMessage = "Model 'service' failed schema validation."
             }
             try {
                 {
@@ -310,7 +312,7 @@ Describe 'Shared model schema gate' {
                 -InputObject @{ unexpected = 'synthetic-private-canary' }
 
             $loaded = Get-ApimModelSet -RunPath $runPath
-            $loaded.Count | Should -Be 9
+            $loaded.Count | Should -Be 10
             $loaded.Contains('unregistered') | Should -BeFalse
         }
     }

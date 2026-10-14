@@ -1,0 +1,8 @@
+{
+  "legacyTlsEnabled": false,
+  "enabledLegacyTlsControls": [],
+  "minApiVersion": "2021-08-01",
+  "managedIdentity": "SystemAssigned",
+  "modelStatus": "Complete",
+  "missingInputs": []
+}
