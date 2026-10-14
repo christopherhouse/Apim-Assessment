@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+<title>{{TITLE}}</title>
+<script>
+  (() => {
+    const param = new URLSearchParams(window.location.search).get("scoutTheme");
+    const theme =
+      param || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    document.documentElement.setAttribute("data-theme", theme);
+  })();
+</script>
+<style>
+:root {
+  color-scheme: light;
+  --cp-bg: #f7f4ef;
+  --cp-bg-elevated: #fcfbf8;
+  --cp-surface: #ffffff;
+  --cp-surface-soft: #f5f5f5;
+  --cp-border: #dedede;
+  --cp-border-strong: #919191;
+  --cp-text: #242424;
+  --cp-text-muted: #5c5c5c;
+  --cp-text-soft: #6f6f6f;
+  --cp-accent: #b11f4b;
+  --cp-accent-hover: #9a1a41;
+  --cp-accent-soft: rgba(177, 31, 75, 0.08);
+  --cp-accent-fg: #ffffff;
+  --cp-success: #16a34a;
+  --cp-danger: #dc2626;
+  --cp-warning: #f59e0b;
+  --cp-link: #0078d4;
+  --cp-shadow: 0 18px 48px rgba(0, 0, 0, 0.12);
+  --cp-overlay: rgba(255, 255, 255, 0.8);
+  --cp-panel: rgba(255, 255, 255, 0.86);
+  --cp-panel-strong: rgba(255, 255, 255, 0.96);
+  --cp-sheen: rgba(255, 255, 255, 0.55);
+  --cp-highlight: rgba(177, 31, 75, 0.12);
+}
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --cp-bg: #3d3b3a;
+  --cp-bg-elevated: #343231;
+  --cp-surface: #292929;
+  --cp-surface-soft: #2e2e2e;
+  --cp-border: #474747;
+  --cp-border-strong: #5f5f5f;
+  --cp-text: #dedede;
+  --cp-text-muted: #919191;
+  --cp-text-soft: #b0b0b0;
+  --cp-accent: #fd8ea1;
+  --cp-accent-hover: #fb7b91;
+  --cp-accent-soft: rgba(253, 142, 161, 0.14);
+  --cp-accent-fg: #1a1a1a;
+  --cp-success: #4ade80;
+  --cp-danger: #f87171;
+  --cp-warning: #fbbf24;
+  --cp-link: #4da6ff;
+  --cp-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
+  --cp-overlay: rgba(41, 41, 41, 0.88);
+  --cp-panel: rgba(41, 41, 41, 0.72);
+  --cp-panel-strong: rgba(41, 41, 41, 0.96);
+  --cp-sheen: rgba(255, 255, 255, 0.04);
+  --cp-highlight: rgba(253, 142, 161, 0.12);
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--cp-bg); color: var(--cp-text); font: 16px/1.6 "Segoe UI", Aptos, Calibri, -apple-system, BlinkMacSystemFont, sans-serif; }
+a { color: var(--cp-link); }
+a:focus-visible { outline: 3px solid var(--cp-accent); outline-offset: 4px; }
+.skip { position: absolute; top: -80px; padding: 12px; background: var(--cp-surface); }
+.skip:focus { top: 8px; }
+nav { display: flex; gap: 20px; flex-wrap: wrap; padding: 16px 24px; border-bottom: 1px solid var(--cp-border); background: var(--cp-surface); }
+main { max-width: 1184px; margin: auto; padding: 32px 24px; }
+header { padding: 32px 0; border-bottom: 4px solid var(--cp-accent); }
+.eyebrow { text-transform: uppercase; letter-spacing: .12em; color: var(--cp-text-soft); font-size: .875rem; }
+h1 { font-size: clamp(2rem, 5vw, 3.5rem); line-height: 1.15; margin: 12px 0 20px; }
+h2 { font-size: 1.75rem; line-height: 1.25; margin: 0 0 20px; }
+h3 { margin: 8px 0; }
+section { margin-top: 32px; padding: 28px; border: 1px solid var(--cp-border); border-radius: 16px; background: var(--cp-surface); }
+.muted { color: var(--cp-text-soft); }
+.badge { display: inline-block; padding: 4px 12px; border-radius: .625rem; background: var(--cp-accent-soft); color: var(--cp-text); border: 1px solid var(--cp-border); }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin: 24px 0; }
+.kpi { padding: 20px; background: var(--cp-surface-soft); border: 1px solid var(--cp-border); border-radius: 16px; }
+.kpi strong { display: block; font-size: 2.5rem; line-height: 1.2; }
+table { border-collapse: collapse; width: 100%; text-align: left; }
+th, td { padding: 12px; border-bottom: 1px solid var(--cp-border); vertical-align: top; overflow-wrap: anywhere; }
+th { background: var(--cp-surface-soft); }
+.table-wrap { overflow-x: auto; }
+svg { width: 100%; height: auto; font-family: inherit; }
+svg text { fill: var(--cp-text); }
+svg rect { fill: var(--cp-surface-soft); stroke: var(--cp-border-strong); }
+svg .bar { fill: var(--cp-accent); stroke: none; }
+svg path { stroke: var(--cp-accent); fill: none; stroke-width: 2; }
+.timeline { border-left: 3px solid var(--cp-accent); padding-left: 24px; }
+code { font-family: Consolas, "Courier New", Courier, monospace; }
+footer { padding: 32px 0; color: var(--cp-text-soft); }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+@media print {
+  nav, .skip { display: none; }
+  main { padding: 0; max-width: none; }
+  body { background: var(--cp-surface); }
+  section { break-inside: avoid; border-radius: 0; margin-top: 20px; padding: 16px; }
+  a { color: var(--cp-text); text-decoration: none; }
+  header { padding: 16px 0; }
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to assessment</a>
+<nav aria-label="Assessment sections"><a href="#posture">Posture</a><a href="#architecture">Architecture</a><a href="#risks">Top risks</a><a href="#actions">Actions</a><a href="#gaps">Confidence &amp; gaps</a><a href="#roadmap">Roadmap</a></nav>
+<main id="main">
+<header><div class="eyebrow">API Management / read-only assessment</div><h1>{{TITLE}}</h1><p>{{SCOPE}}</p><span class="badge">{{MODE}}</span></header>
+<section id="posture" aria-labelledby="posture-title"><h2 id="posture-title">Executive posture</h2>{{POSTURE}}<div class="grid">{{KPIS}}</div></section>
+<section id="architecture" aria-labelledby="architecture-title"><h2 id="architecture-title">Architecture &amp; exposure</h2>{{TOPOLOGY}}<h3>API exposure distribution</h3>{{CHART}}</section>
+<section id="risks" aria-labelledby="risks-title"><h2 id="risks-title">Top risks</h2>{{RISKS}}</section>
+<section id="actions" aria-labelledby="actions-title"><h2 id="actions-title">Priority actions &amp; decisions</h2>{{ACTIONS}}{{DECISIONS}}</section>
+<section id="gaps" aria-labelledby="gaps-title"><h2 id="gaps-title">Assumptions, confidence &amp; data gaps</h2>{{GAPS}}</section>
+<section id="roadmap" aria-labelledby="roadmap-title"><h2 id="roadmap-title">Next-step roadmap</h2><div class="timeline">{{ROADMAP}}</div></section>
+<footer>Restricted local deliverable. Read-only assessment, not remediation. Findings remain authoritative; proposed actions require human ownership and validation. No external services or network dependencies.</footer>
+</main>
+</body>
+</html>

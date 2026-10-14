@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "runId", "toolVersion", "appGateways", "appGwSubnetCidrs", "certExpiryDays", "criticalBackendIds", "approvedPlainHttpBackendIds", "approvedPlainHttpOperationKeys", "usageBuckets"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "runId": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$" },
+    "toolVersion": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+    "appGateways": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "resourceGroup"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "resourceGroup": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "appGwSubnetCidrs": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^([0-9]{1,3}\\.){3}[0-9]{1,3}/[0-9]{1,2}$" }
+    },
+    "certExpiryDays": { "type": "number", "minimum": 0 },
+    "criticalBackendIds": { "$ref": "#/$defs/ids" },
+    "approvedPlainHttpBackendIds": { "$ref": "#/$defs/ids" },
+    "approvedPlainHttpOperationKeys": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*$" }
+    },
+    "usageBuckets": {
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 6,
+      "items": { "type": "number", "minimum": 0 }
+    }
+  },
+  "$defs": {
+    "ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$" }
+    }
+  }
+}

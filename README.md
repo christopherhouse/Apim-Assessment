@@ -3,19 +3,20 @@
 A customer-neutral, **read-only** Azure API Management assessment system:
 deterministic PowerShell performs **Collect -> Analyze -> Render**, while a
 constrained GitHub Copilot workflow performs **Review -> Synthesize** over an
-independently validated, model-safe package. Planned outputs include versioned
-JSON evidence, deterministic findings, an Excel action plan, a self-contained
-HTML executive presentation, and run comparisons.
+independently validated, model-safe package. Implemented outputs include versioned
+JSON evidence, deterministic findings, an Excel action plan, and a self-contained
+HTML executive presentation. Run comparisons remain planned.
 
 ## Current status
 
-**Private offline engine and model-data airlock; not yet an operational assessment
-tool.** The
+**Bounded deterministic entry points, local model-safe broker, and offline reports;
+not approved for customer runs.** The
 module imports and contains private configuration validation, structured logging,
 a guarded ARM transport, schema-validated run persistence, and internal APIM
 service/API/product/subscription/policy/network collectors plus allowlisted
-named-value/backend/certificate and logger/diagnostic collectors, but exports no
-assessment commands.
+named-value/backend/certificate and logger/diagnostic collectors, and exports
+four implemented assessment commands: `Invoke-ApimCollect`,
+`Invoke-ApimAnalyze`, `Invoke-ApimReport`, and `Invoke-ApimAssessment`.
 Effective policy inheritance, fragment expansion, scope attribution, and
 normalized hashing plus deterministic policy-flag extraction are implemented as
 private offline model helpers. Private schema-validated builders now produce the
@@ -41,12 +42,14 @@ plain-HTTP backend targets, unsafe CORS, diagnostic body/sensitive-header
 logging, subscription tracing, missing managed identity, and production
 mock/trace policy. Remaining collectors
 and models, telemetry-based exposure refinement, the rest of the SEC catalog,
-the remaining GOV and other rule catalogs, Copilot
-operator workflow, assessment CLI entry points, public report command, and
-executive HTML template are not implemented. A private offline Excel writer now
+the remaining GOV and other rule catalogs, and run comparison
+are not implemented. The offline Excel writer now
 populates the implemented deterministic report sheets, Run Info, the implemented
-rule catalog, and editable scoring weights from a validated saved run, but no
-public command invokes it.
+rule catalog, and editable scoring weights from a validated saved run.
+The public Report command replays findings before rendering paired Excel/HTML
+reports. HTML includes deterministic local topology/exposure charts, risks,
+actions, assumptions/gaps, roadmap, keyboard navigation, print and reduced-motion
+support. It has no remote dependencies and uses escaped local labels.
 
 An independent, **maintainer-only collection smoke command** now exercises all
 eight implemented collector checks in dependency order against a Microsoft-owned test
@@ -79,7 +82,8 @@ All ten implemented model contracts now share a fail-closed schema gate.
 Writers validate every pending serialized snapshot before writing any file, and
 the private saved-run loader requires all ten files to validate before returning
 models for downstream analysis. Future model contracts remain deferred with their
-builders; this gate is not a public Analyze command or the model-data airlock.
+builders. The Analyze command builds the implemented models from validated saved
+collector evidence; this is not the model-data airlock.
 
 Closed version 1.0 contracts now define model-safe packages, specialist
 observations, and executive summaries. A private in-memory schema/reference
@@ -96,35 +100,95 @@ evidence, exact metrics, and free text. Version 1.0 remains supported.
 Promotion requires explicit complete host-supplied visible roots, isolated
 restricted/analysis/private-staging roots, and an exclusively controlled local
 filesystem. Unknown isolation, linked paths, tampering, and failed validation
-reject publication. No public command invokes these helpers; the broker,
-assessment agents, and host isolation acceptance remain unavailable.
+reject publication. A local stdio MCP broker now invokes the airlock through seven
+closed operations; operator-owned config aliases and roots never come from tool
+arguments. Per-tool worker processes drain every OS stdout/stderr stream and
+expose only independently checked results. Package/attestation bytes are checked
+on every read. Separate restricted proposal files bind to the package digest and
+have persistent closed digest-binding sidecars, and are checked again for
+citation entailment, recommendation/category compatibility,
+confidence, executive posture, and complete assumption/data-gap carry-forward.
+Four broker-only agent profiles and four operator skills are included in source.
+Read-only specialist/synthesizer profiles cannot submit proposals or access files.
+The orchestrator submits approved-code proposals and requests rendering with
+opaque output IDs, or uses explicit deterministic non-AI fallback.
+Synthetic stdio, privacy, semantic, rendering and profile tests are available;
+actual clean Copilot-session/tool isolation, approved roots/ACLs, organization
+approval, visual readout and live acceptance remain owner gates. Declarations
+and static tool-list tests are not proof of host enforcement.
 Neither a contract pass nor a private candidate authorizes model access to run
 data. The coding-agent checks use synthetic data only.
 
 | Available | Planned |
 |---|---|
-| Module manifest and deterministic source loader | Remaining run orchestration and collectors |
-| Strict private configuration validation | Public assessment entry points |
-| Structured JSON-lines logging and progress | Run resume and persisted progress orchestration |
-| Guarded ARM transport with paging/retry | Public report command, carry-forward, and run comparison |
+| Module manifest, deterministic source loader, and four bounded public assessment entry points | Remaining collectors and model capabilities |
+| Strict private configuration validation and closed allowlisted saved-run analysis settings | Actual host isolation and approval acceptance |
+| Structured JSON-lines logging; validated resume and prerequisite-aware collector isolation | Full live workflow acceptance |
+| Guarded ARM transport with paging/retry | Carry-forward and run comparison |
 | Versioned run manifest lifecycle with an exact scoring snapshot, plus APIM service/API/product/subscription/policy/network and secret-safe named-value/backend/certificate and logger/diagnostic collectors | Remaining APIM, telemetry, and cost collectors |
-| Maintainer-only cumulative collection smoke script with local output validation (eight registered checks) | Full assessment orchestration and live acceptance |
-| Local saved-run secret-scan script for supported text and Excel artifacts, also required by smoke | Broker-mediated model-safe admission and host isolation acceptance |
+| Maintainer-only cumulative collection smoke script with local output validation (eight registered checks) | Full live assessment acceptance |
+| Local saved-run secret-scan script for supported text and Excel artifacts, also required by smoke | Host-enforced model-safe admission acceptance |
 | Effective policy merge/flags plus ten implemented models with shared schema-gated persistence and saved-run loading | Remaining model builders and telemetry exposure refinement |
-| Private offline rule engine, seven NET checks, fifteen SEC checks, six GOV checks, all six REL checks, configurable priority scoring, schema-gated findings, and closed action-item aggregation | Remaining SEC/GOV catalog entries, PERF and other catalogs, public Analyze orchestration, and Excel rendering |
-| Generated customer-neutral Excel template plus private validated-run population for actions, findings, APIs, policy, subscriptions, exposure, network summary, Summary assumptions, Run Info, rule catalog, and editable scoring weights | Public workbook rendering, tracking carry-forward, and future usage/cost/drift population |
-| Compact collector fixtures plus a deterministic 60-API synthetic model generator and offline airlock canary/mutation integration | Full raw collection-to-report pipeline and live acceptance |
-| Closed model-safe contracts, private allowlist package construction, independent privacy validation, hash attestation, and immutable atomic promotion | Local Copilot broker and assessment-agent access |
-| Windows/Linux lint and test CI | Assessment analyst runtime and airlock acceptance |
-| Copilot development instructions, agents, and skills | Assessment analyst agents and operator skills |
+| Offline raw-to-model Analyze, seven NET checks, fifteen SEC checks, six GOV checks, all six REL checks, configurable priority scoring, schema-gated findings, and closed action-item aggregation | Remaining SEC/GOV catalog entries, PERF and other catalogs |
+| Public validated-run Excel/HTML rendering, local charts/diagrams, deterministic fallback, and validated approved-code synthesis | Tracking carry-forward and future usage/cost/drift population |
+| Compact raw-to-Excel/HTML and actual stdio broker integration plus a deterministic 60-API synthetic model generator and offline airlock canary/mutation integration | Full scaled raw collection fixture and live acceptance |
+| Closed model-safe contracts, allowlist package construction, independent privacy validation, hash attestation, immutable promotion, and digest-bound semantic proposal validation | Actual isolated Copilot/host admission acceptance |
+| Windows/Linux lint and test CI | Owner visual/live go-no-go approval |
+| Copilot development instructions plus narrowly allowlisted assessment profiles and operator skills | Clean isolated CLI acceptance of those declarations |
 | Guarded SemVer tag/release workflow | v1.0 acceptance against the technical specification |
-|  | Architecture/exposure, security, and executive synthesis agents |
-|  | Self-contained HTML executive presentation |
 
 The authoritative scope and progress are in
 [the specification](docs/APIM-Assessment-Spec.md),
 [the project plan](docs/APIM-Assessment-Project-Plan.md), and
 [the task register](docs/APIM-Assessment-Task-Register.md).
+
+## Deterministic operator commands
+
+Run collection only in an authorized ordinary PowerShell terminal with an
+existing matching Azure context, never through Copilot or CI. Analyze and Report
+work offline, but saved runs and customer reports are restricted and must not
+be read by a coding agent.
+
+The optional model-safe workflow is available only through
+`scripts\Start-ApimBroker.ps1` in a separately approved, isolated operator host.
+It must never be attached to this broad development session or given access to
+restricted data through generic tools. See [the runbook](docs/RUNBOOK.md) for
+startup/schema, exact tool allowlists, proposal handoff, and remaining owner gates.
+Broker run/output IDs are session-scoped. Reports remain restricted; only opaque
+artifact IDs reach a model, and operators resolve them locally.
+
+```powershell
+.\Invoke-ApimAssessment.ps1 -Config <private-config.psd1> -Environment Prod
+.\Invoke-ApimCollect.ps1 -Config <private-config.psd1> -Environment Prod
+.\Invoke-ApimCollect.ps1 -Config <private-config.psd1> -Environment Prod -Resume <run-folder>
+.\Invoke-ApimAnalyze.ps1 -RunFolder <run-folder>
+.\Invoke-ApimReport.ps1 -RunFolder <run-folder>
+```
+
+The current slice runs eight implemented collectors and the installed rule
+catalog, using `Cloudflare/AssumedReachable` edge settings. Collection requires
+Az.Accounts and Az.ResourceGraph; Excel requires pinned ImportExcel 7.8.10.
+`-Stage Collect` limits Assessment to collection. `-ThrottleLimit` controls
+implemented child-collection concurrency. Cost, Log Analytics usage/security
+queries, and Git collection are excluded by default; `-SkipCost`, `-SkipLogs`,
+and `-SkipGit` explicitly confirm those exclusions. Passing any skip switch as
+`:$false`, or requesting previous-report carry-forward, custom/filtered rules,
+or run comparison, fails explicitly rather than pretending to implement it.
+`-SkipLogs` does not skip the existing diagnostic-configuration collector.
+HTML is included in Report. Assisted access requires the separately admitted
+broker and owner-approved isolated host; it is never enabled by these commands.
+
+Resume requires matching configuration, run identity, tool version, and saved
+settings. It validates collector files/counts and indexed policy hashes before
+reuse; damaged or failed checks and their dependents rerun. Recollection clears
+owned stale files and invalidates Analyze/Report/package stage state. Analysis
+never reads stale files from failed collectors. Missing required model evidence
+produces Info/NotEvaluated findings where possible and blocks downstream reports.
+Reports also reject findings that disagree with complete deterministic replay.
+CLI output is status-only, with matching process exit codes: 0 success, 1
+config/capability error, 2 authentication error, 3 collector failures, and 4
+analysis/report/runtime-state failure. See the runbook for operator setup and
+the remaining owner-only acceptance gates.
 
 ## Development quick start
 
@@ -313,9 +377,8 @@ management API version enforcement, normalized managed-identity posture, SKU
 capacity, zones, and platform version;
 incomplete legacy TLS evidence remains NotEvaluated. Defender/RBAC posture,
 backend intent/mapping, and product classification remain deferred.
-There is no public
-evaluation command, report, or model-safe promotion yet; do not expose these
-private findings or models to an agent.
+Public Analyze/Excel Report commands now invoke the private engine and writer.
+Model-safe promotion remains private; do not expose findings or models to an agent.
 
 The six private GOV checks use only complete API catalog and effective-policy
 facts for product membership, owner tags, online non-current revisions,
@@ -345,8 +408,7 @@ scope, combines unique recommendations deterministically, and initializes
 tracking fields for future carry-forward. Inconsistent same-rule metadata fails
 closed. Action items are validated against `schemas/actions.schema.json` and
 sorted by maximum priority then rule ID. This helper performs report shaping
-only; the separate private workbook writer consumes it, and no public report
-command exists yet.
+only; the separate workbook writer consumes it through the public Report command.
 
 The checked-in `template/ApimActionPlan.xlsx` is generated by
 `scripts/New-ApimActionPlanTemplate.ps1` with pinned ImportExcel. It contains the
@@ -391,9 +453,9 @@ VNet fixture with an App Gateway-subnet allow and deny-all fallback evaluates
 `directPublic=null`, `modelStatus=Partial`, and sorted `missingInputs` rather than
 a success-shaped false result.
 
-The optional operator experience will use GitHub Copilot CLI repository agents
-and skills through a narrow local broker. The deterministic collection, analysis,
-Excel, and HTML paths will remain runnable without Copilot.
+The optional operator experience uses broker-only profiles and skills in an
+owner-approved isolated host. Collection, offline analysis, Excel, and HTML
+remain runnable without Copilot.
 
 For a pre-acceptance smoke only, `scripts/Invoke-ApimSmoke.ps1` runs the current
 service, API catalog, product, subscription, security-asset, diagnostic, policy,
@@ -416,10 +478,10 @@ Reader on the APIM and network resource groups, Log Analytics Reader on the
 workspaces, and Cost Management Reader on configured cost scopes. The toolkit
 will neither retain authentication tokens nor perform Azure remediation.
 
-The private configuration loader can validate an ignored copy of
-`config/sample.psd1`, but no public assessment command consumes it yet. Planned
-invocation and exit-code contracts are in the specification's section 14; those
-entry points are **not available**.
+The public Collect/Assessment commands validate private configuration derived
+from `config/sample.psd1`. Available invocation and exit-code contracts are
+documented above and in the runbook; future capabilities in specification
+section 14 remain unavailable until their implementation tasks land.
 
 ## Data handling
 
@@ -428,8 +490,8 @@ customer or engagement names, real-person names, customer configurations,
 tenant/subscription/workspace identifiers from real environments, assessment
 outputs, credentials, subscription keys, or secret values.
 Only `config/sample.psd1` and `config/README.md` are tracked under `config`.
-The conventional local `runs` and `model-safe` directories are ignored; future
-public orchestration will create run folders under the configured external roots
+The conventional local `runs` and `model-safe` directories are ignored; public
+orchestration creates run folders under the configured roots
 through the implemented persistence helpers.
 
 Real runs must remain local in a customer-approved storage location and be
@@ -455,29 +517,32 @@ ApimAssessment.psd1 / .psm1  Module metadata and source loader
 src/
   Core/                     Config, ARM guard, manifest persistence, logging, retries
   Collect/                  Isolated read-only collectors (service/catalog/subscription/policy)
-  Model/                    Policy merge/flags, six model builders, shared schema gate
+  Model/                    Policy merge/flags, ten model contracts, offline analysis
   Rules/                    Rule engine and priority scoring
-  Package/                  Model-safe package construction, validation and promotion (planned)
-  Report/                   Excel/HTML export and tracking carry-forward
+  Package/                  Airlock, narrow broker, digest-bound semantic output gates
+  Report/                   Paired Excel/HTML export; carry-forward remains planned
 rules/                      Implemented and planned rule catalogs
 queries/                    Log Analytics and Resource Graph KQL (planned)
-schemas/                    Versioned JSON contracts (manifest and nine models implemented)
-template/                   Excel and HTML presentation templates (planned)
+schemas/                    Closed versioned run, model, report and broker contracts
+template/                   Implemented Excel and self-contained HTML templates
 config/                     Tracked sample; ignored local configurations
 tests/
   unit/                     Offline Pester tests
-  integration/              Offline pipeline tests (planned)
+  integration/              Synthetic raw-to-reports, airlock and stdio workflow tests
   fixtures/synthetic-reference/  Synthetic reference-topology fixture scaffold
-scripts/                    Branch guard, validation and release packaging
+scripts/                    Branch guard, checks, stdio broker/worker, release packaging
 docs/                       Specification, plan, register and operating guides
 .github/
-  agents/                   Development plus planned assessment specialist profiles
-  skills/                   Task/rule authoring plus planned operator workflows
+  agents/                   Development and broker-only assessment profiles
+  skills/                   Task/rule authoring and broker-only operator workflows
   workflows/                CI, Copilot setup, and SemVer release
 ```
 
-The five assessment entry scripts named in the specification will be added when
-their stages are implemented, rather than exposing nonfunctional commands now.
+Four root assessment scripts are implemented. Compare/package root-script
+facades in the specification remain future capabilities. Release archives
+include deterministic runtime/templates and the two broker scripts; operator
+agent/skill profiles are installed from the reviewed source checkout, not
+automatically installed or configured by a release archive.
 
 ## Copilot-assisted development
 
@@ -485,12 +550,12 @@ their stages are implemented, rather than exposing nonfunctional commands now.
 boundary, branch policy, architecture, tests, and documentation requirements.
 The `apim-implementer` agent handles bounded implementation tasks; the
 `assessment-reviewer` agent provides read-only contract and correctness reviews.
-Those profiles review repository changes; they are not the planned customer
-assessment analysts. Planned operator profiles separately cover APIM
-architecture/exposure, security, and executive synthesis and will receive only a
-validated model-safe package. Project skills currently cover task lifecycle and
-rule authoring; planned skills will orchestrate assessment, package analysis,
-deliverable generation, and validation. See
+Those profiles review repository changes; they are not the assessment analysts.
+Separate broker-only profiles cover architecture/exposure, security, executive
+synthesis and orchestration, with only promoted packages and validated proposals.
+Operator skills cover orchestration, model-safe analysis, local deliverables and
+proposal validation; invoking a skill alone does not remove tools from a broad
+development session. See
 [contribution guidance](CONTRIBUTING.md) for the exact workflow.
 
 **Keep this README current in the same change as every task that changes

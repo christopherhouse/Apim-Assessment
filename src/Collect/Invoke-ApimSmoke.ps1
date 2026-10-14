@@ -62,6 +62,22 @@ function Get-ApimSmokeFailureCode {
     return 'UNKNOWN_FAILURE'
 }
 
+function Get-ApimCollectorRegistry {
+    [CmdletBinding()]
+    param()
+
+    return @(
+        [pscustomobject]@{ Name = 'Service'; Function = 'Invoke-ApimServiceCollector'; Requires = @(); Throttled = $false }
+        [pscustomobject]@{ Name = 'Apis'; Function = 'Invoke-ApimApiCatalogCollector'; Requires = @('Service'); Throttled = $true }
+        [pscustomobject]@{ Name = 'Products'; Function = 'Invoke-ApimProductCollector'; Requires = @('Service'); Throttled = $true }
+        [pscustomobject]@{ Name = 'Subscriptions'; Function = 'Invoke-ApimSubscriptionCollector'; Requires = @('Service'); Throttled = $false }
+        [pscustomobject]@{ Name = 'SecurityAssets'; Function = 'Invoke-ApimSecurityAssetCollector'; Requires = @('Service'); Throttled = $false }
+        [pscustomobject]@{ Name = 'Diagnostics'; Function = 'Invoke-ApimDiagnosticsCollector'; Requires = @('Service', 'Apis'); Throttled = $true }
+        [pscustomobject]@{ Name = 'Policies'; Function = 'Invoke-ApimPolicyCollector'; Requires = @('Service', 'Apis', 'Products'); Throttled = $true }
+        [pscustomobject]@{ Name = 'Network'; Function = 'Invoke-ApimNetworkCollector'; Requires = @('Service'); Throttled = $false }
+    )
+}
+
 function Invoke-ApimSmoke {
     [CmdletBinding()]
     param(
@@ -83,56 +99,7 @@ function Invoke-ApimSmoke {
         [scriptblock] $OnProgress
     )
 
-    $checks = @(
-        [pscustomobject]@{
-            Name = 'Service'
-            Function = 'Invoke-ApimServiceCollector'
-            Requires = @()
-            Throttled = $false
-        }
-        [pscustomobject]@{
-            Name = 'Apis'
-            Function = 'Invoke-ApimApiCatalogCollector'
-            Requires = @('Service')
-            Throttled = $true
-        }
-        [pscustomobject]@{
-            Name = 'Products'
-            Function = 'Invoke-ApimProductCollector'
-            Requires = @('Service')
-            Throttled = $true
-        }
-        [pscustomobject]@{
-            Name = 'Subscriptions'
-            Function = 'Invoke-ApimSubscriptionCollector'
-            Requires = @('Service')
-            Throttled = $false
-        }
-        [pscustomobject]@{
-            Name = 'SecurityAssets'
-            Function = 'Invoke-ApimSecurityAssetCollector'
-            Requires = @('Service')
-            Throttled = $false
-        }
-        [pscustomobject]@{
-            Name = 'Diagnostics'
-            Function = 'Invoke-ApimDiagnosticsCollector'
-            Requires = @('Service', 'Apis')
-            Throttled = $true
-        }
-        [pscustomobject]@{
-            Name = 'Policies'
-            Function = 'Invoke-ApimPolicyCollector'
-            Requires = @('Service', 'Apis', 'Products')
-            Throttled = $true
-        }
-        [pscustomobject]@{
-            Name = 'Network'
-            Function = 'Invoke-ApimNetworkCollector'
-            Requires = @('Service')
-            Throttled = $false
-        }
-    )
+    $checks = @(Get-ApimCollectorRegistry)
 
     foreach ($check in $checks) {
         if ($null -eq (Get-Command -Name $check.Function `

@@ -2,7 +2,9 @@ BeforeAll {
     $repoRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
     $packageRepo = Join-Path $TestDrive 'source'
     New-Item -ItemType Directory -Path $packageRepo | Out-Null
-    foreach ($file in @('ApimAssessment.psd1', 'ApimAssessment.psm1', 'README.md', 'CONTRIBUTING.md')) {
+    foreach ($file in @('ApimAssessment.psd1', 'ApimAssessment.psm1', 'README.md', 'CONTRIBUTING.md',
+            'Invoke-ApimCollect.ps1', 'Invoke-ApimAnalyze.ps1',
+            'Invoke-ApimReport.ps1', 'Invoke-ApimAssessment.ps1')) {
         Copy-Item -LiteralPath (Join-Path $repoRoot $file) -Destination $packageRepo
     }
     foreach ($directory in @('scripts', 'src', 'rules', 'queries', 'schemas', 'template', 'docs', 'config')) {
@@ -29,9 +31,16 @@ Describe 'Release source package' {
         try {
             $entries = @($archive.Entries.FullName)
             $entries | Should -Contain 'ApimAssessment.psd1'
+            $entries | Should -Contain 'Invoke-ApimCollect.ps1'
+            $entries | Should -Contain 'Invoke-ApimAnalyze.ps1'
+            $entries | Should -Contain 'Invoke-ApimReport.ps1'
+            $entries | Should -Contain 'Invoke-ApimAssessment.ps1'
             $entries | Should -Contain 'config/sample.psd1'
             $entries | Should -Contain 'schemas/manifest.schema.json'
             $entries | Should -Contain 'template/ApimActionPlan.xlsx'
+            $entries | Should -Contain 'template/ApimExecutiveSummary.html'
+            $entries | Should -Contain 'scripts/Start-ApimBroker.ps1'
+            $entries | Should -Contain 'scripts/Invoke-BrokerWorker.ps1'
             @($entries | Where-Object {
                 $_ -match '^(runs|tests|artifacts|dist|\.git|\.github)/' -or
                 ($_ -like 'config/*' -and $_ -ne 'config/sample.psd1')

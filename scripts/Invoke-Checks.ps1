@@ -21,6 +21,8 @@ foreach ($name in $dependencies.Keys) {
 
 $lintTargets = @(
     'ApimAssessment.psd1', 'ApimAssessment.psm1', 'config/sample.psd1',
+    'Invoke-ApimCollect.ps1', 'Invoke-ApimAnalyze.ps1',
+    'Invoke-ApimReport.ps1', 'Invoke-ApimAssessment.ps1',
     'scripts', 'src', 'rules', 'tests'
 )
 $diagnostics = @(

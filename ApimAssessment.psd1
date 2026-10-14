@@ -3,10 +3,13 @@
     ModuleVersion     = '0.1.0'
     GUID              = 'eb9e71f4-2e87-43e7-8cfa-f29d73198c73'
     Author            = 'APIM Assessment Toolkit contributors'
-    Description       = 'Read-only Azure API Management assessment toolkit. Initial development skeleton.'
+    Description       = 'Read-only Azure API Management assessment with offline deterministic analysis and reporting.'
     PowerShellVersion = '7.4'
     CompatiblePSEditions = @('Core')
-    FunctionsToExport = @()
+    FunctionsToExport = @(
+        'Invoke-ApimCollect', 'Invoke-ApimAnalyze', 'Invoke-ApimReport',
+        'Invoke-ApimAssessment'
+    )
     CmdletsToExport   = @()
     VariablesToExport = @()
     AliasesToExport   = @()

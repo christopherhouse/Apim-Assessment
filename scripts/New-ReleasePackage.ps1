@@ -26,7 +26,8 @@ $files = @(
 )
 foreach ($entryPoint in @(
         'Invoke-ApimCollect.ps1', 'Invoke-ApimAnalyze.ps1', 'Invoke-ApimReport.ps1',
-        'Compare-ApimRun.ps1', 'Invoke-ApimAssessment.ps1'
+        'Compare-ApimRun.ps1', 'Invoke-ApimAssessment.ps1',
+        'scripts/Start-ApimBroker.ps1', 'scripts/Invoke-BrokerWorker.ps1'
     )) {
     $entryPath = Join-Path $repoRoot $entryPoint
     if (Test-Path -LiteralPath $entryPath) {
@@ -39,6 +40,7 @@ $contentPaths = @(
     @{ Directory = 'queries'; Pattern = '*.kql' }
     @{ Directory = 'schemas'; Pattern = '*.json' }
     @{ Directory = 'template'; Pattern = '*.xlsx' }
+    @{ Directory = 'template'; Pattern = '*.html' }
     @{ Directory = 'docs'; Pattern = '*.md' }
 )
 foreach ($contentPath in $contentPaths) {
