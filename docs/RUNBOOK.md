@@ -18,7 +18,8 @@ exposure records from saved synthetic-equivalent inputs. A private rule engine,
 seven NET catalog entries, fifteen model-backed
 SEC catalog entries, six model-backed GOV catalog entries, all six REL catalog
 entries, a closed findings schema, and private closed action-item aggregation
-are available for offline synthetic testing. Full
+plus a customer-neutral generated Excel action-plan template are available for
+offline synthetic testing. Full
 collection/analyze orchestration, remaining collectors and models,
 telemetry-based exposure refinement, rule catalogs, the model-data airlock, Copilot
 operator workflow, reports/comparison, and Excel/HTML templates are not
@@ -140,7 +141,19 @@ counts evaluated instance rows, retains NotEvaluated gaps with zero affected
 resources, selects deterministic top scopes, and validates the result against
 `schemas/actions.schema.json`. It does not write a workbook, carry tracking
 values forward, or expose models/findings to Copilot. Those report surfaces
-remain pending T-308 through T-310.
+remain pending T-309 and T-310.
+
+The checked-in workbook template can be regenerated and structurally tested
+offline after installing pinned development dependencies:
+
+```powershell
+.\scripts\New-ApimActionPlanTemplate.ps1 -Force
+.\scripts\Invoke-Checks.ps1 -TestPath .\tests\unit\WorkbookTemplate.Tests.ps1
+```
+
+This uses ImportExcel without desktop Excel, fixed column widths, and no Azure
+access. The template contains no customer values. Regeneration is a development
+operation only; no report command currently populates or distributes it.
 
 ## Reusable collection smoke (Microsoft-owned test APIM only)
 

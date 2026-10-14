@@ -31,6 +31,7 @@ Describe 'Release source package' {
             $entries | Should -Contain 'ApimAssessment.psd1'
             $entries | Should -Contain 'config/sample.psd1'
             $entries | Should -Contain 'schemas/manifest.schema.json'
+            $entries | Should -Contain 'template/ApimActionPlan.xlsx'
             @($entries | Where-Object {
                 $_ -match '^(runs|tests|artifacts|dist|\.git|\.github)/' -or
                 ($_ -like 'config/*' -and $_ -ne 'config/sample.psd1')
