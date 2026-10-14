@@ -1,5 +1,24 @@
 #Requires -Version 7.4
 
+function Complete-ApimSmokeCommand {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [ValidateRange(0, 4)]
+        [int] $ExitCode
+    )
+
+    $result = switch ($ExitCode) {
+        0 { 'PASS - collection and saved-output validation completed' }
+        1 { 'FAIL - configuration preflight failed' }
+        2 { 'FAIL - Azure modules or context preflight failed' }
+        3 { 'PARTIAL - collection is incomplete' }
+        4 { 'FAIL - run or saved-output validation failed' }
+    }
+    [Console]::Out.WriteLine("[SMOKE] $result (exit code $ExitCode)")
+    exit $ExitCode
+}
+
 function Format-ApimSmokeConsoleLine {
     [CmdletBinding()]
     param(

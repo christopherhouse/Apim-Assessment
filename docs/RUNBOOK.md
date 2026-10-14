@@ -193,8 +193,9 @@ checks after their synthetic acceptance. A failure is recorded in the manifest,
 independent checks continue, and dependent checks are Skipped; no false success
 is reported. Exit status is 0 when all registered collection checks complete, 1
 for configuration/preflight failure, 2 for Az module/context failure, 3 when
-collection is Partial, and 4 for an unexpected run failure. Only these fixed
-statuses, check names, and bounded codes for failed checks appear on the console.
+collection is Partial, and 4 for an unexpected run or output-validation failure.
+Only these fixed statuses, check names, and bounded codes for failed checks
+appear on the console.
 The command shows preflight steps, one numbered result row per registered
 check, and a final completed-check count. An interactive terminal uses a
 colored emoji scorecard that replaces its active `WORKING` row in place; the
@@ -251,6 +252,19 @@ graph query. A Partial policy check after an XML parse rejection is **not**
 repaired automatically: the authorized maintainer should inspect the affected
 policy locally in the Microsoft-owned test instance. Do not paste `$Error`,
 policy XML, or returned Resource Graph diagnostics into Copilot.
+After collection, the same script validates the exact new run locally: its
+schema-valid completed manifest must agree with all eight check statuses,
+the collection stage and untouched Analyze/Report stages. Every completed
+check must have its required files and matching item counts; API/product
+child collections, per-API diagnostics, network JSON files, and the policy
+index and XML hashes are checked. Empty valid collections pass; missing
+or malformed JSON, missing children, count mismatches, and changed policy
+XML fail with `SMOKE_OUTPUT_INVALID` and exit 4. Only completed checks are
+validated on a Partial run, which remains exit 3 rather than becoming a
+success. The terminal prints `SMOKE_OUTPUT_VALID` only after structural
+validation; it never prints saved content, paths, identifiers, or private
+validation exceptions. This is not independent content-safety certification,
+rule evaluation, model creation, or workbook rendering.
 Restricted raw output, manifest, and logs stay under `Output.Root`. This is
 **not** the full T-604 acceptance or a
 customer assessment: Analyze, rules, reports, and model-data promotion are not
@@ -298,13 +312,36 @@ Sign in if needed (`Connect-AzAccount`) and select the intended subscription
 using your normal Azure PowerShell workflow in that same terminal. Then run:
 
 ```powershell
-.\scripts\Invoke-ApimSmoke.ps1 -Config (Join-Path $private 'smoke.psd1') `
-    -Environment Test -MicrosoftOwnedTestEnvironment
-$LASTEXITCODE
+.\scripts\Invoke-ApimSmoke.ps1 -Environment Test -MicrosoftOwnedTestEnvironment
 ```
 
-The command refuses an unacknowledged target, repo-local config or output roots, or a
-context whose subscription ID differs from the configured target. Inspect the
+The script prints its final PASS/FAIL/PARTIAL result and exit code itself,
+including on preflight failures. A successful run ends with
+`[SMOKE] PASS - collection and saved-output validation completed (exit code 0)`.
+No follow-up shell command is required; the actual process exit code remains
+available to automation.
+The single script defaults to
+`$HOME\apim-smoke-private\smoke.psd1`; if you use another private directory,
+pass `-Config (Join-Path $private 'smoke.psd1')`. `Test` must match the
+environment name in that config. Exit 0 requires all eight checks **and**
+saved-output validation to pass; `SMOKE_OUTPUT_VALID` with exit 3 means only
+the completed checks' files validated and collection is still Partial.
+The command refuses an unacknowledged target, repo-local config or output
+roots, or a context whose subscription ID differs from the configured target.
+If it stops while checking Private configuration, its bounded
+`SMOKE_CONFIG_ERROR` category identifies the next local check:
+`CONFIG_NOT_FOUND` means the `.psd1` file is absent at the default path
+(or the explicit `-Config` path); `CONFIG_INVALID` means required fields,
+types, linked output paths, or non-overlapping output roots failed validation;
+`LOCATION_INVALID` means the config path is linked or the config/output roots
+are inside the repository; `ENVIRONMENT_NOT_FOUND` means `-Environment` does
+not match the private config. The sample config names its environment `Prod`; a renamed test
+environment must be explicitly set to `Test` before using the sample command.
+If the private folder also holds `Output.Root`, keep the separate
+`Output.ModelSafeRoot` outside it, or put the two output roots in distinct
+sibling folders under that private folder; the roots must not contain each
+other. Resolve issues only in the maintainer's terminal; do not paste private
+settings or exceptions into Copilot. Inspect the
 restricted manifest and outputs locally in that terminal; do not print or share
 them in Copilot. There is no public full assessment command yet.
 

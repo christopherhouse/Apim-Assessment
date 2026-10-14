@@ -1,0 +1,235 @@
+#Requires -Version 7.4
+
+Set-StrictMode -Version Latest
+
+function Read-ApimSmokeOutputJson {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string] $RunPath,
+
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string] $RelativePath,
+
+        [switch] $Collection
+    )
+
+    $path = Resolve-RunFilePath -RunPath $RunPath -RelativePath $RelativePath
+    Test-ConfigPathLink -Path $path -Context 'Smoke output'
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+        throw 'Smoke output is missing a required file.'
+    }
+    try {
+        $payload = Get-Content -LiteralPath $path -Raw -ErrorAction Stop |
+            ConvertFrom-Json -Depth 100 -ErrorAction Stop
+    }
+    catch {
+        throw 'Smoke output contains invalid JSON.'
+    }
+    if ($payload -isnot [pscustomobject]) {
+        throw 'Smoke output has an invalid JSON object.'
+    }
+    if ($Collection -and
+        ($null -eq $payload.PSObject.Properties['value'] -or
+            $payload.value -isnot [array])) {
+        throw 'Smoke output has an invalid collection.'
+    }
+    return $payload
+}
+
+function Test-ApimSmokeOutput {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string] $RunPath,
+
+        [Parameter(Mandatory)]
+        [ValidateNotNull()]
+        [object] $Result,
+
+        [Parameter(Mandatory)]
+        [System.Collections.IDictionary] $Environment
+    )
+
+    Test-ConfigPathLink -Path $RunPath -Context 'Smoke run'
+    Test-ConfigPathLink -Path (Join-Path $RunPath 'manifest.json') `
+        -Context 'Smoke manifest'
+    $manifest = Get-RunManifest -RunPath $RunPath
+    $expectedNames = @(
+        'Service', 'Apis', 'Products', 'Subscriptions', 'SecurityAssets',
+        'Diagnostics', 'Policies', 'Network'
+    )
+    if ($manifest.runId -ne $Result.RunId -or
+        $manifest.environment -ne $Environment.Name -or
+        $null -eq $manifest.completedUtc -or
+        $manifest.stages.collect -ne $Result.Status -or
+        $manifest.stages.analyze -ne 'NotStarted' -or
+        $manifest.stages.report -ne 'NotStarted' -or
+        @($Result.Checks).Count -ne $expectedNames.Count -or
+        @($manifest.collectors).Count -ne $expectedNames.Count) {
+        throw 'Smoke manifest does not match the completed run.'
+    }
+
+    $collectors = @{}
+    foreach ($collector in $manifest.collectors) {
+        if ($collectors.ContainsKey($collector.name)) {
+            throw 'Smoke manifest contains a duplicate collector.'
+        }
+        $collectors[$collector.name] = $collector
+    }
+    for ($index = 0; $index -lt $expectedNames.Count; $index++) {
+        $name = $expectedNames[$index]
+        if ($Result.Checks[$index].Name -cne $name -or
+            -not $collectors.ContainsKey($name) -or
+            $collectors[$name].status -cne $Result.Checks[$index].Status) {
+            throw 'Smoke manifest collector status does not match the run.'
+        }
+    }
+
+    $completed = @($Result.Checks | Where-Object Status -EQ Completed)
+    if (($Result.Status -eq 'Completed') -ne
+        ($completed.Count -eq $expectedNames.Count)) {
+        throw 'Smoke run status does not match its collectors.'
+    }
+
+    $apiNames = @()
+    $productNames = @()
+    foreach ($check in $completed) {
+        $name = $check.Name
+        $items = [int] $collectors[$name].items
+        $actual = switch ($name) {
+            'Service' {
+                $null = Read-ApimSmokeOutputJson -RunPath $RunPath `
+                    -RelativePath 'raw/service.json'
+                1
+            }
+            'Apis' {
+                $apis = Read-ApimSmokeOutputJson -RunPath $RunPath `
+                    -RelativePath 'raw/apis.json' -Collection
+                $apiNames = @(Get-ApimCollectionResourceName -Payload $apis `
+                        -CollectionName 'APIM API')
+                foreach ($apiName in $apiNames) {
+                    $segment = ConvertTo-ApimResourceSegment -Value $apiName
+                    foreach ($directory in @('apiRevisions', 'operations', 'apiTags')) {
+                        $null = Read-ApimSmokeOutputJson -RunPath $RunPath `
+                            -RelativePath "raw/$directory/$segment.json" -Collection
+                    }
+                }
+                $apiNames.Count
+            }
+            'Products' {
+                $products = Read-ApimSmokeOutputJson -RunPath $RunPath `
+                    -RelativePath 'raw/products.json' -Collection
+                $productNames = @(Get-ApimCollectionResourceName `
+                        -Payload $products -CollectionName 'APIM product')
+                foreach ($productName in $productNames) {
+                    $segment = ConvertTo-ApimResourceSegment -Value $productName
+                    foreach ($directory in @('productApis', 'productGroups')) {
+                        $null = Read-ApimSmokeOutputJson -RunPath $RunPath `
+                            -RelativePath "raw/$directory/$segment.json" -Collection
+                    }
+                }
+                $productNames.Count
+            }
+            'Subscriptions' {
+                $subscriptions = Read-ApimSmokeOutputJson -RunPath $RunPath `
+                    -RelativePath 'raw/subscriptions.json' -Collection
+                $subscriptions.value.Count
+            }
+            'SecurityAssets' {
+                $count = 0
+                foreach ($file in @('namedValues', 'backends', 'certificates')) {
+                    $payload = Read-ApimSmokeOutputJson -RunPath $RunPath `
+                        -RelativePath "raw/$file.json" -Collection
+                    $count += $payload.value.Count
+                }
+                $count
+            }
+            'Diagnostics' {
+                $count = 0
+                foreach ($file in @('loggers', 'diagnostics')) {
+                    $payload = Read-ApimSmokeOutputJson -RunPath $RunPath `
+                        -RelativePath "raw/$file.json" -Collection
+                    $count += $payload.value.Count
+                }
+                foreach ($apiName in $apiNames) {
+                    $segment = ConvertTo-ApimResourceSegment -Value $apiName
+                    $payload = Read-ApimSmokeOutputJson -RunPath $RunPath `
+                        -RelativePath "raw/apiDiagnostics/$segment.json" -Collection
+                    $count += $payload.value.Count
+                }
+                $count
+            }
+            'Policies' {
+                $index = Read-ApimSmokeOutputJson -RunPath $RunPath `
+                    -RelativePath 'policies/index.json'
+                if ($index.schemaVersion -cne '1.0' -or
+                    $index.policies -isnot [array]) {
+                    throw 'Smoke policy index is invalid.'
+                }
+                foreach ($policy in $index.policies) {
+                    if ($policy.file -cnotmatch
+                        '^policies/(global|(?:product|api|op|fragment)\.[A-Za-z0-9._~%-]+)\.xml$' -or
+                        $policy.exists -isnot [bool]) {
+                        throw 'Smoke policy index contains an invalid entry.'
+                    }
+                    $path = Resolve-RunFilePath -RunPath $RunPath `
+                        -RelativePath $policy.file
+                    Test-ConfigPathLink -Path $path -Context 'Smoke policy'
+                    if ($policy.exists) {
+                        if (-not (Test-Path -LiteralPath $path -PathType Leaf) -or
+                            $policy.sha256 -cnotmatch '^[a-f0-9]{64}$') {
+                            throw 'Smoke policy output is missing or invalid.'
+                        }
+                        $xml = Get-Content -LiteralPath $path -Raw `
+                            -ErrorAction Stop
+                        if ((Get-ApimPolicySha256 -Xml $xml) -cne
+                            $policy.sha256) {
+                            throw 'Smoke policy hash does not match the index.'
+                        }
+                    }
+                    elseif ($null -ne $policy.sha256 -or
+                        (Test-Path -LiteralPath $path)) {
+                        throw 'Smoke policy absence does not match the index.'
+                    }
+                }
+                $index.policies.Count
+            }
+            'Network' {
+                $directory = Resolve-RunFilePath -RunPath $RunPath `
+                    -RelativePath 'raw/network'
+                Test-ConfigPathLink -Path $directory -Context 'Smoke network'
+                foreach ($file in @(
+                        'apimSubnet', 'nsgs', 'privateEndpoints',
+                        'privateDnsZones', 'routeTables', 'publicIps', 'frontDoors'
+                    )) {
+                    $null = Read-ApimSmokeOutputJson -RunPath $RunPath `
+                        -RelativePath "raw/network/$file.json" -Collection
+                }
+                foreach ($gateway in @($Environment.AppGateways)) {
+                    $segment = ConvertTo-ApimResourceSegment -Value $gateway.Name
+                    $null = Read-ApimSmokeOutputJson -RunPath $RunPath `
+                        -RelativePath "raw/network/appgw.$segment.json"
+                }
+                $files = @(Get-ChildItem -LiteralPath $directory -File `
+                        -ErrorAction Stop)
+                foreach ($file in $files) {
+                    if ($file.Extension -cne '.json' -or
+                        $file.Name -cnotmatch
+                        '^(?:apimSubnet|nsgs|privateEndpoints|privateDnsZones|routeTables|publicIps|frontDoors|appgw\.[A-Za-z0-9._~%-]+|wafPolicy\.[A-Za-z0-9._~%-]+)\.json$') {
+                        throw 'Smoke network output contains an unexpected file.'
+                    }
+                    $null = Read-ApimSmokeOutputJson -RunPath $RunPath `
+                        -RelativePath "raw/network/$($file.Name)"
+                }
+                $files.Count
+            }
+        }
+        if ($items -ne $actual) {
+            throw 'Smoke collector item count does not match saved output.'
+        }
+    }
+}

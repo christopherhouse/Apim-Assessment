@@ -1052,6 +1052,18 @@ output encoding per write; redirected output or `NO_COLOR` uses readable ASCII
 (D-26/D-28). Marked XML parser failures report `POLICY_XML_REJECTED` (D-27).
 No raw exception message, stack, identifier, or path enters progress output
 (D-25).
+Private-configuration preflight may emit only fixed missing-file, invalid-config,
+unsafe-location, or unmatched-environment categories; it must never render
+config values, identifiers, paths, or underlying exception messages.
+The same smoke entry point validates its newly saved manifest against the
+eight check outcomes and verifies required completed-collector files, JSON
+collection shapes/counts, and policy index/XML hashes locally before exit 0.
+Only bounded validation status is printed; a mismatched or missing output
+returns exit 4. A Partial run can validate completed files but remains exit 3.
+This does not perform Analyze, Render, or a model-data airlock validation.
+Every handled smoke outcome prints a fixed final PASS/FAIL/PARTIAL result and
+its numeric exit code before exiting; the displayed code must match the actual
+process exit code. Operators do not need a second command to inspect it.
 Agents and CI run the synthetic/mocked tests, never live Azure collection. A
 passing collection smoke
 does not satisfy the full-run exit-0 check or G3 customer-run gate.

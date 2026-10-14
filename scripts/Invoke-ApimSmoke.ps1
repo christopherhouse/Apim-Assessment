@@ -1,9 +1,8 @@
 #Requires -Version 7.4
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory)]
     [ValidateNotNullOrEmpty()]
-    [string] $Config,
+    [string] $Config = (Join-Path (Join-Path $HOME 'apim-smoke-private') 'smoke.psd1'),
 
     [Parameter(Mandatory)]
     [ValidateNotNullOrEmpty()]
@@ -26,7 +25,7 @@ $useColor = -not [Console]::IsOutputRedirected -and
 
 if (-not $MicrosoftOwnedTestEnvironment) {
     [Console]::Error.WriteLine('SMOKE_CONFIG_ERROR: acknowledge a Microsoft-owned test environment.')
-    exit 1
+    Complete-ApimSmokeCommand -ExitCode 1
 }
 
 Write-ApimSmokeConsoleLine -Line (Format-ApimSmokeConsoleLine `
@@ -35,12 +34,14 @@ Write-ApimSmokeConsoleLine -Line (Format-ApimSmokeConsoleLine `
         -State Preparing -Name 'Private configuration' `
         -Color:$useColor) -Color:$useColor -Transient:$useColor
 $repoRoot = Split-Path $PSScriptRoot -Parent
+$configIssue = 'CONFIG_INVALID'
 try {
     $module = Import-Module (Join-Path $repoRoot 'ApimAssessment.psd1') `
         -Force -PassThru -ErrorAction Stop
-    $prepared = & $module {
-        param($configPath, $environmentName, $repositoryPath)
 
+    $configIssue = 'LOCATION_INVALID'
+    & $module {
+        param($configPath, $repositoryPath)
         Test-ConfigPathLink -Path (
             [System.IO.Path]::GetFullPath($configPath)
         ) -Context 'Smoke configuration'
@@ -49,24 +50,59 @@ try {
             ) -Second $repositoryPath) {
             throw 'Smoke configuration must be outside the repository.'
         }
-        $configuration = Get-Config -Path $configPath
-        if ((Test-ConfigPathOverlap -First $configuration.Output.Root `
+    } $Config $repoRoot 2>$null 3>$null 4>$null 5>$null 6>$null
+
+    $configIssue = 'CONFIG_NOT_FOUND'
+    if (-not (Test-Path -LiteralPath $Config -PathType Leaf `
+                -ErrorAction Stop)) {
+        throw 'Smoke configuration is unavailable.'
+    }
+    $configIssue = 'CONFIG_INVALID'
+    $configuration = & $module {
+        param($configPath)
+        Get-Config -Path $configPath
+    } $Config 2>$null 3>$null 4>$null 5>$null 6>$null
+
+    $configIssue = 'LOCATION_INVALID'
+    & $module {
+        param($settings, $repositoryPath)
+        if ((Test-ConfigPathOverlap -First $settings.Output.Root `
                     -Second $repositoryPath) -or
-            (Test-ConfigPathOverlap -First $configuration.Output.ModelSafeRoot `
+            (Test-ConfigPathOverlap -First $settings.Output.ModelSafeRoot `
                     -Second $repositoryPath)) {
             throw 'Smoke output roots must be outside the repository.'
         }
-        [pscustomobject]@{
-            Config = $configuration
-            Target = Get-ApimEnvironmentConfig -Config $configuration `
-                -EnvironmentName $environmentName
-        }
-    } $Config $Environment $repoRoot 2>$null 3>$null 4>$null 5>$null 6>$null
+    } $configuration $repoRoot 2>$null 3>$null 4>$null 5>$null 6>$null
+
+    $configIssue = 'ENVIRONMENT_NOT_FOUND'
+    $target = & $module {
+        param($settings, $environmentName)
+        Get-ApimEnvironmentConfig -Config $settings `
+            -EnvironmentName $environmentName
+    } $configuration $Environment 2>$null 3>$null 4>$null 5>$null 6>$null
+    $prepared = [pscustomobject]@{
+        Config = $configuration
+        Target = $target
+    }
 }
 catch {
     if ($useColor) { [Console]::Out.WriteLine() }
-    [Console]::Error.WriteLine('SMOKE_CONFIG_ERROR: check the private configuration and output locations.')
-    exit 1
+    $hint = switch ($configIssue) {
+        'CONFIG_NOT_FOUND' {
+            'Check that the private config file exists; use -Config if needed.'
+        }
+        'LOCATION_INVALID' {
+            'Keep the private config and output roots outside the repository.'
+        }
+        'ENVIRONMENT_NOT_FOUND' {
+            'Use -Environment with a name defined in the private config.'
+        }
+        default {
+            'Check private config fields and non-overlapping output roots locally.'
+        }
+    }
+    [Console]::Error.WriteLine("SMOKE_CONFIG_ERROR ($configIssue): $hint")
+    Complete-ApimSmokeCommand -ExitCode 1
 }
 
 Write-ApimSmokeConsoleLine -Line (Format-ApimSmokeConsoleLine `
@@ -90,7 +126,7 @@ try {
 catch {
     if ($useColor) { [Console]::Out.WriteLine() }
     [Console]::Error.WriteLine('SMOKE_AUTH_ERROR: verify Az modules and the selected Azure context.')
-    exit 2
+    Complete-ApimSmokeCommand -ExitCode 2
 }
 
 Write-ApimSmokeConsoleLine -Line (Format-ApimSmokeConsoleLine `
@@ -138,19 +174,33 @@ try {
             -ThrottleLimit $throttle -OnProgress $progressCallback
     } $prepared.Config $Environment $tenantId $ThrottleLimit $onProgress `
         2>$null 3>$null 4>$null 5>$null 6>$null
-
-    Write-ApimSmokeConsoleLine -Line (Format-ApimSmokeConsoleLine `
-            -State Summary -SummaryStatus $result.Status `
-            -CompletedCount @($result.Checks |
-                Where-Object Status -EQ Completed).Count `
-            -Total $result.Checks.Count `
-            -Color:$useColor) -Color:$useColor
-    if ($result.Status -ne 'Completed') {
-        exit 3
-    }
 }
 catch {
     if ($useColor) { [Console]::Out.WriteLine() }
     [Console]::Error.WriteLine('SMOKE_RUN_ERROR: inspect the restricted run folder locally.')
-    exit 4
+    Complete-ApimSmokeCommand -ExitCode 4
 }
+
+try {
+    & $module {
+        param($runPath, $smokeResult, $targetEnvironment)
+        Test-ApimSmokeOutput -RunPath $runPath -Result $smokeResult `
+            -Environment $targetEnvironment
+    } (Join-Path $prepared.Config.Output.Root $result.RunId) `
+        $result $prepared.Target 2>$null 3>$null 4>$null 5>$null 6>$null
+}
+catch {
+    [Console]::Error.WriteLine('SMOKE_OUTPUT_INVALID: inspect the restricted run locally.')
+    Complete-ApimSmokeCommand -ExitCode 4
+}
+[Console]::Out.WriteLine('SMOKE_OUTPUT_VALID: manifest and completed collector files verified.')
+Write-ApimSmokeConsoleLine -Line (Format-ApimSmokeConsoleLine `
+        -State Summary -SummaryStatus $result.Status `
+        -CompletedCount @($result.Checks |
+            Where-Object Status -EQ Completed).Count `
+        -Total $result.Checks.Count `
+        -Color:$useColor) -Color:$useColor
+if ($result.Status -ne 'Completed') {
+    Complete-ApimSmokeCommand -ExitCode 3
+}
+Complete-ApimSmokeCommand -ExitCode 0

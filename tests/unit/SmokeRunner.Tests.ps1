@@ -491,6 +491,203 @@ Describe 'Cumulative collection smoke runner' {
     }
 }
 
+Describe 'Saved collection smoke output validation' {
+    InModuleScope ApimAssessment -Parameters @{ RepoRoot = $repoRoot } {
+        param($RepoRoot)
+
+        $script:smokeOutputRepoRoot = $RepoRoot
+        BeforeEach {
+            $config = Import-PowerShellDataFile (
+                Join-Path $script:smokeOutputRepoRoot 'config/sample.psd1'
+            )
+            $config.Output.Root = Join-Path $TestDrive (
+                [guid]::NewGuid().ToString('N')
+            )
+            $script:outputEnvironment = $config.Environments[0]
+            $script:outputEnvironment.AppGateways = @()
+            $script:outputRun = New-ApimRun -Config $config `
+                -EnvironmentName Prod `
+                -TenantId '00000000-0000-0000-0000-000000000010' `
+                -Operator LocalMaintainer -RunId 'synthetic-smoke'
+            $script:outputNames = @(
+                'Service', 'Apis', 'Products', 'Subscriptions',
+                'SecurityAssets', 'Diagnostics', 'Policies', 'Network'
+            )
+            $script:outputItems = @(1, 1, 1, 1, 1, 1, 1, 7)
+            $script:outputResult = [pscustomobject]@{
+                RunId = $script:outputRun.RunId
+                Status = 'Completed'
+                Checks = @(
+                    foreach ($name in $script:outputNames) {
+                        [pscustomobject]@{
+                            Name = $name
+                            Status = 'Completed'
+                        }
+                    }
+                )
+            }
+            foreach ($relativePath in @(
+                    'raw/service.json', 'raw/apis.json',
+                    'raw/apiRevisions/synthetic-api.json',
+                    'raw/operations/synthetic-api.json',
+                    'raw/apiTags/synthetic-api.json',
+                    'raw/products.json',
+                    'raw/productApis/synthetic-product.json',
+                    'raw/productGroups/synthetic-product.json',
+                    'raw/subscriptions.json', 'raw/namedValues.json',
+                    'raw/backends.json', 'raw/certificates.json',
+                    'raw/loggers.json', 'raw/diagnostics.json',
+                    'raw/apiDiagnostics/synthetic-api.json'
+                )) {
+                $value = switch ($relativePath) {
+                    'raw/service.json' {
+                        [pscustomobject]@{ name = 'synthetic-service' }
+                    }
+                    'raw/apis.json' {
+                        [pscustomobject]@{
+                            value = @([pscustomobject]@{ name = 'synthetic-api' })
+                        }
+                    }
+                    'raw/products.json' {
+                        [pscustomobject]@{
+                            value = @([pscustomobject]@{ name = 'synthetic-product' })
+                        }
+                    }
+                    { $_ -in @(
+                            'raw/subscriptions.json', 'raw/namedValues.json',
+                            'raw/diagnostics.json'
+                        ) } {
+                        [pscustomobject]@{
+                            value = @([pscustomobject]@{ name = 'synthetic-item' })
+                        }
+                    }
+                    default { [pscustomobject]@{ value = @() } }
+                }
+                Write-RunFile -RunPath $script:outputRun.Path `
+                    -RelativePath $relativePath -InputObject $value |
+                    Out-Null
+            }
+            $script:policyXml = '<policies><inbound><base /></inbound></policies>'
+            Write-RunFile -RunPath $script:outputRun.Path `
+                -RelativePath 'policies/global.xml' `
+                -InputObject $script:policyXml -Format Text | Out-Null
+            Write-RunFile -RunPath $script:outputRun.Path `
+                -RelativePath 'policies/index.json' -InputObject (
+                    [pscustomobject]@{
+                        schemaVersion = '1.0'
+                        policies = @([pscustomobject]@{
+                                file = 'policies/global.xml'
+                                exists = $true
+                                sha256 = Get-ApimPolicySha256 -Xml $script:policyXml
+                            })
+                    }
+                ) | Out-Null
+            foreach ($file in @(
+                    'apimSubnet', 'nsgs', 'privateEndpoints',
+                    'privateDnsZones', 'routeTables', 'publicIps', 'frontDoors'
+                )) {
+                Write-RunFile -RunPath $script:outputRun.Path `
+                    -RelativePath "raw/network/$file.json" `
+                    -InputObject ([pscustomobject]@{ value = @() }) |
+                    Out-Null
+            }
+            for ($index = 0; $index -lt $script:outputNames.Count; $index++) {
+                Set-RunCollectorStatus -RunPath $script:outputRun.Path `
+                    -Name $script:outputNames[$index] -Status Completed `
+                    -Items $script:outputItems[$index]
+            }
+            Set-RunStageStatus -RunPath $script:outputRun.Path `
+                -Stage collect -Status Completed
+            Complete-ApimRun -RunPath $script:outputRun.Path
+        }
+
+        It 'verifies the completed synthetic manifest, inventories and files' {
+            {
+                Test-ApimSmokeOutput -RunPath $script:outputRun.Path `
+                    -Result $script:outputResult `
+                    -Environment $script:outputEnvironment
+            } | Should -Not -Throw
+        }
+
+        It 'rejects a missing API child file despite a completed collector' {
+            Remove-Item -LiteralPath (
+                Join-Path $script:outputRun.Path `
+                    'raw/apiDiagnostics/synthetic-api.json'
+            )
+            {
+                Test-ApimSmokeOutput -RunPath $script:outputRun.Path `
+                    -Result $script:outputResult `
+                    -Environment $script:outputEnvironment
+            } | Should -Throw 'Smoke output is missing a required file.'
+        }
+
+        It 'rejects malformed JSON and mismatched collector counts' {
+            Set-Content -LiteralPath (
+                Join-Path $script:outputRun.Path 'raw/namedValues.json'
+            ) -Value '{synthetic-invalid'
+            {
+                Test-ApimSmokeOutput -RunPath $script:outputRun.Path `
+                    -Result $script:outputResult `
+                    -Environment $script:outputEnvironment
+            } | Should -Throw 'Smoke output contains invalid JSON.'
+
+            Write-RunFile -RunPath $script:outputRun.Path `
+                -RelativePath 'raw/namedValues.json' `
+                -InputObject ([pscustomobject]@{ value = @() }) | Out-Null
+            {
+                Test-ApimSmokeOutput -RunPath $script:outputRun.Path `
+                    -Result $script:outputResult `
+                    -Environment $script:outputEnvironment
+            } | Should -Throw 'Smoke collector item count does not match saved output.'
+        }
+
+        It 'rejects policy XML changed after its index hash was saved' {
+            Write-RunFile -RunPath $script:outputRun.Path `
+                -RelativePath 'policies/global.xml' `
+                -InputObject '<policies><outbound /></policies>' `
+                -Format Text | Out-Null
+            {
+                Test-ApimSmokeOutput -RunPath $script:outputRun.Path `
+                    -Result $script:outputResult `
+                    -Environment $script:outputEnvironment
+            } | Should -Throw 'Smoke policy hash does not match the index.'
+        }
+
+        It 'rejects a manifest whose collector status disagrees with the run' {
+            Set-RunCollectorStatus -RunPath $script:outputRun.Path `
+                -Name Network -Status Partial -Errors 1
+            {
+                Test-ApimSmokeOutput -RunPath $script:outputRun.Path `
+                    -Result $script:outputResult `
+                    -Environment $script:outputEnvironment
+            } | Should -Throw 'Smoke manifest collector status does not match the run.'
+        }
+
+        It 'does not substitute an older run for the just-created run ID' {
+            $script:outputResult.RunId = 'another-synthetic-run'
+            {
+                Test-ApimSmokeOutput -RunPath $script:outputRun.Path `
+                    -Result $script:outputResult `
+                    -Environment $script:outputEnvironment
+            } | Should -Throw 'Smoke manifest does not match the completed run.'
+        }
+
+        It 'validates completed files in a partial run without claiming success' {
+            Set-RunCollectorStatus -RunPath $script:outputRun.Path `
+                -Name Network -Status Failed -Errors 1
+            Set-RunStageStatus -RunPath $script:outputRun.Path `
+                -Stage collect -Status Partial
+            $script:outputResult.Status = 'Partial'
+            $script:outputResult.Checks[-1].Status = 'Failed'
+            {
+                Test-ApimSmokeOutput -RunPath $script:outputRun.Path `
+                    -Result $script:outputResult `
+                    -Environment $script:outputEnvironment
+            } | Should -Not -Throw
+        }
+    }
+}
+
 Describe 'Maintainer-only smoke command preflight' {
     BeforeAll {
         $script:smokeScript = Join-Path $repoRoot 'scripts/Invoke-ApimSmoke.ps1'
@@ -502,7 +699,18 @@ Describe 'Maintainer-only smoke command preflight' {
             -Environment Prod 2>&1
 
         $LASTEXITCODE | Should -Be 1
-        $output[-1] |
+        $output[-1] | Should -Be '[SMOKE] FAIL - configuration preflight failed (exit code 1)'
+        $output[-2] |
+            Should -Be 'SMOKE_CONFIG_ERROR: acknowledge a Microsoft-owned test environment.'
+    }
+
+    It 'accepts the default private-config argument without weakening acknowledgement' {
+        $output = & pwsh -NoProfile -File $script:smokeScript `
+            -Environment Test 2>&1
+
+        $LASTEXITCODE | Should -Be 1
+        $output[-1] | Should -Be '[SMOKE] FAIL - configuration preflight failed (exit code 1)'
+        $output[-2] |
             Should -Be 'SMOKE_CONFIG_ERROR: acknowledge a Microsoft-owned test environment.'
     }
 
@@ -512,8 +720,82 @@ Describe 'Maintainer-only smoke command preflight' {
             -Environment Prod -MicrosoftOwnedTestEnvironment 2>&1
 
         $LASTEXITCODE | Should -Be 1
-        $output[-1] |
-            Should -Be 'SMOKE_CONFIG_ERROR: check the private configuration and output locations.'
+        $output[-1] | Should -Be '[SMOKE] FAIL - configuration preflight failed (exit code 1)'
+        $output[-2] |
+            Should -Be (
+                'SMOKE_CONFIG_ERROR (LOCATION_INVALID): Keep the private ' +
+                'config and output roots outside the repository.'
+            )
+    }
+
+    It 'identifies a missing external config without accessing Azure' {
+        $output = & pwsh -NoProfile -File $script:smokeScript `
+            -Config (Join-Path $TestDrive 'missing.psd1') `
+            -Environment Test -MicrosoftOwnedTestEnvironment 2>&1
+
+        $LASTEXITCODE | Should -Be 1
+        $output[-1] | Should -Be '[SMOKE] FAIL - configuration preflight failed (exit code 1)'
+        $output[-2] |
+            Should -Be (
+                'SMOKE_CONFIG_ERROR (CONFIG_NOT_FOUND): Check that the ' +
+                'private config file exists; use -Config if needed.'
+            )
+        $output -join ' ' | Should -Not -Match [regex]::Escape($TestDrive)
+    }
+
+    It 'identifies an unmatched environment using a valid synthetic config' {
+        $source = Get-Content -LiteralPath (
+            Join-Path $repoRoot 'config/sample.psd1'
+        ) -Raw
+        $configFile = Join-Path $TestDrive 'valid-synthetic-smoke.psd1'
+        $content = $source.Replace(
+            '<absolute-external-restricted-path>',
+            (Join-Path $TestDrive 'restricted').Replace('\', '/')
+        ).Replace(
+            '<absolute-external-analysis-path>',
+            (Join-Path $TestDrive 'model-safe').Replace('\', '/')
+        )
+        Set-Content -LiteralPath $configFile -Value $content
+
+        $output = & pwsh -NoProfile -File $script:smokeScript `
+            -Config $configFile -Environment Test `
+            -MicrosoftOwnedTestEnvironment 2>&1
+
+        $LASTEXITCODE | Should -Be 1
+        $output[-1] | Should -Be '[SMOKE] FAIL - configuration preflight failed (exit code 1)'
+        $output[-2] |
+            Should -Be (
+                'SMOKE_CONFIG_ERROR (ENVIRONMENT_NOT_FOUND): Use ' +
+                '-Environment with a name defined in the private config.'
+            )
+        $output -join ' ' | Should -Not -Match [regex]::Escape($TestDrive)
+    }
+
+    It 'identifies invalid config without exposing overlapping output roots' {
+        $source = Get-Content -LiteralPath (
+            Join-Path $repoRoot 'config/sample.psd1'
+        ) -Raw
+        $configFile = Join-Path $TestDrive 'overlap-synthetic-smoke.psd1'
+        $root = (Join-Path $TestDrive 'restricted').Replace('\', '/')
+        $content = $source.Replace(
+            '<absolute-external-restricted-path>', $root
+        ).Replace(
+            '<absolute-external-analysis-path>', $root
+        )
+        Set-Content -LiteralPath $configFile -Value $content
+
+        $output = & pwsh -NoProfile -File $script:smokeScript `
+            -Config $configFile -Environment Prod `
+            -MicrosoftOwnedTestEnvironment 2>&1
+
+        $LASTEXITCODE | Should -Be 1
+        $output[-1] | Should -Be '[SMOKE] FAIL - configuration preflight failed (exit code 1)'
+        $output[-2] |
+            Should -Be (
+                'SMOKE_CONFIG_ERROR (CONFIG_INVALID): Check private config ' +
+                'fields and non-overlapping output roots locally.'
+            )
+        $output -join ' ' | Should -Not -Match [regex]::Escape($TestDrive)
     }
 
     It 'rejects repository-local output even with external synthetic configuration' {
@@ -535,8 +817,12 @@ Describe 'Maintainer-only smoke command preflight' {
             -MicrosoftOwnedTestEnvironment 2>&1
 
         $LASTEXITCODE | Should -Be 1
-        $output[-1] |
-            Should -Be 'SMOKE_CONFIG_ERROR: check the private configuration and output locations.'
+        $output[-1] | Should -Be '[SMOKE] FAIL - configuration preflight failed (exit code 1)'
+        $output[-2] |
+            Should -Be (
+                'SMOKE_CONFIG_ERROR (LOCATION_INVALID): Keep the private ' +
+                'config and output roots outside the repository.'
+            )
         $output -join ' ' | Should -Not -Match [regex]::Escape($repoRoot)
     }
 
@@ -559,8 +845,12 @@ Describe 'Maintainer-only smoke command preflight' {
             -MicrosoftOwnedTestEnvironment 2>&1
 
         $LASTEXITCODE | Should -Be 1
-        $output[-1] |
-            Should -Be 'SMOKE_CONFIG_ERROR: check the private configuration and output locations.'
+        $output[-1] | Should -Be '[SMOKE] FAIL - configuration preflight failed (exit code 1)'
+        $output[-2] |
+            Should -Be (
+                'SMOKE_CONFIG_ERROR (LOCATION_INVALID): Keep the private ' +
+                'config and output roots outside the repository.'
+            )
         $output -join ' ' | Should -Not -Match [regex]::Escape($repoRoot)
     }
 }
@@ -568,6 +858,27 @@ Describe 'Maintainer-only smoke command preflight' {
 Describe 'Smoke progress presentation' {
     BeforeAll {
         . (Join-Path $repoRoot 'scripts/Format-ApimSmokeConsoleLine.ps1')
+    }
+
+    It 'prints the final result and preserves exit code <Code>' -TestCases @(
+        @{ Code = 0; Result = 'PASS - collection and saved-output validation completed' }
+        @{ Code = 1; Result = 'FAIL - configuration preflight failed' }
+        @{ Code = 2; Result = 'FAIL - Azure modules or context preflight failed' }
+        @{ Code = 3; Result = 'PARTIAL - collection is incomplete' }
+        @{ Code = 4; Result = 'FAIL - run or saved-output validation failed' }
+    ) {
+        param($Code, $Result)
+
+        $formatterPath = (Join-Path $repoRoot `
+                'scripts/Format-ApimSmokeConsoleLine.ps1').Replace("'", "''")
+        $output = & pwsh -NoProfile -Command (
+            ". '$formatterPath'; Complete-ApimSmokeCommand -ExitCode $Code; " +
+            "'UNREACHABLE'"
+        ) 2>&1
+
+        $LASTEXITCODE | Should -Be $Code
+        @($output).Count | Should -Be 1
+        $output | Should -Be "[SMOKE] $Result (exit code $Code)"
     }
 
     It 'formats accessible progress and bounded help without terminal control codes' {
