@@ -719,7 +719,77 @@ Describe 'Maintainer-only smoke command preflight' {
 
         $LASTEXITCODE | Should -Be 1
         $output[-1] |
-            Should -Be 'SMOKE_CONFIG_ERROR: check the private configuration and output locations.'
+            Should -Be (
+                'SMOKE_CONFIG_ERROR (LOCATION_INVALID): Keep the private ' +
+                'config and output roots outside the repository.'
+            )
+    }
+
+    It 'identifies a missing external config without accessing Azure' {
+        $output = & pwsh -NoProfile -File $script:smokeScript `
+            -Config (Join-Path $TestDrive 'missing.psd1') `
+            -Environment Test -MicrosoftOwnedTestEnvironment 2>&1
+
+        $LASTEXITCODE | Should -Be 1
+        $output[-1] |
+            Should -Be (
+                'SMOKE_CONFIG_ERROR (CONFIG_NOT_FOUND): Check that the ' +
+                'private config file exists; use -Config if needed.'
+            )
+        $output -join ' ' | Should -Not -Match [regex]::Escape($TestDrive)
+    }
+
+    It 'identifies an unmatched environment using a valid synthetic config' {
+        $source = Get-Content -LiteralPath (
+            Join-Path $repoRoot 'config/sample.psd1'
+        ) -Raw
+        $configFile = Join-Path $TestDrive 'valid-synthetic-smoke.psd1'
+        $content = $source.Replace(
+            '<absolute-external-restricted-path>',
+            (Join-Path $TestDrive 'restricted').Replace('\', '/')
+        ).Replace(
+            '<absolute-external-analysis-path>',
+            (Join-Path $TestDrive 'model-safe').Replace('\', '/')
+        )
+        Set-Content -LiteralPath $configFile -Value $content
+
+        $output = & pwsh -NoProfile -File $script:smokeScript `
+            -Config $configFile -Environment Test `
+            -MicrosoftOwnedTestEnvironment 2>&1
+
+        $LASTEXITCODE | Should -Be 1
+        $output[-1] |
+            Should -Be (
+                'SMOKE_CONFIG_ERROR (ENVIRONMENT_NOT_FOUND): Use ' +
+                '-Environment with a name defined in the private config.'
+            )
+        $output -join ' ' | Should -Not -Match [regex]::Escape($TestDrive)
+    }
+
+    It 'identifies invalid config without exposing overlapping output roots' {
+        $source = Get-Content -LiteralPath (
+            Join-Path $repoRoot 'config/sample.psd1'
+        ) -Raw
+        $configFile = Join-Path $TestDrive 'overlap-synthetic-smoke.psd1'
+        $root = (Join-Path $TestDrive 'restricted').Replace('\', '/')
+        $content = $source.Replace(
+            '<absolute-external-restricted-path>', $root
+        ).Replace(
+            '<absolute-external-analysis-path>', $root
+        )
+        Set-Content -LiteralPath $configFile -Value $content
+
+        $output = & pwsh -NoProfile -File $script:smokeScript `
+            -Config $configFile -Environment Prod `
+            -MicrosoftOwnedTestEnvironment 2>&1
+
+        $LASTEXITCODE | Should -Be 1
+        $output[-1] |
+            Should -Be (
+                'SMOKE_CONFIG_ERROR (CONFIG_INVALID): Check private config ' +
+                'fields and non-overlapping output roots locally.'
+            )
+        $output -join ' ' | Should -Not -Match [regex]::Escape($TestDrive)
     }
 
     It 'rejects repository-local output even with external synthetic configuration' {
@@ -742,7 +812,10 @@ Describe 'Maintainer-only smoke command preflight' {
 
         $LASTEXITCODE | Should -Be 1
         $output[-1] |
-            Should -Be 'SMOKE_CONFIG_ERROR: check the private configuration and output locations.'
+            Should -Be (
+                'SMOKE_CONFIG_ERROR (LOCATION_INVALID): Keep the private ' +
+                'config and output roots outside the repository.'
+            )
         $output -join ' ' | Should -Not -Match [regex]::Escape($repoRoot)
     }
 
@@ -766,7 +839,10 @@ Describe 'Maintainer-only smoke command preflight' {
 
         $LASTEXITCODE | Should -Be 1
         $output[-1] |
-            Should -Be 'SMOKE_CONFIG_ERROR: check the private configuration and output locations.'
+            Should -Be (
+                'SMOKE_CONFIG_ERROR (LOCATION_INVALID): Keep the private ' +
+                'config and output roots outside the repository.'
+            )
         $output -join ' ' | Should -Not -Match [regex]::Escape($repoRoot)
     }
 }

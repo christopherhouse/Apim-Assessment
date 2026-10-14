@@ -324,7 +324,20 @@ saved-output validation to pass; `SMOKE_OUTPUT_VALID` with exit 3 means only
 the completed checks' files validated and collection is still Partial.
 The command refuses an unacknowledged target, repo-local config or output
 roots, or a context whose subscription ID differs from the configured target.
-Inspect the
+If it stops while checking Private configuration, its bounded
+`SMOKE_CONFIG_ERROR` category identifies the next local check:
+`CONFIG_NOT_FOUND` means the `.psd1` file is absent at the default path
+(or the explicit `-Config` path); `CONFIG_INVALID` means required fields,
+types, linked output paths, or non-overlapping output roots failed validation;
+`LOCATION_INVALID` means the config path is linked or the config/output roots
+are inside the repository; `ENVIRONMENT_NOT_FOUND` means `-Environment` does
+not match the private config. The sample config names its environment `Prod`; a renamed test
+environment must be explicitly set to `Test` before using the sample command.
+If the private folder also holds `Output.Root`, keep the separate
+`Output.ModelSafeRoot` outside it, or put the two output roots in distinct
+sibling folders under that private folder; the roots must not contain each
+other. Resolve issues only in the maintainer's terminal; do not paste private
+settings or exceptions into Copilot. Inspect the
 restricted manifest and outputs locally in that terminal; do not print or share
 them in Copilot. There is no public full assessment command yet.
 

@@ -1052,6 +1052,9 @@ output encoding per write; redirected output or `NO_COLOR` uses readable ASCII
 (D-26/D-28). Marked XML parser failures report `POLICY_XML_REJECTED` (D-27).
 No raw exception message, stack, identifier, or path enters progress output
 (D-25).
+Private-configuration preflight may emit only fixed missing-file, invalid-config,
+unsafe-location, or unmatched-environment categories; it must never render
+config values, identifiers, paths, or underlying exception messages.
 The same smoke entry point validates its newly saved manifest against the
 eight check outcomes and verifies required completed-collector files, JSON
 collection shapes/counts, and policy index/XML hashes locally before exit 0.

@@ -138,6 +138,10 @@ Azure or policy exception messages. Rejected policy XML gets a bounded
 `POLICY_XML_REJECTED` code. `SMOKE_OUTPUT_VALID` means the saved collector
 output passed structural validation; `SMOKE_OUTPUT_INVALID` and exit 4 mean
 the saved run needs local inspection.
+Configuration preflight now reports only a bounded category:
+`CONFIG_NOT_FOUND`, `CONFIG_INVALID`, `LOCATION_INVALID`, or
+`ENVIRONMENT_NOT_FOUND`. These identify which private setting to check without
+printing any config content or paths.
 
 Develop only on `feature/<name>`, `chore/<name>`, or `bugfix/<name>` branches.
 Open a pull request to `main`; CI rejects other source-branch prefixes.
