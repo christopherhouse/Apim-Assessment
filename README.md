@@ -63,7 +63,9 @@ a fixed safe code and do not print restricted content. This is structural
 collection validation, not a full analysis, privacy audit, or report check.
 The smoke command also runs the local saved-run secret scanner before its final
 PASS. A separate maintainer-only script can scan an existing run, including
-compressed XML parts in its Excel reports. Both print fixed safe statuses only;
+compressed XML parts in its Excel reports. Both print safe statuses and, on
+candidates, a final table with row numbers, artifact aliases, match kinds,
+and available line/column positions;
 secret candidates and incomplete scans fail without printing values or paths.
 The commands write a restricted `secret-scan-locations.json` inside the run and
 point to it when candidates are found. It lists relative files, match categories,
@@ -156,6 +158,10 @@ On a candidate, the error tells you to open `secret-scan-locations.json` locally
 in that run folder. Text/log locations include line numbers; JSON has property
 pointers, XML has positional paths, and Excel entries include their workbook
 part. A candidate is not a confirmed credential; review that location locally.
+The table appears before the final FAIL/exit-code line. Its row numbers match
+the local report's location order, and its artifact aliases match `artifactId`
+in report schema 1.1. Actual filenames, JSON/XML paths, and workbook parts stay
+in that restricted report rather than the console.
 Run it only in an ordinary local terminal, never through Copilot, for restricted
 output. It does not redact files, certify privacy, or detect every arbitrary
 unlabeled/encoded secret; the [runbook](docs/RUNBOOK.md) defines its limits.

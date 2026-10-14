@@ -130,7 +130,7 @@ Describe 'Local saved-run secret scan' {
             ) -Raw
             $reportText | Should -Not -Match $planted
             $report = $reportText | ConvertFrom-Json
-            $report.schemaVersion | Should -Be '1.0'
+            $report.schemaVersion | Should -Be '1.1'
             $report.status | Should -Be CandidateDetected
             @($report.locations | Where-Object file -EQ 'nested.json').location |
                 Should -Be @('/items/0/password', '/items/1/apiKey')
@@ -198,6 +198,40 @@ Describe 'Local saved-run secret scan' {
             ) -Raw
             $text | Should -Not -Match 'eyJsynthetic'
             ($text | ConvertFrom-Json).locations.location | Should -Be '/[member:0]'
+        }
+
+        It 'emits only closed coarse summary rows matching deterministic local artifact IDs' {
+            Set-Content -LiteralPath (Join-Path $script:scanRun.Path 'first.json') `
+                -Value '{"password":"synthetic-planted-value","apiKey":"synthetic-planted-value"}'
+            Set-Content -LiteralPath (Join-Path $script:scanRun.Path 'second.json') `
+                -Value '{"password":"synthetic-planted-value"}'
+            $received = [System.Collections.Generic.List[object]]::new()
+            $callback = {
+                param($Rows)
+                foreach ($row in $Rows) { $received.Add($row) }
+            }.GetNewClosure()
+            { Test-ApimRunSecret -RunFolder $script:scanRun.Path -OnSummary $callback } |
+                Should -Throw '*summary requires location reporting*'
+            Test-ApimRunSecret -RunFolder $script:scanRun.Path -WriteLocationReport `
+                -OnSummary $callback | Should -BeFalse
+            $received.Count | Should -Be 3
+            $received.row | Should -Be @(1, 2, 3)
+            $received.artifactId | Should -Be @(
+                'artifact-0001', 'artifact-0001', 'artifact-0002'
+            )
+            foreach ($row in $received) {
+                @($row.PSObject.Properties.Name) |
+                    Should -Be @('row', 'artifactId', 'kind', 'line', 'column')
+            }
+            $json = ConvertTo-Json -InputObject $received.ToArray()
+            $json | Should -Not -Match 'first\.json|second\.json|password|apiKey|synthetic-planted-value'
+            $reportPath = Join-Path $script:scanRun.Path 'secret-scan-locations.json'
+            $firstReport = Get-Content -LiteralPath $reportPath -Raw
+            ($firstReport | ConvertFrom-Json).locations.artifactId |
+                Should -Be $received.artifactId
+            Test-ApimRunSecret -RunFolder $script:scanRun.Path -WriteLocationReport |
+                Should -BeFalse
+            (Get-Content -LiteralPath $reportPath -Raw) | Should -Be $firstReport
         }
 
         It 'fails closed rather than presenting a truncated location report' {
@@ -398,6 +432,14 @@ exit $LASTEXITCODE
             $joined | Should -Not -Match [regex]::Escape($script:scanRun.Path)
             $output[-1] | Should -Match "exit code $ExitCode"
             if ($ExitCode -eq 4) { $joined | Should -Not -Match '\[SMOKE\] PASS' }
+            if ($Mode -eq 'secret') {
+                $joined | Should -Match 'SECRET_SCAN_FINDINGS'
+                $joined | Should -Match 'artifact-0001\s+CredentialAssignment\s+1\s+1'
+                $joined | Should -Not -Match 'planted\.txt'
+                $joined.IndexOf('SECRET_SCAN_FINDINGS') |
+                    Should -BeLessThan $joined.LastIndexOf('[SMOKE] FAIL')
+            }
+            else { $joined | Should -Not -Match 'SECRET_SCAN_FINDINGS' }
         }
 
         It 'reports only fixed safe status and the exit code from the standalone command' {
@@ -411,12 +453,15 @@ exit $LASTEXITCODE
                 -Value 'Password=synthetic-planted-value'
             $output = & pwsh -NoProfile -File $entrypoint -RunFolder $script:scanRun.Path 2>&1
             $LASTEXITCODE | Should -Be 1
-            $output[-2] | Should -Be (
+            @($output | ForEach-Object ToString) | Should -Contain (
                 'SECRET_SCAN_DETAILS: open secret-scan-locations.json in the supplied run folder locally. It lists file locations and match categories, not values. Do not paste it into Copilot.'
             )
             $output[-1] | Should -Be (
                 'SECRET_SCAN_FAIL: secret-like candidate detected; this may be a false positive. Exit code: 1.'
             )
+            $joined = $output -join "`n"
+            $joined | Should -Match 'artifact-0001\s+CredentialAssignment\s+1\s+1'
+            $joined | Should -Not -Match 'planted\.txt|synthetic-planted-value'
             Set-Content -LiteralPath (Join-Path $script:scanRun.Path 'unsupported.bin') `
                 -Value 'synthetic'
             $output = & pwsh -NoProfile -File $entrypoint -RunFolder $script:scanRun.Path 2>&1

@@ -195,11 +195,23 @@ catch {
 }
 [Console]::Out.WriteLine('SMOKE_OUTPUT_VALID: manifest and completed collector files verified.')
 try {
+    . (Join-Path $PSScriptRoot 'Write-ApimSecretScanTable.ps1')
+    $secretSummary = [System.Collections.Generic.List[object]]::new()
+    $onSecretSummary = {
+        param($Rows)
+        foreach ($row in $Rows) { $secretSummary.Add($row) }
+    }.GetNewClosure()
     $clean = & $module {
-        param($runPath)
-        Test-ApimRunSecret -RunFolder $runPath -WriteLocationReport
+        param($runPath, $summaryCallback)
+        Test-ApimRunSecret -RunFolder $runPath -WriteLocationReport `
+            -OnSummary $summaryCallback
     } (Join-Path $prepared.Config.Output.Root $result.RunId) `
-        2>$null 3>$null 4>$null 5>$null 6>$null
+        $onSecretSummary 2>$null 3>$null 4>$null 5>$null 6>$null
+    if (-not $clean) {
+        [Console]::Error.WriteLine('SECRET_SCAN_FAIL: secret-like candidate detected; this may be a false positive.')
+        [Console]::Error.WriteLine('SECRET_SCAN_DETAILS: open secret-scan-locations.json in the newest run folder under Output.Root locally. It lists file locations and match categories, not values. Do not paste it into Copilot.')
+        Write-ApimSecretScanTable -Rows $secretSummary.ToArray()
+    }
 }
 catch {
     [Console]::Error.WriteLine('SECRET_SCAN_ERROR: scan incomplete; inspect the restricted run locally.')
@@ -207,8 +219,6 @@ catch {
     Complete-ApimSmokeCommand -ExitCode 4
 }
 if (-not $clean) {
-    [Console]::Error.WriteLine('SECRET_SCAN_FAIL: secret-like candidate detected; this may be a false positive.')
-    [Console]::Error.WriteLine('SECRET_SCAN_DETAILS: open secret-scan-locations.json in the newest run folder under Output.Root locally. It lists file locations and match categories, not values. Do not paste it into Copilot.')
     Complete-ApimSmokeCommand -ExitCode 4
 }
 [Console]::Out.WriteLine('SECRET_SCAN_PASS: no supported secret patterns detected.')

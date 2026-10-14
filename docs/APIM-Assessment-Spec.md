@@ -1039,7 +1039,13 @@ are absent. This check neither redacts files nor replaces the model-data airlock
 Operator entry points write restricted `secret-scan-locations.json` containing
 relative files, fixed match kinds, text/log line numbers, JSON pointers,
 positional XML paths, and workbook part locations without captured values or
-excerpts. Console failure output explains how to open it locally, never echoes
+excerpts. Report schema 1.1 includes a deterministic `artifactId` per file.
+On candidate failure, scripts show an end-of-script table before the final
+exit-code line: ordinal report row, artifact alias, fixed match kind, and nullable
+line/column. The core emits newly shaped allowlist-only rows; the shared formatter
+rejects unknown fields, kinds, aliases, or positions before printing. Actual
+filenames, structured paths, workbook parts, values, and excerpts never enter
+table rows. Console failure output explains how to open the report locally, never echoes
 its locations or source content, and distinguishes a candidate from a confirmed
 secret. Rescans initialize this scanner-owned report as `Incomplete` before
 scanning, then replace it on completion. Report-write failures also fail closed;

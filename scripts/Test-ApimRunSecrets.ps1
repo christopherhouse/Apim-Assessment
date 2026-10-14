@@ -12,17 +12,28 @@ $InformationPreference = 'SilentlyContinue'
 $ProgressPreference = 'SilentlyContinue'
 
 try {
+    . (Join-Path $PSScriptRoot 'Write-ApimSecretScanTable.ps1')
+    $secretSummary = [System.Collections.Generic.List[object]]::new()
+    $onSecretSummary = {
+        param($Rows)
+        foreach ($row in $Rows) { $secretSummary.Add($row) }
+    }.GetNewClosure()
     $repoRoot = Split-Path $PSScriptRoot -Parent
     $module = Import-Module (Join-Path $repoRoot 'ApimAssessment.psd1') `
         -Force -PassThru -ErrorAction Stop
     $clean = & $module {
-        param($folder, $repository)
+        param($folder, $repository, $summaryCallback)
         $fullPath = [System.IO.Path]::GetFullPath($folder)
         if (Test-ConfigPathOverlap -First $fullPath -Second $repository) {
             throw 'Secret scan run must be outside the repository.'
         }
-        Test-ApimRunSecret -RunFolder $fullPath -WriteLocationReport
-    } $RunFolder $repoRoot 2>$null 3>$null 4>$null 5>$null 6>$null
+        Test-ApimRunSecret -RunFolder $fullPath -WriteLocationReport `
+            -OnSummary $summaryCallback
+    } $RunFolder $repoRoot $onSecretSummary 2>$null 3>$null 4>$null 5>$null 6>$null
+    if (-not $clean) {
+        [Console]::Error.WriteLine('SECRET_SCAN_DETAILS: open secret-scan-locations.json in the supplied run folder locally. It lists file locations and match categories, not values. Do not paste it into Copilot.')
+        Write-ApimSecretScanTable -Rows $secretSummary.ToArray()
+    }
 }
 catch {
     [Console]::Error.WriteLine('SECRET_SCAN_DETAILS: no complete locations report is available for this attempt; an existing report may be absent or stale. Resolve local scan/read/write errors and rerun.')
@@ -30,7 +41,6 @@ catch {
     exit 2
 }
 if (-not $clean) {
-    [Console]::Error.WriteLine('SECRET_SCAN_DETAILS: open secret-scan-locations.json in the supplied run folder locally. It lists file locations and match categories, not values. Do not paste it into Copilot.')
     [Console]::Error.WriteLine('SECRET_SCAN_FAIL: secret-like candidate detected; this may be a false positive. Exit code: 1.')
     exit 1
 }

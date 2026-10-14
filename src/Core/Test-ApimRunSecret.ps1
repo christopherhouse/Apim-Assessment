@@ -10,7 +10,9 @@ function Test-ApimRunSecret {
         [ValidateNotNullOrEmpty()]
         [string] $RunFolder,
 
-        [switch] $WriteLocationReport
+        [switch] $WriteLocationReport,
+
+        [scriptblock] $OnSummary
     )
 
     $ErrorActionPreference = 'Stop'
@@ -18,6 +20,9 @@ function Test-ApimRunSecret {
     Test-ConfigPathLink -Path $root -Context 'Secret scan'
     if (-not [System.IO.Directory]::Exists($root)) {
         throw 'Secret scan requires a saved run directory.'
+    }
+    if ($null -ne $OnSummary -and -not $WriteLocationReport) {
+        throw 'Secret scan summary requires location reporting.'
     }
     $reportName = 'secret-scan-locations.json'
     $reportPath = Join-Path $root $reportName
@@ -29,7 +34,7 @@ function Test-ApimRunSecret {
         Test-ConfigPathLink -Path $reportPath -Context 'Secret scan locations'
         $null = Write-RunFile -RunPath $root -RelativePath $reportName -InputObject (
             [ordered]@{
-                schemaVersion = '1.0'
+                schemaVersion = '1.1'
                 status = 'Incomplete'
                 locations = @()
             }
@@ -476,14 +481,40 @@ function Test-ApimRunSecret {
     }
     $null = Get-RunManifest -RunPath $root
     if ($WriteLocationReport) {
+        $sortedLocations = @(
+            $locations | Sort-Object file, part, location, line, column, kind -Unique
+        )
+        $artifactIds = [System.Collections.Generic.Dictionary[string, string]]::new(
+            [System.StringComparer]::Ordinal
+        )
+        $summary = [System.Collections.Generic.List[object]]::new()
+        $row = 0
+        foreach ($location in $sortedLocations) {
+            if (-not $artifactIds.ContainsKey($location.file)) {
+                $artifactIds[$location.file] = 'artifact-{0:D4}' -f ($artifactIds.Count + 1)
+            }
+            $artifactId = $artifactIds[$location.file]
+            $location | Add-Member -NotePropertyName artifactId -NotePropertyValue $artifactId
+            $row++
+            $summary.Add([pscustomobject][ordered]@{
+                row = $row
+                artifactId = $artifactId
+                kind = $location.kind
+                line = $location.line
+                column = $location.column
+            })
+        }
         Test-ConfigPathLink -Path $reportPath -Context 'Secret scan locations'
         $null = Write-RunFile -RunPath $root -RelativePath $reportName -InputObject (
             [ordered]@{
-                schemaVersion = '1.0'
+                schemaVersion = '1.1'
                 status = if ($foundSecret) { 'CandidateDetected' } else { 'Clean' }
-                locations = @($locations | Sort-Object file, part, location, line, column, kind -Unique)
+                locations = $sortedLocations
             }
         )
+        if ($null -ne $OnSummary) {
+            $null = & $OnSummary -Rows $summary.ToArray()
+        }
     }
     return -not $foundSecret
 }

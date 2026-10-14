@@ -195,8 +195,9 @@ is reported. Exit status is 0 when all registered collection checks complete, 1
 for configuration/preflight failure, 2 for Az module/context failure, 3 when
 collection is Partial, and 4 for an unexpected run, output-validation failure,
 secret candidate, or incomplete secret scan.
-Only these fixed statuses, check names, and bounded codes for failed checks
-appear on the console.
+Console output uses fixed statuses, check names, bounded failure codes, and
+the safe coarse candidate table described below; it never echoes source
+identifiers or matched values.
 The command shows preflight steps, one numbered result row per registered
 check, and a final completed-check count. An interactive terminal uses a
 colored emoji scorecard that replaces its active `WORKING` row in place; the
@@ -270,7 +271,7 @@ The command then scans the whole newly saved run, including artifacts from
 failed/Partial collectors. `SECRET_SCAN_PASS` is required before the final
 PASS; `SECRET_SCAN_FAIL` (candidate found) or `SECRET_SCAN_ERROR` (scan incomplete)
 returns exit 4 instead. A clean scan does not upgrade Partial collection to
-success. No candidate, filename, path, or exception detail is printed.
+success. No matched value, filename, private path, or exception detail is printed.
 On `SECRET_SCAN_FAIL`, the next error line tells you to open the fixed
 `secret-scan-locations.json` report in the newest run directory under the
 private config's `Output.Root`. That report is restricted local output, not
@@ -463,6 +464,17 @@ The location report
 is capped at 10,000 detections; reaching that limit fails the scan, not truncates
 a success result. A clean rescan replaces the prior candidate list with an
 empty list.
+
+When candidates are found, both scripts also print a table immediately before
+their final FAIL/exit-code line. Columns are `#`, `Artifact`, `Match`, `Line`,
+and `Column`. These rows are newly shaped from an explicit allowlist and
+validated before any table output; unknown fields, aliases, kinds, or positions
+fail closed. An `artifact-0001` alias maps to the `artifactId` in report schema
+1.1; `#` is the one-based position in its `locations` array. Multiple rows from
+one file share an artifact alias. A dash means no physical source line/column
+is available: use that report entry's JSON pointer/XML path/workbook part.
+Full filenames, structured paths, excerpts, and values do not enter the
+console table. Clean and incomplete scans do not print candidate tables.
 
 Supported files are UTF-8 or BOM-marked UTF-16 `.json`, `.xml`, `.log`, `.jsonl`,
 `.txt`, `.md`, `.html`, and `.xlsx`. Logs/JSONL must contain valid JSON records.
