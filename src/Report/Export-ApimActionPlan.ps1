@@ -5,6 +5,9 @@ Set-StrictMode -Version Latest
 $script:ApimReportTemplatePath = Join-Path (
     Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 ) 'template/ApimActionPlan.xlsx'
+$script:ApimReportRuleCatalogPath = Join-Path (
+    Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
+) 'rules'
 $script:ApimReportImportExcelVersion = [version] '7.8.10'
 $script:ApimReportMaximumRows = 9997
 
@@ -149,6 +152,7 @@ function ConvertTo-ApimReportCellValue {
 
 function Get-ApimReportTableMapping {
     [CmdletBinding()]
+    [OutputType([System.Collections.Specialized.OrderedDictionary])]
     param(
         [Parameter(Mandatory)]
         [ValidateSet(
@@ -157,7 +161,10 @@ function Get-ApimReportTableMapping {
             'tblApis',
             'tblPolicy',
             'tblSubs',
-            'tblExposure'
+            'tblExposure',
+            'tblRun',
+            'tblRules',
+            'tblWeights'
         )]
         [string] $TableName
     )
@@ -312,7 +319,330 @@ function Get-ApimReportTableMapping {
                 'Missing Inputs' = 'missingInputs'
             }
         }
+        tblRun {
+            return [ordered]@{
+                Section = 'section'
+                Name = 'name'
+                Status = 'status'
+                Items = 'items'
+                Errors = 'errors'
+                'Duration Sec' = 'durationSec'
+                'Started UTC' = 'startedUtc'
+                'Completed UTC' = 'completedUtc'
+                Window = 'window'
+                Value = 'value'
+            }
+        }
+        tblRules {
+            return [ordered]@{
+                'Rule ID' = 'ruleId'
+                Title = 'title'
+                Pillar = 'pillar'
+                MCSB = 'mcsb'
+                Severity = 'severity'
+                Scope = 'scope'
+                Requires = 'requires'
+                Recommendation = 'recommendation'
+                Effort = 'effort'
+                Enabled = 'enabled'
+            }
+        }
+        tblWeights {
+            return [ordered]@{
+                Dimension = 'dimension'
+                Value = 'value'
+                Weight = 'weight'
+            }
+        }
     }
+}
+
+function ConvertTo-ApimReportRunRow {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string] $Section,
+
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string] $Name,
+
+        [AllowNull()]
+        [object] $Status,
+
+        [AllowNull()]
+        [object] $Items,
+
+        [AllowNull()]
+        [object] $Errors,
+
+        [AllowNull()]
+        [object] $DurationSec,
+
+        [AllowNull()]
+        [object] $StartedUtc,
+
+        [AllowNull()]
+        [object] $CompletedUtc,
+
+        [AllowNull()]
+        [object] $Window,
+
+        [AllowNull()]
+        [object] $Value
+    )
+
+    return [pscustomobject][ordered]@{
+        section = $Section
+        name = $Name
+        status = $Status
+        items = $Items
+        errors = $Errors
+        durationSec = $DurationSec
+        startedUtc = $StartedUtc
+        completedUtc = $CompletedUtc
+        window = $Window
+        value = $Value
+    }
+}
+
+function ConvertTo-ApimReportRunRowSet {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [object] $Manifest
+    )
+
+    $rows = [System.Collections.Generic.List[object]]::new()
+    $rows.Add((ConvertTo-ApimReportRunRow -Section Run -Name Assessment `
+            -StartedUtc $Manifest.startedUtc `
+            -CompletedUtc $Manifest.completedUtc -Value $Manifest.runId))
+    foreach ($entry in @(
+            @{ Section = 'Scope'; Name = 'Customer'; Value = $Manifest.customer }
+            @{
+                Section = 'Scope'
+                Name = 'Environment'
+                Value = $Manifest.environment
+            }
+            @{ Section = 'Scope'; Name = 'Operator'; Value = $Manifest.operator }
+            @{
+                Section = 'Scope'
+                Name = 'Tenant ID'
+                Value = $Manifest.tenantId
+            }
+            @{
+                Section = 'Scope'
+                Name = 'Subscription ID'
+                Value = $Manifest.subscriptionId
+            }
+            @{
+                Section = 'Scope'
+                Name = 'APIM Resource ID'
+                Value = $Manifest.apim.resourceId
+            }
+            @{
+                Section = 'Version'
+                Name = 'Manifest Schema'
+                Value = $Manifest.schemaVersion
+            }
+            @{
+                Section = 'Version'
+                Name = 'Tool'
+                Value = $Manifest.toolVersion
+            }
+            @{
+                Section = 'Version'
+                Name = 'APIM API'
+                Value = $Manifest.apim.apiVersion
+            }
+        )) {
+        $rows.Add((ConvertTo-ApimReportRunRow -Section $entry.Section `
+                -Name $entry.Name -Value $entry.Value))
+    }
+    foreach ($stage in @('collect', 'analyze', 'report')) {
+        $rows.Add((ConvertTo-ApimReportRunRow -Section Stage `
+                -Name ([cultureinfo]::InvariantCulture.TextInfo.ToTitleCase(
+                    $stage
+                )) -Status $Manifest.stages.$stage))
+    }
+    foreach ($collector in @($Manifest.collectors | Sort-Object name)) {
+        $rows.Add((ConvertTo-ApimReportRunRow -Section Collector `
+                -Name $collector.name -Status $collector.status `
+                -Items $collector.items -Errors $collector.errors `
+                -DurationSec $collector.durationSec))
+    }
+    foreach ($window in @(
+            @{
+                Name = 'Usage'
+                Window = "$($Manifest.windows.usageDays) days"
+                Value = $Manifest.windows.usageDays
+            }
+            @{
+                Name = 'Security Logs'
+                Window = "$($Manifest.windows.securityLogDays) days"
+                Value = $Manifest.windows.securityLogDays
+            }
+            @{
+                Name = 'Cost'
+                Window = "$($Manifest.windows.costMonths) months"
+                Value = $Manifest.windows.costMonths
+            }
+        )) {
+        $rows.Add((ConvertTo-ApimReportRunRow -Section Window -Name $window.Name `
+                -Window $window.Window -Value $window.Value))
+    }
+    foreach ($entry in @(
+            @{
+                Section = 'Edge'
+                Name = 'Provider'
+                Value = $Manifest.edge.provider
+            }
+            @{
+                Section = 'Edge'
+                Name = 'Mode'
+                Value = $Manifest.edge.mode
+            }
+            @{
+                Section = 'Model Safe'
+                Name = 'Build'
+                Status = $Manifest.modelSafe.build
+            }
+            @{
+                Section = 'Model Safe'
+                Name = 'Validation'
+                Status = $Manifest.modelSafe.validation
+            }
+            @{
+                Section = 'Model Safe'
+                Name = 'Promotion'
+                Status = $Manifest.modelSafe.promotion
+            }
+            @{
+                Section = 'Model Safe'
+                Name = 'Package SHA-256'
+                Value = $Manifest.modelSafe.packageSha256
+            }
+        )) {
+        $status = if ($entry.ContainsKey('Status')) {
+            $entry.Status
+        }
+        else {
+            $null
+        }
+        $value = if ($entry.ContainsKey('Value')) {
+            $entry.Value
+        }
+        else {
+            $null
+        }
+        $rows.Add((ConvertTo-ApimReportRunRow -Section $entry.Section `
+                -Name $entry.Name -Status $status -Value $value))
+    }
+    for ($index = 0; $index -lt @($Manifest.warnings).Count; $index++) {
+        $rows.Add((ConvertTo-ApimReportRunRow -Section Warning `
+                -Name ('Warning {0}' -f ($index + 1)) `
+                -Value $Manifest.warnings[$index]))
+    }
+    return $rows.ToArray()
+}
+
+function ConvertTo-ApimReportRuleRowSet {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [ValidateNotNull()]
+        [object[]] $Rules
+    )
+
+    [object[]] $sorted = @($Rules)
+    [Array]::Sort($sorted, [System.Collections.Generic.Comparer[object]]::Create(
+            [System.Comparison[object]] {
+                param($left, $right)
+                return [string]::CompareOrdinal($left.Id, $right.Id)
+            }
+        ))
+    return @($sorted | ForEach-Object {
+            [pscustomobject][ordered]@{
+                ruleId = $_.Id
+                title = $_.Title
+                pillar = $_.Pillar
+                mcsb = $_.Mcsb
+                severity = $_.Severity
+                scope = @(Resolve-ApimRuleScope -Scope $_.Scope)
+                requires = @($_.Requires)
+                recommendation = $_.Recommendation
+                effort = $_.Effort
+                enabled = $_.Enabled
+            }
+        })
+}
+
+function ConvertTo-ApimReportWeightRowSet {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [object] $Manifest
+    )
+
+    return @(
+        [pscustomobject]@{
+            dimension = 'Severity'; value = 'High'
+            weight = $Manifest.scoring.severity.high
+        }
+        [pscustomobject]@{
+            dimension = 'Severity'; value = 'Medium'
+            weight = $Manifest.scoring.severity.medium
+        }
+        [pscustomobject]@{
+            dimension = 'Severity'; value = 'Low'
+            weight = $Manifest.scoring.severity.low
+        }
+        [pscustomobject]@{
+            dimension = 'Severity'; value = 'Info'
+            weight = $Manifest.scoring.severity.info
+        }
+        [pscustomobject]@{
+            dimension = 'Exposure'; value = 'DirectPublic'
+            weight = $Manifest.scoring.exposure.directPublic
+        }
+        [pscustomobject]@{
+            dimension = 'Exposure'; value = 'ExternalInUse'
+            weight = $Manifest.scoring.exposure.externalInUse
+        }
+        [pscustomobject]@{
+            dimension = 'Exposure'; value = 'ExternalUnintended'
+            weight = $Manifest.scoring.exposure.externalUnintended
+        }
+        [pscustomobject]@{
+            dimension = 'Exposure'; value = 'Restricted'
+            weight = $Manifest.scoring.exposure.restricted
+        }
+        [pscustomobject]@{
+            dimension = 'Exposure'; value = 'Internal'
+            weight = $Manifest.scoring.exposure.internal
+        }
+        [pscustomobject]@{
+            dimension = 'Exposure'; value = 'Platform'
+            weight = $Manifest.scoring.exposure.platform
+        }
+        [pscustomobject]@{
+            dimension = 'Exposure'; value = 'Unknown'
+            weight = $Manifest.scoring.exposure.unknown
+        }
+        [pscustomobject]@{
+            dimension = 'Usage'; value = 'InUse'
+            weight = $Manifest.scoring.usage.inUse
+        }
+        [pscustomobject]@{
+            dimension = 'Usage'; value = 'Unused'
+            weight = $Manifest.scoring.usage.unused
+        }
+        [pscustomobject]@{
+            dimension = 'Usage'; value = 'NotApplicable'
+            weight = $Manifest.scoring.usage.notApplicable
+        }
+    )
 }
 
 function ConvertTo-ApimReportRow {
@@ -486,8 +816,8 @@ function Write-ApimReportSummary {
     $summary.Cells[4, 1].Value = (
         'ASSUMPTIONS AND DATA GAPS - Edge: {0}/{1}; windows: usage {2}d, ' +
         'security {3}d, cost {4}m; NotEvaluated findings: {5}; manifest ' +
-        'warnings: {6}; Usage, Cost, Environment Drift, Run Info, and Method ' +
-        '& Rules remain deferred in this report slice.'
+        'warnings: {6}; Usage, Cost, and Environment Drift remain deferred ' +
+        'in this report slice.'
     ) -f
         $Manifest.edge.provider,
         $Manifest.edge.mode,
@@ -527,6 +857,68 @@ function Write-ApimReportSummary {
     }
 }
 
+function Write-ApimReportPriorityFormula {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [object] $Package,
+
+        [Parameter(Mandatory)]
+        [ValidateRange(0, [int]::MaxValue)]
+        [int] $ActionCount,
+
+        [Parameter(Mandatory)]
+        [ValidateRange(0, [int]::MaxValue)]
+        [int] $FindingCount
+    )
+
+    $findingTable = $Package.Workbook.Worksheets[
+        'Finding Details'
+    ].Tables['tblFindings']
+    $actionTable = $Package.Workbook.Worksheets[
+        'Action Plan'
+    ].Tables['tblActions']
+    if ($null -eq $findingTable -or $null -eq $actionTable) {
+        throw 'Report template priority tables were unavailable.'
+    }
+    $findingPriorityColumn = [Array]::IndexOf(
+        [string[]] @($findingTable.Columns.Name),
+        'Priority'
+    )
+    $actionPriorityColumn = [Array]::IndexOf(
+        [string[]] @($actionTable.Columns.Name),
+        'Priority'
+    )
+    if ($findingPriorityColumn -lt 0 -or $actionPriorityColumn -lt 0) {
+        throw 'Report template priority columns were unavailable.'
+    }
+
+    $findingFormula = (
+        'ROUND(' +
+        'SUMIFS(tblWeights[Weight],tblWeights[Dimension],"Severity",' +
+        'tblWeights[Value],[@Severity])*' +
+        'SUMIFS(tblWeights[Weight],tblWeights[Dimension],"Exposure",' +
+        'tblWeights[Value],[@Exposure])*' +
+        'IF([@Usage]="",1,SUMIFS(tblWeights[Weight],' +
+        'tblWeights[Dimension],"Usage",tblWeights[Value],[@Usage])),1)'
+    )
+    for ($index = 0; $index -lt $FindingCount; $index++) {
+        $findingTable.WorkSheet.Cells[
+            ($findingTable.Address.Start.Row + 1 + $index),
+            ($findingTable.Address.Start.Column + $findingPriorityColumn)
+        ].Formula = $findingFormula
+    }
+    for ($index = 0; $index -lt $ActionCount; $index++) {
+        $actionTable.WorkSheet.Cells[
+            ($actionTable.Address.Start.Row + 1 + $index),
+            ($actionTable.Address.Start.Column + $actionPriorityColumn)
+        ].Formula = (
+            'MAXIFS(tblFindings[Priority],tblFindings[Rule ID],' +
+            '[@[Rule ID]])'
+        )
+    }
+}
+
 function Export-ApimActionPlan {
     [CmdletBinding(SupportsShouldProcess)]
     param(
@@ -543,6 +935,15 @@ function Export-ApimActionPlan {
     $models = Get-ApimModelSet -RunPath $RunPath
     [object[]] $findings = @(Get-ApimFindingSet -RunPath $RunPath)
     [object[]] $actions = @(Get-ApimActionPlan -Findings $findings)
+    Test-ConfigPathLink -Path $script:ApimReportRuleCatalogPath `
+        -Context 'Rule catalog path'
+    [object[]] $rules = @(Get-ApimRuleCatalog `
+            -CatalogPath $script:ApimReportRuleCatalogPath)
+    [object[]] $runRows = @(ConvertTo-ApimReportRunRowSet `
+            -Manifest $manifest)
+    [object[]] $ruleRows = @(ConvertTo-ApimReportRuleRowSet -Rules $rules)
+    [object[]] $weightRows = @(ConvertTo-ApimReportWeightRowSet `
+            -Manifest $manifest)
 
     $resolvedTemplate = [System.IO.Path]::GetFullPath($TemplatePath)
     Test-ConfigPathLink -Path $resolvedTemplate -Context 'Report template path'
@@ -596,6 +997,21 @@ function Export-ApimActionPlan {
                     Table = 'tblExposure'
                     Records = @($models.exposure)
                 }
+                @{
+                    Worksheet = 'Run Info'
+                    Table = 'tblRun'
+                    Records = $runRows
+                }
+                @{
+                    Worksheet = 'Method & Rules'
+                    Table = 'tblRules'
+                    Records = $ruleRows
+                }
+                @{
+                    Worksheet = 'Method & Rules'
+                    Table = 'tblWeights'
+                    Records = $weightRows
+                }
             )) {
             $mapping = Get-ApimReportTableMapping `
                 -TableName $definition.Table
@@ -605,6 +1021,8 @@ function Export-ApimActionPlan {
                 -WorksheetName $definition.Worksheet `
                 -TableName $definition.Table -Rows $rows -Mapping $mapping
         }
+        Write-ApimReportPriorityFormula -Package $package `
+            -ActionCount $actions.Count -FindingCount $findings.Count
         Write-ApimReportSummary -Package $package -Manifest $manifest `
             -Findings $findings -Network $models.network
         $package.Workbook.CalcMode = 'Automatic'

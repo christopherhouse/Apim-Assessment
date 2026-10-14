@@ -460,6 +460,26 @@ try {
     Format-ApimTemplateWorksheet -Worksheet $method -Title 'Method & Rules' `
         -Subtitle 'Implemented catalog and editable priority weights' `
         -LastColumn ($weightColumn + $weightHeaders.Count - 1)
+    $weightValueColumn = $weightColumn + 2
+    $method.Cells[
+        4, $weightValueColumn, $maxDataRow, $weightValueColumn
+    ].Style.Fill.PatternType = 'Solid'
+    $method.Cells[
+        4, $weightValueColumn, $maxDataRow, $weightValueColumn
+    ].Style.Fill.BackgroundColor.SetColor($paleYellow)
+    $method.Cells[
+        4, $weightValueColumn, $maxDataRow, $weightValueColumn
+    ].Style.Numberformat.Format = '0.0###'
+    $weightValidation = $method.DataValidations.AddDecimalValidation(
+        "O4:O$maxDataRow"
+    )
+    $weightValidation.Operator = (
+        [OfficeOpenXml.DataValidation.ExcelDataValidationOperator]::greaterThan
+    )
+    $weightValidation.Formula.Value = 0
+    $weightValidation.ShowErrorMessage = $true
+    $weightValidation.ErrorTitle = 'Invalid weight'
+    $weightValidation.Error = 'Enter a number greater than zero.'
 
     $actionSheet = $package.Workbook.Worksheets['Action Plan']
     $findingSheet = $package.Workbook.Worksheets['Finding Details']

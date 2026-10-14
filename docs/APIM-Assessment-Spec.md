@@ -246,7 +246,7 @@ promotion-time link/traversal and time-of-check/time-of-use defenses.
 
 ```json
 {
-  "schemaVersion": "1.0",
+  "schemaVersion": "1.1",
   "toolVersion": "0.1.0",
   "customer": "Example",
   "environment": "Prod",
@@ -257,6 +257,15 @@ promotion-time link/traversal and time-of-check/time-of-use defenses.
   "apim": { "resourceId": "...", "apiVersion": "2024-05-01" },
   "windows": { "usageDays": 90, "securityLogDays": 30, "costMonths": 6 },
   "edge": { "provider": "Cloudflare", "mode": "AssumedReachable" },
+  "scoring": {
+    "severity": { "high": 3, "medium": 2, "low": 1, "info": 0.5 },
+    "exposure": {
+      "directPublic": 2.5, "externalInUse": 2,
+      "externalUnintended": 2, "restricted": 1.5, "internal": 1,
+      "platform": 1.5, "unknown": 1.5
+    },
+    "usage": { "inUse": 1.5, "unused": 1, "notApplicable": 1 }
+  },
   "stages": { "collect": "Completed", "analyze": "Completed", "report": "Completed" },
   "collectors": [ { "name": "Policies", "status": "Completed|Partial|Failed|Skipped", "items": 612, "errors": 0, "durationSec": 41 } ],
   "modelSafe": { "build": "Completed", "validation": "Passed", "promotion": "Completed", "packageSha256": "..." },
@@ -675,6 +684,9 @@ per rule for these gaps; undeclared paths fail closed (D-30).
 
 ### 10.3 Priority score
 `priorityScore = Severity[sev] × Exposure[exposure or 'Platform' for service-level] × Usage[usage]` (weights from config, defaults §5), rounded to 1 decimal.
+Manifest schema 1.1 stores the exact validated Severity, Exposure, and Usage
+maps used by the run so offline report rendering never reopens external
+configuration or silently assumes default weights (D-45).
 
 ### 10.4 Action-plan aggregation
 For the report, schema-valid findings with valid unique keys are grouped by
@@ -893,15 +905,25 @@ validation. Structural tests open the committed workbook and a regenerated copy,
 verify every sheet/table/header, and require empty placeholder rows (D-43).
 
 `Export-ApimActionPlan` loads and validates the saved manifest, every registered
-model contract, and `findings.json` before selecting an output filename or
-copying the template. It populates the currently implemented Actions, Finding
-Details, API Inventory, Effective Policy Matrix, Subscriptions, Exposure Map,
-network summary, and Summary assumptions. Usage, Cost, and Environment Drift
-remain empty until their model contracts exist; Run Info and Method & Rules are
-owned by T-310. Output is written under the run's restricted `report` folder,
-uses `manifest.startedUtc` for the filename date, never overwrites an existing
-file, and fails before final output on unsafe names, template drift, invalid
-inputs, or more than 9,997 rows in any table (D-44).
+model contract, `findings.json`, and the installed rule catalog before selecting
+an output filename or copying the template. It populates the currently
+implemented Actions, Finding Details, API Inventory, Effective Policy Matrix,
+Subscriptions, Exposure Map, network summary, Summary assumptions, Run Info,
+implemented rules, and the manifest's exact scoring snapshot. Usage, Cost, and
+Environment Drift remain empty until their model contracts exist. Output is
+written under the run's restricted `report` folder, uses `manifest.startedUtc`
+for the filename date, never overwrites an existing file, and fails before final
+output on unsafe names, template drift, invalid inputs, or more than 9,997 rows
+in any table (D-44/D-45).
+
+`tblWeights` contains editable positive Severity, Exposure, and Usage values.
+Each Finding Details Priority cell is a formula over its Severity, Exposure,
+and Usage values; blank usage applies the neutral 1.0 multiplier. Each Action
+Plan Priority cell uses the maximum recalculated Finding Details priority for
+the same rule ID. The workbook requests automatic full recalculation when
+opened. Editing weights changes only workbook formulas and cached presentation;
+it never mutates `findings.json`, and action rows remain in their original
+deterministic saved order rather than automatically resorting (D-45).
 
 `template/executive-summary/` holds local HTML/CSS/SVG templates. The renderer, not an AI model, combines the validated executive summary with restricted local facts and resolves approved aliases through `alias-map.json`.
 

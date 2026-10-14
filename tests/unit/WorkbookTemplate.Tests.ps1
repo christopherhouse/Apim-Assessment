@@ -196,6 +196,21 @@ Describe 'APIM action-plan workbook template' {
         )
     }
 
+    It 'marks scoring weights as editable positive numbers' {
+        $worksheet = $script:templatePackage.Workbook.Worksheets[
+            'Method & Rules'
+        ]
+        $worksheet.Cells[4, 15].Style.Fill.BackgroundColor.Rgb |
+            Should -Be 'FFFFF2CC'
+        $worksheet.Cells[4, 15].Style.Numberformat.Format |
+            Should -Be '0.0###'
+        $worksheet.DataValidations.Count | Should -Be 1
+        $validation = $worksheet.DataValidations[0]
+        $validation.Address.Address | Should -Be 'O4:O10000'
+        $validation.Operator.ToString() | Should -Be 'greaterThan'
+        $validation.Formula.Value | Should -Be 0
+    }
+
     It 'regenerates a structurally equivalent workbook' {
         $generated = Join-Path $TestDrive 'ApimActionPlan.xlsx'
 

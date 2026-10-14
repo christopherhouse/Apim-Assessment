@@ -246,7 +246,7 @@ function New-ApimRun {
         $environment.ApimResourceGroup,
         $environment.ApimName
     $manifest = [ordered]@{
-        schemaVersion = '1.0'
+        schemaVersion = '1.1'
         toolVersion   = $ToolVersion
         customer      = $Config.Customer
         environment   = $environment.Name
@@ -268,6 +268,28 @@ function New-ApimRun {
         edge          = [ordered]@{
             provider = $Config.Edge.Provider
             mode     = $Config.Edge.Mode
+        }
+        scoring       = [ordered]@{
+            severity = [ordered]@{
+                high   = [double] $Config.Scoring.Severity.High
+                medium = [double] $Config.Scoring.Severity.Medium
+                low    = [double] $Config.Scoring.Severity.Low
+                info   = [double] $Config.Scoring.Severity.Info
+            }
+            exposure = [ordered]@{
+                directPublic       = [double] $Config.Scoring.Exposure.DirectPublic
+                externalInUse      = [double] $Config.Scoring.Exposure.ExternalInUse
+                externalUnintended = [double] $Config.Scoring.Exposure.ExternalUnintended
+                restricted         = [double] $Config.Scoring.Exposure.Restricted
+                internal           = [double] $Config.Scoring.Exposure.Internal
+                platform           = [double] $Config.Scoring.Exposure.Platform
+                unknown            = [double] $Config.Scoring.Exposure.Unknown
+            }
+            usage = [ordered]@{
+                inUse         = [double] $Config.Scoring.Usage.InUse
+                unused        = [double] $Config.Scoring.Usage.Unused
+                notApplicable = [double] $Config.Scoring.Usage.NotApplicable
+            }
         }
         stages        = [ordered]@{
             collect = 'NotStarted'

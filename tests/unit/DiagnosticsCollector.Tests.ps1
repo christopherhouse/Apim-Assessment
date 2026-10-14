@@ -1,5 +1,8 @@
 $repoRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 $fixtureRoot = Join-Path $repoRoot 'tests/fixtures/synthetic-reference/raw'
+$scoring = (Import-PowerShellDataFile (
+        Join-Path $repoRoot 'config/sample.psd1'
+    )).Scoring
 Import-Module (Join-Path $repoRoot 'ApimAssessment.psd1') -Force
 
 AfterAll {
@@ -7,10 +10,14 @@ AfterAll {
 }
 
 Describe 'APIM diagnostics collector' {
-    InModuleScope ApimAssessment -Parameters @{ FixtureRoot = $fixtureRoot } {
-        param($FixtureRoot)
+    InModuleScope ApimAssessment -Parameters @{
+        FixtureRoot = $fixtureRoot
+        Scoring = $scoring
+    } {
+        param($FixtureRoot, $Scoring)
 
         $script:diagnosticsFixtureRoot = $FixtureRoot
+        $script:diagnosticsScoring = $Scoring
 
         BeforeAll {
             function ConvertTo-DiagnosticsCompactJson {
@@ -94,6 +101,7 @@ Describe 'APIM diagnostics collector' {
                 Edge = @{
                     Provider = 'SyntheticEdge'; Mode = 'AssumedReachable'
                 }
+                Scoring = $script:diagnosticsScoring
                 Output = @{
                     Root = Join-Path $TestDrive (
                         [guid]::NewGuid().ToString('N')

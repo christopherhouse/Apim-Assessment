@@ -1,5 +1,8 @@
 $repoRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 $fixtureRoot = Join-Path $repoRoot 'tests/fixtures/synthetic-reference'
+$scoring = (Import-PowerShellDataFile (
+        Join-Path $repoRoot 'config/sample.psd1'
+    )).Scoring
 Import-Module (Join-Path $repoRoot 'ApimAssessment.psd1') -Force
 
 AfterAll {
@@ -9,10 +12,12 @@ AfterAll {
 Describe 'APIM network collector' {
     InModuleScope ApimAssessment -Parameters @{
         FixtureRoot = $fixtureRoot
+        Scoring = $scoring
     } {
-        param($FixtureRoot)
+        param($FixtureRoot, $Scoring)
 
         $script:networkCollectorFixtureRoot = $FixtureRoot
+        $script:networkCollectorScoring = $Scoring
 
         BeforeAll {
             function Read-NetworkCollectorFixture {
@@ -61,6 +66,7 @@ Describe 'APIM network collector' {
                     Provider = 'SyntheticEdge'
                     Mode = 'AssumedReachable'
                 }
+                Scoring = $script:networkCollectorScoring
                 Output = @{
                     Root = (Join-Path $TestDrive (
                             [guid]::NewGuid().ToString('N')

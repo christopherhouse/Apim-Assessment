@@ -18,6 +18,7 @@
     "apim",
     "windows",
     "edge",
+    "scoring",
     "stages",
     "collectors",
     "modelSafe",
@@ -25,7 +26,7 @@
   ],
   "properties": {
     "schemaVersion": {
-      "const": "1.0"
+      "const": "1.1"
     },
     "toolVersion": {
       "type": "string",
@@ -123,6 +124,97 @@
             "AssumedReachable",
             "Collected"
           ]
+        }
+      }
+    },
+    "scoring": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "severity",
+        "exposure",
+        "usage"
+      ],
+      "properties": {
+        "severity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "high",
+            "medium",
+            "low",
+            "info"
+          ],
+          "properties": {
+            "high": {
+              "$ref": "#/definitions/scoringWeight"
+            },
+            "medium": {
+              "$ref": "#/definitions/scoringWeight"
+            },
+            "low": {
+              "$ref": "#/definitions/scoringWeight"
+            },
+            "info": {
+              "$ref": "#/definitions/scoringWeight"
+            }
+          }
+        },
+        "exposure": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "directPublic",
+            "externalInUse",
+            "externalUnintended",
+            "restricted",
+            "internal",
+            "platform",
+            "unknown"
+          ],
+          "properties": {
+            "directPublic": {
+              "$ref": "#/definitions/scoringWeight"
+            },
+            "externalInUse": {
+              "$ref": "#/definitions/scoringWeight"
+            },
+            "externalUnintended": {
+              "$ref": "#/definitions/scoringWeight"
+            },
+            "restricted": {
+              "$ref": "#/definitions/scoringWeight"
+            },
+            "internal": {
+              "$ref": "#/definitions/scoringWeight"
+            },
+            "platform": {
+              "$ref": "#/definitions/scoringWeight"
+            },
+            "unknown": {
+              "$ref": "#/definitions/scoringWeight"
+            }
+          }
+        },
+        "usage": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "inUse",
+            "unused",
+            "notApplicable"
+          ],
+          "properties": {
+            "inUse": {
+              "$ref": "#/definitions/scoringWeight"
+            },
+            "unused": {
+              "$ref": "#/definitions/scoringWeight"
+            },
+            "notApplicable": {
+              "$ref": "#/definitions/scoringWeight"
+            }
+          }
         }
       }
     },
@@ -240,6 +332,10 @@
         "Failed",
         "Skipped"
       ]
+    },
+    "scoringWeight": {
+      "type": "number",
+      "exclusiveMinimum": 0
     }
   }
 }
