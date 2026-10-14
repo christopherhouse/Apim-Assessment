@@ -13,6 +13,13 @@ foreach ($name in $dependencies.Keys | Sort-Object) {
         Install-Module -Name $name -RequiredVersion $version -Repository PSGallery `
             -Scope CurrentUser -Force -ErrorAction Stop
     }
-    Import-Module -Name $name -RequiredVersion $version -Force -ErrorAction Stop
+    if ($name -eq 'ImportExcel') {
+        Import-Module -Name $name -RequiredVersion $version -Force `
+            -ErrorAction Stop 3>$null
+    }
+    else {
+        Import-Module -Name $name -RequiredVersion $version -Force `
+            -ErrorAction Stop
+    }
     Write-Verbose "Ready: $name $version"
 }

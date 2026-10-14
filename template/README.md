@@ -1,7 +1,19 @@
 # Action-plan template
 
-`ApimActionPlan.xlsx` is planned under task T-308, not supplied by the bootstrap.
-Use specification section 12 for sheet/table names and styling. Formatting,
-formulas, conditional formatting, and charts belong in the template; report code
-fills data and preserves human-entered tracking fields. Never put a real customer
-workbook here.
+`ApimActionPlan.xlsx` is the customer-neutral workbook template defined by
+specification section 12. It contains all fixed sheet/table names, title and
+header styling, frozen panes, column widths, conditional formatting, action
+tracking validation, Summary formulas/chart, and the assumptions/data-gap
+banner. Tables contain only an empty placeholder row.
+
+Regenerate it from the repository root after installing pinned development
+dependencies:
+
+```powershell
+.\scripts\New-ApimActionPlanTemplate.ps1 -Force
+.\scripts\Invoke-Checks.ps1 -TestPath .\tests\unit\WorkbookTemplate.Tests.ps1
+```
+
+The generator uses fixed widths, so desktop Excel and native auto-size
+dependencies are not required. Never replace this file with a real customer
+workbook or add customer values to the generator.
