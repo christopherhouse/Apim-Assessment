@@ -463,6 +463,37 @@ try {
 
     $actionSheet = $package.Workbook.Worksheets['Action Plan']
     $findingSheet = $package.Workbook.Worksheets['Finding Details']
+    $exposureSheet = $package.Workbook.Worksheets['Exposure Map']
+    $exposureSheet.Cells[1, 24, 1, 25].Merge = $true
+    $exposureSheet.Cells[1, 24].Value = 'Network Summary'
+    $exposureSheet.Cells[1, 24, 1, 25].Style.Fill.PatternType = 'Solid'
+    $exposureSheet.Cells[
+        1, 24, 1, 25
+    ].Style.Fill.BackgroundColor.SetColor($navy)
+    $exposureSheet.Cells[1, 24, 1, 25].Style.Font.Color.SetColor($white)
+    $exposureSheet.Cells[1, 24, 1, 25].Style.Font.Bold = $true
+    $networkLabels = @(
+        'Virtual Network Type',
+        'Public Network Access',
+        'NSG Evaluation',
+        'Direct Public',
+        'App Gateway TLS',
+        'Probe Alignment',
+        'WAF',
+        'Model Status'
+    )
+    for ($index = 0; $index -lt $networkLabels.Count; $index++) {
+        $row = $index + 3
+        $exposureSheet.Cells[$row, 24].Value = $networkLabels[$index]
+        $exposureSheet.Cells[$row, 24].Style.Font.Bold = $true
+        $exposureSheet.Cells[$row, 24].Style.Fill.PatternType = 'Solid'
+        $exposureSheet.Cells[
+            $row, 24
+        ].Style.Fill.BackgroundColor.SetColor($lightBlue)
+    }
+    $exposureSheet.Column(24).Width = 24
+    $exposureSheet.Column(25).Width = 24
+
     foreach ($entry in @(
             @{ Sheet = $actionSheet; Column = 'D' }
             @{ Sheet = $findingSheet; Column = 'F' }
@@ -497,7 +528,7 @@ try {
 
     foreach ($entry in @(
             @{ Sheet = $package.Workbook.Worksheets['API Inventory']; Column = 'AB' }
-            @{ Sheet = $package.Workbook.Worksheets['Exposure Map']; Column = 'O' }
+            @{ Sheet = $exposureSheet; Column = 'O' }
         )) {
         foreach ($rule in @(
                 @{ Value = 'DirectPublic'; Back = '#F4CCCC'; Fore = '#9C0006' }

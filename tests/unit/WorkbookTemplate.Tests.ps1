@@ -139,6 +139,20 @@ Describe 'APIM action-plan workbook template' {
         $script:templatePackage.Workbook.Worksheets[
             'Exposure Map'
         ].ConditionalFormatting.Count | Should -BeGreaterThan 0
+        $exposure = $script:templatePackage.Workbook.Worksheets[
+            'Exposure Map'
+        ]
+        $exposure.Cells[1, 24].Text | Should -Be 'Network Summary'
+        @($exposure.Cells[3, 24, 10, 24].Value) | Should -Be @(
+            'Virtual Network Type',
+            'Public Network Access',
+            'NSG Evaluation',
+            'Direct Public',
+            'App Gateway TLS',
+            'Probe Alignment',
+            'WAF',
+            'Model Status'
+        )
     }
 
     It 'contains Summary formulas, assumptions, a chart, and top actions' {

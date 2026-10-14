@@ -4,7 +4,8 @@
 specification section 12. It contains all fixed sheet/table names, title and
 header styling, frozen panes, column widths, conditional formatting, action
 tracking validation, Summary formulas/chart, and the assumptions/data-gap
-banner. Tables contain only an empty placeholder row.
+banner. The Exposure Map also includes a formatted network-summary block.
+Tables contain only an empty placeholder row.
 
 Regenerate it from the repository root after installing pinned development
 dependencies:
@@ -17,3 +18,8 @@ dependencies:
 The generator uses fixed widths, so desktop Excel and native auto-size
 dependencies are not required. Never replace this file with a real customer
 workbook or add customer values to the generator.
+
+The private report writer copies this file and writes typed values into the
+existing table ranges; it does not use a real customer workbook as a template.
+Generated reports remain under an ignored restricted run folder and are never
+model-safe artifacts.

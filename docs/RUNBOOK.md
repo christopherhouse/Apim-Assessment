@@ -19,7 +19,8 @@ seven NET catalog entries, fifteen model-backed
 SEC catalog entries, six model-backed GOV catalog entries, all six REL catalog
 entries, a closed findings schema, and private closed action-item aggregation
 plus a customer-neutral generated Excel action-plan template are available for
-offline synthetic testing. Full
+offline synthetic testing. A private report writer can populate the current
+deterministic workbook sheets from a validated saved run. Full
 collection/analyze orchestration, remaining collectors and models,
 telemetry-based exposure refinement, rule catalogs, the model-data airlock, Copilot
 operator workflow, reports/comparison, and Excel/HTML templates are not
@@ -139,9 +140,10 @@ The private `Get-ApimActionPlan` helper is also not an operator command. It
 accepts only schema-valid findings with valid unique keys, groups them by rule,
 counts evaluated instance rows, retains NotEvaluated gaps with zero affected
 resources, selects deterministic top scopes, and validates the result against
-`schemas/actions.schema.json`. It does not write a workbook, carry tracking
-values forward, or expose models/findings to Copilot. Those report surfaces
-remain pending T-309 and T-310.
+`schemas/actions.schema.json`. It does not itself write a workbook, carry
+tracking values forward, or expose models/findings to Copilot. The private
+writer below consumes its output; Run Info/rules/weights remain T-310 and
+tracking carry-forward remains T-507.
 
 The checked-in workbook template can be regenerated and structurally tested
 offline after installing pinned development dependencies:
@@ -153,7 +155,23 @@ offline after installing pinned development dependencies:
 
 This uses ImportExcel without desktop Excel, fixed column widths, and no Azure
 access. The template contains no customer values. Regeneration is a development
-operation only; no report command currently populates or distributes it.
+operation only; no public report command currently populates or distributes it.
+
+Private report-writer acceptance also remains synthetic and offline:
+
+```powershell
+.\scripts\Invoke-Checks.ps1 -TestPath .\tests\unit\ReportWriter.Tests.ps1
+```
+
+`Export-ApimActionPlan` is not an operator command. It validates the manifest,
+all registered model files, and findings before copying the trusted template.
+Current output fills actions, finding details, APIs, policy controls,
+subscriptions, exposure, network summary, and Summary assumptions under the
+run's `report` folder. It never overwrites an existing workbook and leaves no
+partial output on validation/template failure. Usage, Cost, Environment Drift,
+Run Info, and Method & Rules are intentionally empty pending their owning tasks.
+The generated workbook is restricted customer output and must never be sent to
+Copilot or another model.
 
 ## Reusable collection smoke (Microsoft-owned test APIM only)
 
