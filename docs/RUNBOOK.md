@@ -31,6 +31,13 @@ writes and complete saved-run loading. Private findings are validated against
 `schemas/findings.schema.json` before restricted persistence. This does not add
 a public Analyze command or authorize model/findings access to an agent.
 
+Closed schema version 1.0 contracts and a private in-memory reference gate are
+also available for synthetic tests. They validate opaque aliases, approved
+fact/narrative codes, typed usage buckets/cost trends, unique IDs, citations,
+and executive assumption/data-gap carry-forward. This is not a package builder,
+privacy scan, attestation, promotion command, or assessment-agent runtime.
+No customer data is approved for model access by a schema/reference pass.
+
 Do not run the planned commands in specification section 14 until their tasks
 are implemented, tested, and marked available in the root README.
 
@@ -61,7 +68,17 @@ Rule-engine acceptance remains offline and synthetic:
 .\scripts\Invoke-Checks.ps1 -TestPath .\tests\unit\GovRules.Tests.ps1
 .\scripts\Invoke-Checks.ps1 -TestPath .\tests\unit\RelRules.Tests.ps1
 .\scripts\Invoke-Checks.ps1 -TestPath .\tests\unit\ActionPlan.Tests.ps1
+.\scripts\Invoke-Checks.ps1 -TestPath .\tests\unit\AnalysisContract.Tests.ps1
 ```
+
+The contract check above uses only the independent synthetic examples under
+`tests/fixtures/synthetic-reference/analysis-contracts`. It neither reads a
+saved customer run nor creates/promotes an analysis package. The private gate
+consumes JSON strings, rejects malformed/duplicate-member inputs, and bounds
+each input to 16 MiB of UTF-8 content and a JSON nesting depth of 32. Rejections
+use fixed messages without echoing input values or validator exception details.
+The independent prohibited-value scanner and physical promotion boundary remain
+T-319; specialist claim reconciliation remains T-322/T-323.
 
 The private `Get-ApimRuleCatalog`, `Invoke-ApimRuleEngine`, and
 `Write-ApimFindingSet` helpers are not operator commands. Rules require explicit

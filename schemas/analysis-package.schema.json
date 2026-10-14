@@ -1,0 +1,194 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.invalid/apim-assessment/schemas/analysis-package.schema.json",
+  "title": "APIM Model-Safe Analysis Package",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "entities", "facts", "findings", "assumptions", "dataGaps"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "entities": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 10000,
+      "items": { "$ref": "#/definitions/entity" }
+    },
+    "facts": {
+      "type": "array",
+      "maxItems": 10000,
+      "items": { "$ref": "#/definitions/fact" }
+    },
+    "findings": {
+      "type": "array",
+      "maxItems": 10000,
+      "items": { "$ref": "#/definitions/finding" }
+    },
+    "assumptions": { "$ref": "#/definitions/assumptions" },
+    "dataGaps": { "$ref": "#/definitions/dataGaps" }
+  },
+  "definitions": {
+    "alias": {
+      "type": "string",
+      "pattern": "^(?:service|api|operation|product|subscription|named-value|backend|certificate|network|route)-(?=[0-9]*[1-9])[0-9]{3,6}(?![\\s\\S])"
+    },
+    "factId": { "type": "string", "pattern": "^fact-(?=[0-9]*[1-9])[0-9]{6}(?![\\s\\S])" },
+    "findingId": { "type": "string", "pattern": "^finding-(?=[0-9]*[1-9])[0-9]{6}(?![\\s\\S])" },
+    "confidence": { "enum": ["High", "Medium", "Low"] },
+    "factRefs": {
+      "type": "array",
+      "maxItems": 100,
+      "uniqueItems": true,
+      "items": { "$ref": "#/definitions/factId" }
+    },
+    "assumptions": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "CloudflareAssumed", "OriginAuthenticationUnverified",
+          "OwnerIntentUnverified", "TelemetryUnavailable", "CostUnavailable"
+        ]
+      }
+    },
+    "dataGaps": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "CollectionIncomplete", "PolicyIncomplete", "NetworkIncomplete",
+          "DiagnosticsIncomplete", "UsageUnavailable", "CostUnavailable",
+          "OriginAuthenticationUnknown", "OwnerIntentUnknown",
+          "BackendMappingUnavailable", "ProductClassificationUnavailable",
+          "DefenderUnavailable", "RbacUnavailable", "GitUnavailable"
+        ]
+      }
+    },
+    "entity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["alias", "kind"],
+      "properties": {
+        "alias": { "$ref": "#/definitions/alias" },
+        "kind": {
+          "enum": [
+            "Service", "Api", "Operation", "Product", "Subscription",
+            "NamedValue", "Backend", "Certificate", "Network", "Route"
+          ]
+        }
+      }
+    },
+    "fact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["factId", "subjectAlias", "code", "value", "confidence"],
+      "properties": {
+        "factId": { "$ref": "#/definitions/factId" },
+        "subjectAlias": { "$ref": "#/definitions/alias" },
+        "code": { "type": "string" },
+        "value": {},
+        "confidence": { "$ref": "#/definitions/confidence" }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "code": { "const": "VnetMode" },
+            "value": { "enum": ["Internal", "External", "None", "Unknown"] }
+          }
+        },
+        {
+          "properties": {
+            "code": { "const": "RoutingMode" },
+            "value": { "enum": ["HostWide", "PathBased", "Unknown"] }
+          }
+        },
+        {
+          "properties": {
+            "code": { "const": "WafPosture" },
+            "value": { "enum": ["Prevention", "Detection", "Disabled", "Unknown"] }
+          }
+        },
+        {
+          "properties": {
+            "code": { "const": "EdgeAssumption" },
+            "value": { "enum": ["CloudflareAssumed", "None", "Unknown"] }
+          }
+        },
+        {
+          "properties": {
+            "code": { "const": "Exposure" },
+            "value": {
+              "enum": [
+                "DirectPublic", "ExternalInUse", "ExternalUnintended",
+                "Restricted", "Internal", "Platform", "Unknown"
+              ]
+            }
+          }
+        },
+        {
+          "properties": {
+            "code": { "const": "CallerAuth" },
+            "value": {
+              "enum": ["Jwt", "Mtls", "JwtAndMtls", "SubscriptionKeyOnly", "None", "Unknown"]
+            }
+          }
+        },
+        {
+          "properties": {
+            "code": { "const": "UsageBucket" },
+            "value": { "enum": ["Zero", "Low", "Medium", "High", "Unknown"] }
+          }
+        },
+        {
+          "properties": {
+            "code": { "const": "CostTrend" },
+            "value": { "enum": ["Decreasing", "Stable", "Increasing", "Unknown"] }
+          }
+        },
+        {
+          "properties": {
+            "code": {
+              "enum": ["ApiCount", "OperationCount", "SubscriptionCount", "FindingCount"]
+            },
+            "value": { "type": "integer", "minimum": 0, "maximum": 10000 }
+          }
+        },
+        {
+          "properties": {
+            "code": {
+              "enum": [
+                "DirectPublic", "JwtConfigured", "MtlsConfigured",
+                "IpFilterConfigured", "HostCheckConfigured", "BaseMissing",
+                "HardcodedSecret", "SubscriptionRequired",
+                "BackendTlsValidationDisabled", "BodyLogging",
+                "SensitiveHeadersLogged", "ManagedIdentityConfigured",
+                "CriticalBackend"
+              ]
+            },
+            "value": { "type": ["boolean", "null"] }
+          }
+        }
+      ]
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "findingId", "ruleId", "subjectAlias", "severity", "evaluation",
+        "priorityBucket", "factRefs", "dataGaps"
+      ],
+      "properties": {
+        "findingId": { "$ref": "#/definitions/findingId" },
+        "ruleId": {
+          "type": "string",
+          "pattern": "^APIM-(?:NET|SEC|GOV|REL|PERF|POR|COST)-[0-9]{3}(?![\\s\\S])"
+        },
+        "subjectAlias": { "$ref": "#/definitions/alias" },
+        "severity": { "enum": ["High", "Medium", "Low", "Info"] },
+        "evaluation": { "enum": ["Evaluated", "NotEvaluated"] },
+        "priorityBucket": { "enum": ["High", "Medium", "Low", "Unknown"] },
+        "factRefs": { "$ref": "#/definitions/factRefs" },
+        "dataGaps": { "$ref": "#/definitions/dataGaps" }
+      }
+    }
+  }
+}

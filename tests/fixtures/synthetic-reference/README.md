@@ -98,5 +98,16 @@ Planned T-201 counts: 60 APIs, four all-API subscriptions, 11 unused APIs,
 cases, and two **synthetic** secret-pattern cases. These counts are targets,
 not claims about fixtures that already exist.
 
+`analysis-contracts/` adds four independent T-317 JSON examples, not a package
+generated or promoted from the raw/model fixture tree. Its package contains
+four entity aliases, six typed facts, and three reduced findings (two Evaluated,
+one Info/NotEvaluated). There is one observation for each specialist and an
+executive summary with two priorities, one theme, one decision, and one roadmap
+item. All references resolve and assumptions/data gaps are retained. Tests
+mutate these examples to reject unknown fields, exact metrics/free text,
+duplicate members/IDs, unsupported references, invalid analyst identity, and
+lost or invented executive qualifications. This does not complete T-201's
+full 60-API topology or T-320's independent airlock canary/mutation suite.
+
 Secret-pattern tests must use explicitly artificial strings. No real keys, JWTs,
 connection strings, tenant IDs, or user identities are allowed.
