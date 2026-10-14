@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "1.0",
+  "entities": [
+    { "alias": "service-001", "kind": "Service" },
+    { "alias": "api-001", "kind": "Api" },
+    { "alias": "network-001", "kind": "Network" },
+    { "alias": "route-001", "kind": "Route" }
+  ],
+  "facts": [
+    {
+      "factId": "fact-000001", "subjectAlias": "network-001",
+      "code": "VnetMode", "value": "Internal", "confidence": "High"
+    },
+    {
+      "factId": "fact-000002", "subjectAlias": "route-001",
+      "code": "RoutingMode", "value": "HostWide", "confidence": "High"
+    },
+    {
+      "factId": "fact-000003", "subjectAlias": "api-001",
+      "code": "CallerAuth", "value": "None", "confidence": "High"
+    },
+    {
+      "factId": "fact-000004", "subjectAlias": "api-001",
+      "code": "UsageBucket", "value": "Unknown", "confidence": "Low"
+    },
+    {
+      "factId": "fact-000005", "subjectAlias": "service-001",
+      "code": "ApiCount", "value": 2, "confidence": "High"
+    },
+    {
+      "factId": "fact-000006", "subjectAlias": "api-001",
+      "code": "JwtConfigured", "value": false, "confidence": "High"
+    }
+  ],
+  "findings": [
+    {
+      "findingId": "finding-000001", "ruleId": "APIM-NET-004",
+      "subjectAlias": "route-001", "severity": "High", "evaluation": "Evaluated",
+      "priorityBucket": "High", "factRefs": ["fact-000002"], "dataGaps": []
+    },
+    {
+      "findingId": "finding-000002", "ruleId": "APIM-SEC-003",
+      "subjectAlias": "api-001", "severity": "High", "evaluation": "Evaluated",
+      "priorityBucket": "High", "factRefs": ["fact-000003"], "dataGaps": []
+    },
+    {
+      "findingId": "finding-000003", "ruleId": "APIM-GOV-003",
+      "subjectAlias": "service-001", "severity": "Info", "evaluation": "NotEvaluated",
+      "priorityBucket": "Unknown", "factRefs": [],
+      "dataGaps": ["ProductClassificationUnavailable"]
+    }
+  ],
+  "assumptions": ["CloudflareAssumed", "TelemetryUnavailable"],
+  "dataGaps": ["UsageUnavailable", "ProductClassificationUnavailable"]
+}

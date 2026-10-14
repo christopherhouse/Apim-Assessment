@@ -81,6 +81,15 @@ the private saved-run loader requires all ten files to validate before returning
 models for downstream analysis. Future model contracts remain deferred with their
 builders; this gate is not a public Analyze command or the model-data airlock.
 
+Closed version 1.0 contracts now define model-safe packages, specialist
+observations, and executive summaries. A private in-memory schema/reference
+gate rejects unknown fields, unapproved text or exact usage/cost values,
+duplicate members/IDs, and unsupported citations; executive summaries must
+retain the package's assumptions and data gaps. These are synthetic-tested
+contracts only: package construction, independent prohibited-value scanning,
+attestation/promotion, broker isolation, and assessment agents remain unavailable.
+Passing this contract gate does **not** authorize model access to any run data.
+
 | Available | Planned |
 |---|---|
 | Module manifest and deterministic source loader | Remaining run orchestration and collectors |
@@ -94,7 +103,8 @@ builders; this gate is not a public Analyze command or the model-data airlock.
 | Private offline rule engine, seven NET checks, fifteen SEC checks, six GOV checks, all six REL checks, configurable priority scoring, schema-gated findings, and closed action-item aggregation | Remaining SEC/GOV catalog entries, PERF and other catalogs, public Analyze orchestration, and Excel rendering |
 | Generated customer-neutral Excel template plus private validated-run population for actions, findings, APIs, policy, subscriptions, exposure, network summary, Summary assumptions, Run Info, rule catalog, and editable scoring weights | Public workbook rendering, tracking carry-forward, and future usage/cost/drift population |
 | Synthetic-fixture scaffold | Populated fixtures and offline integration pipeline |
-| Windows/Linux lint and test CI | Model-data airlock and local Copilot broker |
+| Closed model-safe package/specialist/executive schemas and private in-memory schema/reference validation | Package builder, independent prohibited-value scanner, promotion, and local Copilot broker |
+| Windows/Linux lint and test CI | Assessment analyst runtime and airlock acceptance |
 | Copilot development instructions, agents, and skills | Assessment analyst agents and operator skills |
 | Guarded SemVer tag/release workflow | v1.0 acceptance against the technical specification |
 |  | Architecture/exposure, security, and executive synthesis agents |

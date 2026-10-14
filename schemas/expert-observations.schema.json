@@ -1,0 +1,68 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.invalid/apim-assessment/schemas/expert-observations.schema.json",
+  "title": "APIM Model-Safe Specialist Observations",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "analyst", "observations"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "analyst": { "enum": ["ArchitectureExposure", "Security"] },
+    "observations": {
+      "type": "array",
+      "maxItems": 100,
+      "items": { "$ref": "#/definitions/observation" }
+    }
+  },
+  "definitions": {
+    "confidence": { "enum": ["High", "Medium", "Low"] },
+    "factRefs": {
+      "type": "array",
+      "maxItems": 100,
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^fact-(?=[0-9]*[1-9])[0-9]{6}(?![\\s\\S])" }
+    },
+    "findingRefs": {
+      "type": "array",
+      "maxItems": 100,
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^finding-(?=[0-9]*[1-9])[0-9]{6}(?![\\s\\S])" }
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "observationId", "category", "confidence", "findingRefs",
+        "factRefs", "rationaleCode", "recommendationCode"
+      ],
+      "properties": {
+        "observationId": {
+          "type": "string",
+          "pattern": "^observation-(?:architecture|security)-(?=[0-9]*[1-9])[0-9]{3,6}(?![\\s\\S])"
+        },
+        "category": { "enum": ["Architecture", "Exposure", "Security", "Reliability", "Governance"] },
+        "confidence": { "$ref": "#/definitions/confidence" },
+        "findingRefs": { "$ref": "#/definitions/findingRefs" },
+        "factRefs": { "$ref": "#/definitions/factRefs" },
+        "rationaleCode": {
+          "enum": [
+            "HostWidePublication", "DirectGatewayReachability",
+            "OriginAuthenticationUnverified", "WeakCallerAuthentication",
+            "BroadSubscriptionScope", "SecretHandlingRisk", "WeakTlsPosture",
+            "InsufficientDiagnostics", "ReliabilityGap", "GovernanceGap",
+            "MissingEvidence"
+          ]
+        },
+        "recommendationCode": {
+          "enum": [
+            "ConfirmExposure", "RestrictPublication", "ValidateOriginAuthentication",
+            "EnableCallerAuthentication", "EnableWafPrevention",
+            "ReviewSubscriptionScope", "RemoveHardcodedSecrets", "ReviewTlsPosture",
+            "EnableDiagnostics", "ImproveReliability", "EstablishOwnership",
+            "ImproveLifecycleGovernance", "ResolveDataGaps"
+          ]
+        }
+      }
+    }
+  }
+}

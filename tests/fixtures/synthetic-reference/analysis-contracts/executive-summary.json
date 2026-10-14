@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "1.0",
+  "posture": "ActionRequired",
+  "confidence": "Medium",
+  "priorities": [
+    {
+      "itemId": "priority-001", "code": "ReduceExposure", "confidence": "High",
+      "findingRefs": ["finding-000001"], "factRefs": [],
+      "observationRefs": ["observation-architecture-001"]
+    },
+    {
+      "itemId": "priority-002", "code": "StrengthenAuthentication", "confidence": "High",
+      "findingRefs": ["finding-000002"], "factRefs": [],
+      "observationRefs": ["observation-security-001"]
+    }
+  ],
+  "themes": [
+    {
+      "itemId": "theme-001", "code": "ResolveDataGaps", "confidence": "Low",
+      "findingRefs": ["finding-000003"], "factRefs": [], "observationRefs": []
+    }
+  ],
+  "decisions": [
+    {
+      "itemId": "decision-001", "code": "ValidateAssumptions", "confidence": "Medium",
+      "findingRefs": [], "factRefs": ["fact-000001"], "observationRefs": []
+    }
+  ],
+  "roadmap": [
+    {
+      "itemId": "roadmap-001", "code": "ImproveDiagnostics", "confidence": "Low",
+      "findingRefs": [], "factRefs": ["fact-000004"], "observationRefs": []
+    }
+  ],
+  "assumptions": ["CloudflareAssumed", "TelemetryUnavailable"],
+  "dataGaps": ["UsageUnavailable", "ProductClassificationUnavailable"]
+}

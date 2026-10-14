@@ -723,6 +723,19 @@ If a rule's `Requires` input is missing/failed, emit one `NotEvaluated` finding 
 
 It contains no unrestricted source text. The restricted `alias-map.json` remains in the collection zone and maps aliases to customer-facing labels for local rendering only. `Publish-AnalysisPackage` writes the package into a temporary restricted location, validates it, and atomically promotes it to `ModelSafeRoot` only on success. Rejected candidates are never placed in the analysis zone.
 
+T-317 defines schema version 1.0 in `analysis-package.schema.json`,
+`expert-observations.schema.json`, and `executive-summary.schema.json`.
+All objects are closed. Entities contain only an opaque alias and fixed kind;
+facts contain a stable fact ID, subject alias, approved code, code-specific
+value, and confidence. Usage is bucketed and cost is a relative trend; numeric
+facts are limited to structural inventory counts from 0 to 10,000. Findings
+contain only model-safe finding/rule IDs, subject alias, authoritative severity
+and evaluation, a priority bucket, fact references, and data-gap codes.
+Missing-evidence findings must retain Info/Unknown and at least one data gap.
+The private in-memory contract gate rejects duplicate JSON members and IDs,
+alias-kind mismatches, and unsupported references. It never writes or promotes
+data and does not replace T-319's independent scanner/attestation gate (D-47).
+
 ### 10.7 Specialist Copilot analysis
 
 Three repository agent profiles are used:
@@ -732,6 +745,20 @@ Three repository agent profiles are used:
 3. **Executive synthesizer** — reconciles validated findings and specialist observations into audience-appropriate priorities, themes, decisions, and next actions.
 
 Specialist outputs are validated against closed schemas. Every observation includes an observation ID, category, confidence, model-safe finding/fact references, rationale, and bounded recommendation code/text selected from an approved vocabulary. Agents cannot introduce new evidence, replace rule severity, or mark deterministic findings resolved. Unsupported claims fail validation and are excluded from reporting.
+
+Version 1.0 uses approved `rationaleCode` and `recommendationCode` enums, not
+free-text narrative. Observation IDs identify the ArchitectureExposure or
+Security analyst; all citations must resolve in the supplied package, and each
+observation must cite at least one finding or fact. Executive summaries contain
+approved-code priorities, themes, decisions, and roadmap items with resolving
+finding/fact/observation citations, plus the package's assumptions and data gaps.
+Assumption and data-gap sets must match the package exactly: neither missing
+nor invented codes are accepted.
+The contract gate validates supplied specialist sets before accepting executive
+observation references and rejects duplicate analyst roles. It checks structural
+traceability, not whether a cited fact logically entails a claim; specialist
+claim reconciliation remains T-322/T-323. No agent profile or runtime is enabled
+by these schemas (D-47).
 
 ---
 

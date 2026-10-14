@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "1.0",
+  "analyst": "Security",
+  "observations": [
+    {
+      "observationId": "observation-security-001",
+      "category": "Security", "confidence": "High",
+      "findingRefs": ["finding-000002"], "factRefs": ["fact-000003"],
+      "rationaleCode": "WeakCallerAuthentication",
+      "recommendationCode": "EnableCallerAuthentication"
+    }
+  ]
+}
