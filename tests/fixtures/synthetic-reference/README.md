@@ -121,6 +121,26 @@ All ten generated model files validate and round-trip through the saved loader;
 the existing compact raw/model fixtures above remain unchanged. This is not
 an implementation of telemetry collection or a scaled ARM collector export.
 
+Portal model/rule tests construct disposable synthetic evidence: one modern and
+one legacy status, five portal-setting/revision payloads, one Entra provider,
+one product, and one intended/actual partner-group membership. The passing
+model has a current completed publication, direct basic-auth false, sign-up
+false, matching product intent and a developer-portal domain under example.invalid.
+Mutations exercise each of POR-001/002/003/005 independently, missing/conflicting
+evidence, non-Entra identities, guests only for explicit nonpublic intent and
+unresolved targets. POR-004 uses five synthetic operations to prove 4/5 is the
+80-percent boundary and 3/5 fails, with score 70/69 and empty/incomplete cases.
+The package/report case produces four evaluated portal conditions under existing
+Service aliases, independently validates closed package 1.3, preserves Partial
+confidence, and renders the existing paired Excel/HTML views without exporting
+domains, provider/group/product identifiers or exact coverage. Baseline
+ten-model fixtures still omit portal to exercise old-run compatibility.
+The compact raw-to-report helper additionally stages one Identity item and five
+Portal items, producing eleven models with the optional portal included. Its
+integration case preserves raw hashes across Analyze/Report. Saved-evidence tests
+retain known Partial positives, reject malformed manifest-listed Identity/Portal
+files, ignore unlisted stale files, and replay/report the old ten-model path.
+
 `analysis-contracts/` adds four independent T-317 JSON examples, not a package
 generated or promoted from the raw/model fixture tree. Its package contains
 four entity aliases, six typed facts, and three reduced findings (two Evaluated,

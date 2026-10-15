@@ -126,6 +126,58 @@ function Get-ApimSavedApiModel {
     }
 }
 
+function Get-ApimSavedPortalModel {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string] $RunPath,
+        [Parameter(Mandatory)][object] $Manifest,
+        [Parameter(Mandatory)][System.Collections.IDictionary] $Config,
+        [Parameter(Mandatory)][System.Collections.IDictionary] $Environment,
+        [AllowNull()][object] $ServicePayload,
+        [Parameter(Mandatory)][bool] $ProductsAvailable
+    )
+
+    $portalRecords = @($Manifest.collectors | Where-Object name -CEQ Portal)
+    if ($portalRecords.Count -eq 0) { return $null }
+    $portal = @{}
+    $identity = $null
+    foreach ($record in @($Manifest.collectors | Where-Object {
+                $_.name -cin @('Portal', 'Identity') -and
+                $_.status -cin @('Completed', 'Partial')
+            })) {
+        Test-ApimCollectorOutput -RunPath $RunPath -Environment $Environment -Collector $record
+        foreach ($file in $record.files) {
+            if ($record.name -ceq 'Portal' -and $file -cin @(
+                    'raw/portal/signin.json', 'raw/portal/signup.json',
+                    'raw/portal/delegation.json', 'raw/portal/config.json', 'raw/portal/revisions.json'
+                )) {
+                $name = [IO.Path]::GetFileNameWithoutExtension($file)
+                $portal[$name] = Read-ApimSmokeOutputJson -RunPath $RunPath `
+                    -RelativePath $file
+            }
+            elseif ($record.name -ceq 'Identity' -and $file -ceq 'raw/identityProviders.json') {
+                $identity = Read-ApimSmokeOutputJson -RunPath $RunPath `
+                    -RelativePath $file -Collection
+            }
+        }
+    }
+    $products = $null
+    $groups = @{}
+    if ($ProductsAvailable) {
+        $products = Read-ApimSmokeOutputJson -RunPath $RunPath `
+            -RelativePath 'raw/products.json' -Collection
+        foreach ($product in $products.value) {
+            $segment = ConvertTo-ApimResourceSegment -Value $product.name
+            $groups[$product.name] = Read-ApimSmokeOutputJson -RunPath $RunPath `
+                -RelativePath "raw/productGroups/$segment.json" -Collection
+        }
+    }
+    $intent = @(if ($Config.Contains('Portal')) { $Config.Portal.ProductVisibility })
+    return Get-ApimPortalModel -ServicePayload $ServicePayload -PortalPayloads $portal `
+        -IdentityProvidersPayload $identity -ProductsPayload $products -ProductGroups $groups `
+        -ProductVisibility $intent
+}
+
 function Invoke-ApimAnalyze {
     [CmdletBinding()]
     param(
@@ -254,6 +306,10 @@ function Invoke-ApimAnalyze {
                         -ExposureRecords $models.exposure)
             }
         }
+        $portal = Get-ApimSavedPortalModel -RunPath $RunFolder -Manifest $manifest `
+            -Config $context.Config -Environment $context.Environment `
+            -ServicePayload $service -ProductsAvailable $available.Products
+        if ($null -ne $portal) { $models.portal = $portal }
         $driftArguments = @{ RunPath = $RunFolder }
         if ($PSBoundParameters.ContainsKey('CompareRuns')) {
             if (@($CompareRuns).Count -eq 0) { throw 'Comparison inputs are empty.' }
@@ -269,8 +325,9 @@ function Invoke-ApimAnalyze {
             $null = Write-ApimModelSet -RunPath $RunFolder -Models $models
         }
         $null = Write-ApimFindingSet -RunPath $RunFolder -Findings $findings
-        if (@($models.Keys | Where-Object { $_ -cne 'drift' }).Count -ne
-            ($script:ApimModelSchemaPaths.Count - 1)) {
+        if (@($script:ApimModelSchemaPaths.Keys | Where-Object {
+                    $_ -cnotin @('drift', 'portal') -and -not $models.Contains($_)
+                }).Count -gt 0) {
             throw 'Required models could not be constructed.'
         }
         $null = Get-ApimModelSet -RunPath $RunFolder

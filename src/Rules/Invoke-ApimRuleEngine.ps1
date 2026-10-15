@@ -15,6 +15,7 @@ $script:ApimRuleScopes = @{
     Certificate = 'certificates'
     Route = 'exposure'
     Network = 'network'
+    Portal = 'portal'
 }
 
 function Resolve-ApimRuleScope {
@@ -206,6 +207,7 @@ function Get-ApimRuleScopeKey {
     switch ($Scope) {
         Service { return 'service' }
         Network { return 'network' }
+        Portal { return 'portal' }
         Api { return "api:$($Target.apiId)" }
         Operation {
             return "operation:$($Target.apiId)/$($Target.operationId)"
@@ -454,7 +456,7 @@ function Invoke-ApimRuleEngine {
                 }
                 $scope = Get-ApimRuleScopeKey -Scope $ruleScope `
                     -Target $target
-                $exposure = if ($ruleScope -in @('Service', 'Network')) {
+                $exposure = if ($ruleScope -in @('Service', 'Network', 'Portal')) {
                     'Platform'
                 }
                 elseif ($null -ne $target.PSObject.Properties['exposure'] -and
@@ -464,7 +466,7 @@ function Invoke-ApimRuleEngine {
                 else {
                     'Unknown'
                 }
-                $usage = if ($ruleScope -in @('Service', 'Network')) {
+                $usage = if ($ruleScope -in @('Service', 'Network', 'Portal')) {
                     'NotApplicable'
                 }
                 elseif ($null -ne $target.PSObject.Properties['calls90d'] -and

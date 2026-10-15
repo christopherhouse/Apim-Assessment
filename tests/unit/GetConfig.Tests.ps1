@@ -36,6 +36,30 @@ AfterAll {
 }
 
 Describe 'Get-Config' {
+    It 'accepts explicit portal visibility and rejects malformed intent' {
+        & $script:module {
+            Test-ConfigPortalProductVisibility -Value @(
+                @{ ProductId = 'private'; IsPublic = $false; IntendedGroupIds = @('partners') }
+            )
+        }
+        foreach ($entry in @(
+                @{ ProductId = 'private'; IsPublic = 'false'; IntendedGroupIds = @() },
+                @{ ProductId = 'private'; IsPublic = $false; IntendedGroupIds = @('partners', 'PARTNERS') },
+                @{ ProductId = 'private'; IsPublic = $false; IntendedGroupIds = @(); Unexpected = $true },
+                @{ ProductId = '../private'; IsPublic = $false; IntendedGroupIds = @() }
+            )) {
+            { & $script:module { param($Entry)
+                    Test-ConfigPortalProductVisibility -Value @($Entry)
+                } $entry } | Should -Throw
+        }
+        { & $script:module {
+                Test-ConfigPortalProductVisibility -Value @(
+                    @{ ProductId = 'private'; IsPublic = $false; IntendedGroupIds = @() },
+                    @{ ProductId = 'PRIVATE'; IsPublic = $true; IntendedGroupIds = @() }
+                )
+            } } | Should -Throw '*duplicate product*'
+    }
+
     It 'rejects unsafe Git path or mapping configuration before any repository read (<Kind>)' `
         -TestCases @(
             @{ Kind = 'relative repository' }, @{ Kind = 'escaping policy root' },

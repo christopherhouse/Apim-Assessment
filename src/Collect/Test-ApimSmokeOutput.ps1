@@ -58,10 +58,7 @@ function Test-ApimSmokeOutput {
     Test-ConfigPathLink -Path (Join-Path $RunPath 'manifest.json') `
         -Context 'Smoke manifest'
     $manifest = Get-RunManifest -RunPath $RunPath
-    $expectedNames = @(
-        'Service', 'Apis', 'Products', 'Subscriptions', 'SecurityAssets',
-        'Diagnostics', 'Policies', 'Network'
-    )
+    $expectedNames = @((Get-ApimCollectorRegistry).Name)
     if ($manifest.runId -ne $Result.RunId -or
         $manifest.environment -ne $Environment.Name -or
         $null -eq $manifest.completedUtc -or
@@ -99,6 +96,56 @@ function Test-ApimSmokeOutput {
         Test-ApimCollectorOutput -RunPath $RunPath -Environment $Environment `
             -Collector $collectors[$check.Name]
     }
+    foreach ($check in @($Result.Checks | Where-Object {
+                $_.Status -ceq 'Partial' -and $_.Name -cin @('Identity', 'Portal')
+            })) {
+        Test-ApimCollectorOutput -RunPath $RunPath -Environment $Environment `
+            -Collector $collectors[$check.Name]
+    }
+}
+
+function Get-ApimAuthSavedFile {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][object] $Collector,
+        [Parameter(Mandatory)][string[]] $Expected
+    )
+
+    $property = $Collector.PSObject.Properties['files']
+    if ($null -eq $property -or $property.Value -isnot [array]) {
+        throw 'Authentication collector file inventory is missing or invalid.'
+    }
+    $seen = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    foreach ($file in $property.Value) {
+        if ($file -isnot [string] -or $file -cnotin $Expected -or -not $seen.Add($file)) {
+            throw 'Authentication collector file inventory is invalid.'
+        }
+    }
+    if (($Collector.status -ceq 'Completed' -and $seen.Count -ne $Expected.Count) -or
+        ($Collector.status -ceq 'Partial' -and
+            ($seen.Count -eq 0 -or $seen.Count -ge $Expected.Count)) -or
+        $Collector.status -cnotin @('Completed', 'Partial')) {
+        throw 'Authentication collector file inventory does not match its status.'
+    }
+    return @($property.Value)
+}
+
+function Test-ApimAuthSavedProjection {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][object] $Payload,
+        [Parameter(Mandatory)][object] $Projection
+    )
+
+    # Compare JSON data, not PowerShell's extended scalar properties. Object
+    # member order is immaterial; field presence, nulls and array order are not.
+    $actual = [System.Text.Json.Nodes.JsonNode]::Parse(
+        (ConvertTo-Json -InputObject $Payload -Depth 30 -Compress)
+    )
+    $expected = [System.Text.Json.Nodes.JsonNode]::Parse(
+        (ConvertTo-Json -InputObject $Projection -Depth 30 -Compress)
+    )
+    return [System.Text.Json.Nodes.JsonNode]::DeepEquals($actual, $expected)
 }
 
 function Test-ApimCollectorOutput {
@@ -163,6 +210,47 @@ function Test-ApimCollectorOutput {
                 $subscriptions = Read-ApimSmokeOutputJson -RunPath $RunPath `
                     -RelativePath 'raw/subscriptions.json' -Collection
                 $subscriptions.value.Count
+            }
+            'Identity' {
+                $count = 0
+                $expected = @('raw/identityProviders.json', 'raw/authorizationServers.json',
+                    'raw/openidConnectProviders.json', 'raw/authorizationProviders.json')
+                $files = @(Get-ApimAuthSavedFile -Collector $Collector -Expected $expected)
+                foreach ($kind in @('identityProviders', 'authorizationServers',
+                        'openidConnectProviders', 'authorizationProviders')) {
+                    if ("raw/$kind.json" -cnotin $files) { continue }
+                    $payload = Read-ApimSmokeOutputJson -RunPath $RunPath `
+                        -RelativePath "raw/$kind.json" -Collection
+                    $safe = ConvertTo-ApimAuthCollection -Payload $payload -Kind $kind -Saved
+                    # Closed shape, types and enum validation also gates reuse.
+                    if (-not (Test-ApimAuthSavedProjection -Payload $payload -Projection $safe)) {
+                        throw 'Identity saved output is not allowlisted.'
+                    }
+                    $count += $safe.value.Count
+                }
+                $count
+            }
+            'Portal' {
+                $count = 0
+                $files = @(Get-ApimAuthSavedFile -Collector $Collector `
+                    -Expected @((Get-ApimPortalEndpoint).File))
+                foreach ($endpoint in Get-ApimPortalEndpoint) {
+                    if ($endpoint.File -cnotin $files) { continue }
+                    $payload = Read-ApimSmokeOutputJson -RunPath $RunPath `
+                        -RelativePath $endpoint.File
+                    $safe = if ($endpoint.Kind -eq 'revisions') {
+                        ConvertTo-ApimAuthCollection -Payload $payload -Kind revisions
+                    }
+                    else {
+                        ConvertTo-ApimPortalResource -Resource $payload -Kind $endpoint.Kind
+                    }
+                    if (-not (Test-ApimAuthSavedProjection -Payload $payload -Projection $safe)) {
+                        throw 'Portal saved output is not allowlisted.'
+                    }
+                    $count += if ($endpoint.Kind -eq 'revisions') { $safe.value.Count }
+                        else { 1 }
+                }
+                $count
             }
             'SecurityAssets' {
                 $count = 0

@@ -23,11 +23,15 @@ Describe 'Offline collected evidence to deterministic workbook' {
             Mock Invoke-ApimResourceGraphQuery { throw 'Offline analysis attempted graph access.' }
         }
 
-        It 'builds all ten models and repeatable findings from raw evidence and renders Excel' {
+        It 'builds eleven models including portal and repeatable findings from raw evidence and renders Excel' {
             $analysis = Invoke-ApimAnalyze -RunFolder $script:runtimePath
             $analysis.ExitCode | Should -Be 0
             $models = Get-ApimModelSet -RunPath $script:runtimePath
-            $models.Count | Should -Be 10
+            $models.Count | Should -Be 11
+            $models.portal.basicAuthEnabled | Should -BeFalse
+            $models.portal.basicAuthEvidence | Should -Be Direct
+            $models.portal.published | Should -BeTrue
+            $models.portal.nonEntraProviderEnabled | Should -BeFalse
             $models.apis.Count | Should -Be 2
             $models.operations.Count | Should -Be 2
             $models.exposure.Count | Should -Be 2
@@ -63,6 +67,50 @@ Describe 'Offline collected evidence to deterministic workbook' {
             finally { $workbook.Dispose() }
             Should -Invoke Invoke-ApimArm -Times 0 -Exactly
             Should -Invoke Invoke-ApimResourceGraphQuery -Times 0 -Exactly
+        }
+
+        It 'replays changed portal raw evidence through POR findings and paired reports without altering raw files' {
+            $raw = Read-ApimSmokeOutputJson -RunPath $script:runtimePath -RelativePath raw/portal/config.json
+            $raw.properties.enableBasicAuth = $true
+            $null = Write-RunFile -RunPath $script:runtimePath -RelativePath raw/portal/config.json -InputObject $raw
+            $before = @(Get-ChildItem (Join-Path $script:runtimePath raw) -Recurse -File |
+                Sort-Object FullName | Get-FileHash | Select-Object -ExpandProperty Hash)
+            (Invoke-ApimAnalyze -RunFolder $script:runtimePath).ExitCode | Should -Be 0
+            $models = Get-ApimModelSet -RunPath $script:runtimePath
+            $models.portal.basicAuthEnabled | Should -BeTrue
+            $models.portal.basicAuthEvidence | Should -Be Direct
+            $finding = @(Get-ApimFindingSet -RunPath $script:runtimePath |
+                Where-Object ruleId -CEQ APIM-POR-002)
+            $finding.Count | Should -Be 1
+            $finding[0].evaluation | Should -Be Evaluated
+            $finding[0].scope | Should -Be portal
+            (Invoke-ApimReport -RunFolder $script:runtimePath).ExitCode | Should -Be 0
+            @(Get-ChildItem (Join-Path $script:runtimePath report) -Filter '*.xlsx').Count | Should -Be 1
+            @(Get-ChildItem (Join-Path $script:runtimePath report) -Filter '*.html').Count | Should -Be 1
+            $after = @(Get-ChildItem (Join-Path $script:runtimePath raw) -Recurse -File |
+                Sort-Object FullName | Get-FileHash | Select-Object -ExpandProperty Hash)
+            $after | Should -Be $before
+            Should -Invoke Invoke-ApimArm -Times 0 -Exactly
+            Should -Invoke Invoke-ApimResourceGraphQuery -Times 0 -Exactly
+        }
+
+        It 'uses only validated listed Partial portal files instead of stale complete portal evidence' {
+            Set-RunCollectorStatus -RunPath $script:runtimePath -Name Portal -Status Partial `
+                -Items 1 -Errors 4 -Files @('raw/portal/config.json')
+            Set-RunStageStatus -RunPath $script:runtimePath -Stage collect -Status Partial
+            $record = (Get-RunManifest -RunPath $script:runtimePath).collectors |
+                Where-Object name -CEQ Portal
+            Test-ApimCollectorOutput -RunPath $script:runtimePath `
+                -Environment $script:runtimeInput.Config.Environments[0] -Collector $record
+            (Invoke-ApimAnalyze -RunFolder $script:runtimePath).ExitCode | Should -Be 0
+            $portal = (Get-ApimModelSet -RunPath $script:runtimePath).portal
+            $portal.basicAuthEnabled | Should -BeFalse
+            $portal.basicAuthEvidence | Should -Be Direct
+            $portal.published | Should -BeNullOrEmpty
+            $portal.signupEnabled | Should -BeNullOrEmpty
+            $portal.modelStatus | Should -Be Partial
+            $portal.missingInputs | Should -Contain published
+            Should -Invoke Invoke-ApimArm -Times 0 -Exactly
         }
 
         It 'does not read stale failed-collector files or publish an incomplete model set' {

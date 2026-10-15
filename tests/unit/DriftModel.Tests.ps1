@@ -47,7 +47,10 @@ Describe 'Optional saved environment drift' {
         It 'keeps ordinary no-Git analysis and paired reports available with explicit gaps' {
             $path = $script:driftCurrent.Run.Path
             (Invoke-ApimAnalyze -RunFolder $path).ExitCode | Should -Be 0
-            (Get-ApimModelSet -RunPath $path).Count | Should -Be 10
+            $models = Get-ApimModelSet -RunPath $path
+            $models.Count | Should -Be 11
+            $models.Contains('portal') | Should -BeTrue
+            $models.Contains('drift') | Should -BeFalse
             $gaps = @(Get-ApimFindingSet -RunPath $path | Where-Object {
                     $_.ruleId -cin @('APIM-GOV-007', 'APIM-GOV-011')
                 })
@@ -65,7 +68,8 @@ Describe 'Optional saved environment drift' {
             (Invoke-ApimAnalyze -RunFolder $path -CompareRuns $script:driftOther.Run.Path).ExitCode |
                 Should -Be 0
             $models = Get-ApimModelSet -RunPath $path
-            $models.Count | Should -Be 11
+            $models.Count | Should -Be 12
+            $models.Contains('portal') | Should -BeTrue
             @($models.drift | Where-Object changeType -CNE All).Count | Should -Be 0
             @(Get-ApimFindingSet -RunPath $path | Where-Object ruleId -CEQ 'APIM-GOV-011').Count |
                 Should -Be 0

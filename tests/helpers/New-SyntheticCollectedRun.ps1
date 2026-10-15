@@ -48,6 +48,36 @@ function New-SyntheticCollectedRun {
         Set-RunCollectorStatus -RunPath $run.Path -Name $name -Status Completed `
             -Items $counts[$name]
     }
+    $identityFiles = @('raw/identityProviders.json', 'raw/authorizationServers.json',
+        'raw/openidConnectProviders.json', 'raw/authorizationProviders.json')
+    foreach ($file in $identityFiles) {
+        $records = if ($file -ceq 'raw/identityProviders.json') {
+            @([pscustomobject]@{ name = 'synthetic-entra'; properties = [pscustomobject]@{ type = 'aad' } })
+        }
+        else { @() }
+        $null = Write-RunFile -RunPath $run.Path -RelativePath $file `
+            -InputObject ([pscustomobject]@{ value = @($records) })
+    }
+    Set-RunCollectorStatus -RunPath $run.Path -Name Identity -Status Completed `
+        -Items 1 -Files $identityFiles
+    foreach ($endpoint in Get-ApimPortalEndpoint) {
+        $properties = [pscustomobject]@{
+            enabled = ($endpoint.Kind -eq 'signin')
+            userRegistration = @{ enabled = $false }; subscriptions = @{ enabled = $false }
+            enableBasicAuth = $false; signin = @{ require = $true }
+            delegation = @{ delegateRegistration = $false; delegateSubscription = $false }
+            isCurrent = $true; status = 'completed'
+        }
+        $resource = ConvertTo-ApimPortalResource -Kind $endpoint.Kind `
+            -Resource ([pscustomobject]@{ name = 'synthetic-portal'; properties = $properties })
+        $payload = if ($endpoint.Kind -eq 'revisions') {
+            [pscustomobject]@{ value = @($resource) }
+        }
+        else { $resource }
+        $null = Write-RunFile -RunPath $run.Path -RelativePath $endpoint.File -InputObject $payload
+    }
+    Set-RunCollectorStatus -RunPath $run.Path -Name Portal -Status Completed `
+        -Items 5 -Files @((Get-ApimPortalEndpoint).File)
     Save-ApimRunSetting -RunPath $run.Path -Config $config `
         -Environment $config.Environments[0]
     $null = Write-RunFile -RunPath $run.Path `

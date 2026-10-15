@@ -27,6 +27,9 @@ Describe 'Validated collection resume and isolation' {
                     'raw/network/routeTables.json', 'raw/network/publicIps.json',
                     'raw/network/frontDoors.json')
                 Policies = @('policies/index.json')
+                Identity = @('raw/identityProviders.json', 'raw/authorizationServers.json',
+                    'raw/openidConnectProviders.json', 'raw/authorizationProviders.json')
+                Portal = @((Get-ApimPortalEndpoint).File)
             }
             foreach ($file in $files[$Name]) {
                 $payload = if ($Name -eq 'Service') {
@@ -45,6 +48,12 @@ Describe 'Validated collection resume and isolation' {
                             })
                     }
                 }
+                elseif ($Name -eq 'Portal' -and $file -cne 'raw/portal/revisions.json') {
+                    $kind = [IO.Path]::GetFileNameWithoutExtension($file)
+                    ConvertTo-ApimPortalResource -Resource ([pscustomobject]@{
+                        properties = [pscustomobject]@{}
+                    }) -Kind $kind
+                }
                 else { [pscustomobject]@{ value = @() } }
                 $null = Write-RunFile -RunPath $RunPath -RelativePath $file `
                     -InputObject $payload
@@ -53,10 +62,13 @@ Describe 'Validated collection resume and isolation' {
                 Service { 1 }
                 Policies { 1 }
                 Network { 7 }
+                Portal { 4 }
                 default { 0 }
             }
+            $arguments = @{}
+            if ($Name -cin @('Identity', 'Portal')) { $arguments.Files = $files[$Name] }
             Set-RunCollectorStatus -RunPath $RunPath -Name $Name `
-                -Status Completed -Items $items
+                -Status Completed -Items $items @arguments
         }
         }
 
@@ -93,6 +105,12 @@ Describe 'Validated collection resume and isolation' {
             Mock Invoke-ApimNetworkCollector {
                 Write-SyntheticCollectorOutput -RunPath $RunPath -Name Network
             }
+            Mock Invoke-ApimIdentityCollector {
+                Write-SyntheticCollectorOutput -RunPath $RunPath -Name Identity
+            }
+            Mock Invoke-ApimPortalCollector {
+                Write-SyntheticCollectorOutput -RunPath $RunPath -Name Portal
+            }
             Mock Invoke-ApimArm { throw 'Unexpected Azure access.' }
         }
 
@@ -107,7 +125,7 @@ Describe 'Validated collection resume and isolation' {
                 -EnvironmentName Prod -TenantId $script:tenant -ResumeRunPath $path
             $result.RunId | Should -Be $initial.RunId
             $result.ExitCode | Should -Be 0
-            @($result.Checks | Where-Object Reused -EQ $true).Count | Should -Be 8
+            @($result.Checks | Where-Object Reused -EQ $true).Count | Should -Be 10
             (Get-RunManifest -RunPath $path).stages.report | Should -Be Completed
             foreach ($check in Get-ApimCollectorRegistry) {
                 Should -Invoke $check.Function -Times 1 -Exactly
@@ -129,6 +147,72 @@ Describe 'Validated collection resume and isolation' {
             ((Get-RunManifest -RunPath $path).collectors | Where-Object name -CEQ Git).status |
                 Should -Be Skipped
             Should -Invoke Get-ApimGitPolicySnapshot -Times 0 -Exactly
+        }
+
+        It 'adds new collectors to an old eight-collector saved run without recollecting valid baseline files' {
+            $first = Invoke-ApimCollection -Config $script:resumeConfig `
+                -EnvironmentName Prod -TenantId $script:tenant
+            $path = Join-Path $script:resumeConfig.Output.Root $first.RunId
+            $manifest = Get-RunManifest -RunPath $path
+            $manifest.collectors = @($manifest.collectors | Where-Object name -CNotIn @('Identity', 'Portal', 'Git'))
+            $null = Save-RunManifest -RunPath $path -Manifest $manifest
+            Remove-ApimCollectorOutput -RunPath $path -Name Identity
+            Remove-ApimCollectorOutput -RunPath $path -Name Portal
+            $resumed = Invoke-ApimCollection -Config $script:resumeConfig `
+                -EnvironmentName Prod -TenantId $script:tenant -ResumeRunPath $path
+            $resumed.ExitCode | Should -Be 0
+            @($resumed.Checks | Where-Object Reused -EQ $true).Count | Should -Be 8
+            @($resumed.Checks | Where-Object Reused -EQ $false).Name | Should -Be @('Identity', 'Portal')
+            Should -Invoke Invoke-ApimServiceCollector -Exactly -Times 1
+        }
+
+        It 'recollects damaged new evidence, clears owned stale files and invalidates downstream state (<Name>)' -TestCases @(
+            @{ Name = 'Identity'; File = 'raw/identityProviders.json'; Stale = 'raw/authorizationServers.json' },
+            @{ Name = 'Portal'; File = 'raw/portal/config.json'; Stale = 'raw/portal/stale.json' }
+        ) {
+            param($Name, $File, $Stale)
+            $first = Invoke-ApimCollection -Config $script:resumeConfig `
+                -EnvironmentName Prod -TenantId $script:tenant
+            $path = Join-Path $script:resumeConfig.Output.Root $first.RunId
+            $null = Write-RunFile -RunPath $path -RelativePath $Stale -InputObject ([pscustomobject]@{ stale = $true })
+            Set-Content (Join-Path $path $File) '{bad'
+            Set-RunStageStatus -RunPath $path -Stage analyze -Status Completed
+            Set-RunStageStatus -RunPath $path -Stage report -Status Completed
+            $manifest = Get-RunManifest -RunPath $path
+            $manifest.modelSafe.build = 'Completed'
+            $manifest.modelSafe.validation = 'Passed'
+            $manifest.modelSafe.promotion = 'Completed'
+            $manifest.modelSafe.packageSha256 = 'c' * 64
+            $null = Save-RunManifest -RunPath $path -Manifest $manifest
+            $resumed = Invoke-ApimCollection -Config $script:resumeConfig `
+                -EnvironmentName Prod -TenantId $script:tenant -ResumeRunPath $path
+            $resumed.ExitCode | Should -Be 0
+            @($resumed.Checks | Where-Object Reused -EQ $false).Name | Should -Be @($Name)
+            Get-Content (Join-Path $path $File) -Raw | Should -Not -Match 'stale|bad'
+            if ($Name -eq 'Portal') { Test-Path (Join-Path $path $Stale) | Should -BeFalse }
+            $manifest = Get-RunManifest -RunPath $path
+            $manifest.stages.analyze | Should -Be NotStarted
+            $manifest.stages.report | Should -Be NotStarted
+            $manifest.modelSafe.promotion | Should -Be NotStarted
+            $manifest.modelSafe.packageSha256 | Should -BeNullOrEmpty
+        }
+
+        It 'continues Portal independently when Identity fails and retains safe partial files' {
+            Mock Invoke-ApimIdentityCollector {
+                $null = Write-RunFile -RunPath $RunPath -RelativePath raw/identityProviders.json `
+                    -InputObject ([pscustomobject]@{ value = @() })
+                Set-RunCollectorStatus -RunPath $RunPath -Name Identity -Status Partial -Errors 3 `
+                    -Files @('raw/identityProviders.json')
+                throw 'private-canary'
+            }
+            $result = Invoke-ApimCollection -Config $script:resumeConfig `
+                -EnvironmentName Prod -TenantId $script:tenant
+            $result.ExitCode | Should -Be 3
+            ($result.Checks | Where-Object Name -EQ Identity).Status | Should -Be Partial
+            ($result.Checks | Where-Object Name -EQ Portal).Status | Should -Be Completed
+            $path = Join-Path $script:resumeConfig.Output.Root $result.RunId
+            Test-Path (Join-Path $path raw/identityProviders.json) | Should -BeTrue
+            (ConvertTo-Json $result) | Should -Not -Match 'private-canary'
         }
 
         It 'reuses a pinned Git snapshot and invalidates downstream state on HEAD changes or failure' {

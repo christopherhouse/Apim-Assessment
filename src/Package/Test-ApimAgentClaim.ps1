@@ -6,13 +6,13 @@ $script:ApimClaimEvidence = @{
     HostWidePublication = @{ AssessmentCondition = @('HostWidePublication'); RoutingMode = @('HostWide') }
     DirectGatewayReachability = @{ AssessmentCondition = @('DirectGatewayReachable'); DirectPublic = @($true); Exposure = @('DirectPublic') }
     OriginAuthenticationUnverified = @{ AssessmentCondition = @('OriginAuthenticationAbsent') }
-    WeakCallerAuthentication = @{ AssessmentCondition = @('KeyOnlyReachableApi', 'AnonymousReachableApi') }
+    WeakCallerAuthentication = @{ AssessmentCondition = @('KeyOnlyReachableApi', 'AnonymousReachableApi', 'PortalAuthenticationWeak') }
     BroadSubscriptionScope = @{ AssessmentCondition = @('ActiveAllApiSubscription') }
     SecretHandlingRisk = @{ AssessmentCondition = @('PolicyCredentialDetected', 'PlainTextSecretDetected'); HardcodedSecret = @($true) }
     WeakTlsPosture = @{ AssessmentCondition = @('WeakGatewayTls', 'LegacyTlsEnabled', 'BackendTlsNotValidated', 'UnapprovedPlainHttp'); BackendTlsValidationDisabled = @($true) }
     InsufficientDiagnostics = @{}
     ReliabilityGap = @{ AssessmentCondition = @('ZoneRedundancyAbsent', 'CapacityBelowMinimum', 'CriticalBackendResilienceAbsent', 'ProbeMisaligned', 'CertificateNearExpiry') }
-    GovernanceGap = @{ AssessmentCondition = @('ProductMissing', 'OwnerTagMissing', 'NonCurrentRevisionOnline', 'VersioningIncomplete', 'MixedPathVersioning', 'InheritedControlsDropped', 'MinimumApiVersionAbsent', 'LegacyPlatform', 'SourcePolicyDrift', 'EnvironmentPolicyDrift') }
+    GovernanceGap = @{ AssessmentCondition = @('ProductMissing', 'OwnerTagMissing', 'NonCurrentRevisionOnline', 'VersioningIncomplete', 'MixedPathVersioning', 'InheritedControlsDropped', 'MinimumApiVersionAbsent', 'LegacyPlatform', 'SourcePolicyDrift', 'EnvironmentPolicyDrift', 'PortalUnavailable', 'ProductVisibilityMismatch', 'ApiDocumentationWeak', 'LegacyPortalEnabled') }
 }
 $script:ApimClaimRecommendations = @{
     HostWidePublication = @('ConfirmExposure', 'RestrictPublication')

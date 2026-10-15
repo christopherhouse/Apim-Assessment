@@ -379,7 +379,11 @@ function Set-RunCollectorStatus {
         [int] $Errors = 0,
 
         [ValidateRange(0, [double]::MaxValue)]
-        [double] $DurationSec = 0
+        [double] $DurationSec = 0,
+
+        [AllowEmptyCollection()]
+        [ValidateNotNull()]
+        [string[]] $Files
     )
 
     if (-not $PSCmdlet.ShouldProcess(
@@ -396,6 +400,17 @@ function Set-RunCollectorStatus {
         items       = $Items
         errors      = $Errors
         durationSec = [math]::Round($DurationSec, 3)
+    }
+    if ($PSBoundParameters.ContainsKey('Files')) {
+        $seen = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+        foreach ($file in $Files) {
+            if ($file -cnotmatch '^(?!.*(?:^|/)\.\.?(?:/|$))[A-Za-z0-9._~%-]+(?:/[A-Za-z0-9._~%-]+)*$' -or
+                -not $seen.Add($file)) {
+                throw 'Collector file inventory contains an invalid or duplicate relative path.'
+            }
+            $null = Resolve-RunFilePath -RunPath $RunPath -RelativePath $file
+        }
+        $collector | Add-Member -NotePropertyName files -NotePropertyValue @($Files)
     }
     $manifest.collectors = @(
         @(

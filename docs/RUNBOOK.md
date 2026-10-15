@@ -17,7 +17,7 @@ service, named-value, backend, certificate, network, and pre-telemetry
 exposure records from saved synthetic-equivalent inputs. A private rule engine,
 seven NET catalog entries, fifteen model-backed
 SEC catalog entries, eight model-backed GOV catalog entries, all six REL catalog
-entries, a closed findings schema, and private closed action-item aggregation
+entries, all five POR catalog entries, a closed findings schema, and private closed action-item aggregation
 plus a customer-neutral generated Excel action-plan template are available for
 offline synthetic testing. A private report writer can populate the current
 deterministic workbook sheets from a validated saved run. Five bounded public
@@ -32,7 +32,7 @@ presence comparison, and Environment Drift workbook rows are also available.
 Actual clean Copilot-session/tool isolation, approved roots/ACLs, organization
 approval and visual/live G3 acceptance remain owner gates.
 
-Ten required model contracts and one optional drift contract share a private
+Ten required model contracts and optional drift/portal contracts share a private
 schema gate for pending writes and saved-run loading. Requested drift additionally
 requires unchanged restricted inputs, current evidence, and model bindings.
 Private findings are validated against
@@ -45,8 +45,10 @@ fact/narrative codes, typed usage buckets/cost trends, unique IDs, citations,
 and executive assumption/data-gap carry-forward. Private package construction,
 independent privacy validation, local attestation, and immutable atomic promotion
 are also implemented and synthetic-tested. Packages use version 1.1, or 1.2 for
-evaluated drift findings with only approved additional condition codes, never
-Git/source/environment values. The broker invokes these private helpers;
+evaluated drift findings, or 1.3 for evaluated POR findings, with only approved
+additional condition codes, never Git/source/environment or portal/provider/domain/
+product/group values or exact coverage. Existing Service/Api aliases are reused.
+The broker invokes these private helpers;
 standalone root package/promotion facades remain planned.
 No customer data is approved for model access by a schema/reference pass.
 
@@ -84,7 +86,7 @@ status objects, with Collect/Assessment carrying the run ID. Reports remain
 under that run's `report` directory and never overwrite previous workbooks.
 
 The implemented slice collects Service, Apis, Products, Subscriptions,
-SecurityAssets, Diagnostics, Policies, and Network. It accepts only
+SecurityAssets, Diagnostics, Identity, Portal, Policies, and Network. It accepts only
 Cloudflare/AssumedReachable edge settings and six increasing usage thresholds.
 `-SkipCost` and `-SkipLogs` confirm default exclusions of future cost and
 Log Analytics queries; explicit `:$false` on those two switches is rejected.
@@ -115,6 +117,49 @@ finding, including evidence, before writing a workbook.
 An Assessment run preserves exit 3 if downstream stages succeed, but returns 4
 if a requested downstream stage fails. Collector failure records remain intact.
 No broker or model-safe access is enabled by these commands.
+
+### Portal readiness and explicit product visibility
+
+Identity collection saves closed structural metadata for identity providers,
+authorization servers, OIDC providers, and authorization providers. Portal
+collection saves sign-in/sign-up/delegation/default config and revision metadata.
+Both discard secrets, unneeded URLs/free text and unknown fields before writing.
+They do not enumerate users, crawl the portal, or retrieve secret endpoints.
+New collector checks have synthetic acceptance only; live validation remains
+maintainer-owned.
+
+In the private configuration, optionally add this closed root section:
+
+```powershell
+Portal = @{
+    ProductVisibility = @(
+        @{ ProductId = 'private-product'; IsPublic = $false; IntendedGroupIds = @('partners') }
+        @{ ProductId = 'public-product'; IsPublic = $true; IntendedGroupIds = @('guests') }
+    )
+}
+```
+
+Use exact product/group resource names, not display names. Duplicate or malformed
+IDs, non-Boolean intent, and unknown fields fail validation. All configured values
+stay in the restricted run-setting snapshot. Missing intent, unmatched products,
+missing group evidence, or products without explicit intent remain NotEvaluated
+unless another known mismatch establishes a finding. Guests trigger POR-003 only
+for explicitly nonpublic products; missing intended memberships also trigger it.
+
+POR-001 requires an Enabled developer portal and a current completed publication.
+POR-002 uses direct `enableBasicAuth`, sign-up, and non-Entra provider evidence;
+an absent basic-auth setting is Unknown, never inferred disabled from Entra-only
+providers. Conflicting delegation evidence remains Unknown. POR-004 uses the
+80-percent operation-description boundary and any available score's 70-point
+boundary. Zero/incomplete operations do not become synthetic 100-percent coverage.
+This is not an OpenAPI export/Spectral implementation. POR-005 detects enabled
+legacy portal status. Known positives survive unrelated Partial evidence.
+
+Older ten-model runs do not require recollection. Rerun ordinary offline Analyze
+then Report to refresh the expanded catalog; absent portal evidence gives explicit
+Info/NotEvaluated findings. A malformed present portal model is not ignored.
+Portal checks appear in the existing rule, finding, action-plan and HTML views;
+no new report sheet or public command is introduced.
 
 Offline acceptance uses compact synthetic raw fixtures: two APIs, two
 operations, two products, six subscriptions, three named values, two backends,
