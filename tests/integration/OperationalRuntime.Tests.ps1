@@ -24,11 +24,11 @@ Describe 'Offline collected evidence to deterministic workbook' {
             Mock Get-ApimSpectralTool { return $null }
         }
 
-        It 'builds twelve models including portal and quality with repeatable findings and renders Excel' {
+        It 'builds fourteen models including portal, quality and governance with repeatable findings and renders Excel' {
             $analysis = Invoke-ApimAnalyze -RunFolder $script:runtimePath
             $analysis.ExitCode | Should -Be 0
             $models = Get-ApimModelSet -RunPath $script:runtimePath
-            $models.Count | Should -Be 12
+            $models.Count | Should -Be 14
             $models.portal.basicAuthEnabled | Should -BeFalse
             $models.portal.basicAuthEvidence | Should -Be Direct
             $models.portal.published | Should -BeTrue

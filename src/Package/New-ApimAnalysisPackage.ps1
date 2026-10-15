@@ -27,10 +27,12 @@ $script:ApimAnalysisConditions = [ordered]@{
     'APIM-SEC-020' = 'ProductionMockOrTrace'
     'APIM-GOV-001' = 'ProductMissing'
     'APIM-GOV-002' = 'OwnerTagMissing'
+    'APIM-GOV-003' = 'ProductGovernanceWeak'
     'APIM-GOV-005' = 'NonCurrentRevisionOnline'
     'APIM-GOV-006' = 'VersioningIncomplete'
     'APIM-GOV-007' = 'SourcePolicyDrift'
     'APIM-GOV-008' = 'MixedPathVersioning'
+    'APIM-GOV-009' = 'ApiDiagnosticsWeak'
     'APIM-GOV-010' = 'InheritedControlsDropped'
     'APIM-GOV-011' = 'EnvironmentPolicyDrift'
     'APIM-REL-001' = 'ZoneRedundancyAbsent'
@@ -74,7 +76,9 @@ function Get-ApimAnalysisGap {
             'auxiliaryRoutes' { 'OwnerIntentUnknown'; break }
             'policy|Policy' { 'PolicyIncomplete'; break }
             'network' { 'NetworkIncomplete'; break }
-            'diagnostics' { 'DiagnosticsIncomplete'; break }
+            'diagnostic|Diagnostic' { 'DiagnosticsIncomplete'; break }
+            'ownerIntent|criticalIntent|governance' { 'OwnerIntentUnknown'; break }
+            'externalIntent' { 'ProductClassificationUnavailable'; break }
             'backend|Backend' { 'BackendMappingUnavailable'; break }
             'git' { 'GitUnavailable'; break }
             default { 'CollectionIncomplete' }
@@ -109,7 +113,9 @@ function New-ApimAnalysisPackage {
     try {
         $root = Resolve-ApimAnalysisRoot -Path $RunPath
         foreach ($relative in @('manifest.json', 'findings.json') +
-            @($script:ApimModelSchemaPaths.Keys | Where-Object { $_ -cnotin @('drift', 'portal', 'openApiQuality') } |
+            @($script:ApimModelSchemaPaths.Keys | Where-Object {
+                    $_ -cnotin @('drift', 'portal', 'openApiQuality', 'products', 'diagnosticCoverage')
+                } |
                 ForEach-Object { "model/$_.json" })) {
             $null = Read-ApimAnalysisSnapshot -Path (
                 Resolve-RunFilePath -RunPath $root -RelativePath $relative
@@ -196,6 +202,13 @@ function New-ApimAnalysisPackage {
                 throw 'ANALYSIS_BUILD_REJECTED'
             }
         }
+        if ($models.Contains('products')) {
+            foreach ($product in @($models.products | Where-Object productFound -EQ $true)) {
+                $key = "product:$($product.productId)"
+                Assert-ApimAnalysisIdentity -Identity $key
+                $subjects.Add($key, @{ kind = 'Product'; model = $product })
+            }
+        }
         foreach ($product in @($models.apis.products) + @(
                 $models.subscriptions | Where-Object scopeType -CEQ Product |
                     ForEach-Object { $_.scopeTarget }
@@ -233,6 +246,13 @@ function New-ApimAnalysisPackage {
         $null = $allGaps.Add('CostUnavailable')
         $assumptions = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
         $null = $assumptions.Add('CostUnavailable')
+        if ($models.Contains('diagnosticCoverage')) {
+            foreach ($row in $models.diagnosticCoverage) {
+                foreach ($gap in @(Get-ApimAnalysisGap -Inputs @($row.missingInputs))) {
+                    $null = $allGaps.Add($gap)
+                }
+            }
+        }
         foreach ($key in $keys) {
             $subject = $subjects[$key]
             $row = $subject.model
@@ -348,7 +368,11 @@ function New-ApimAnalysisPackage {
             $bucket = 'Unknown'
             if ($finding.evaluation -ceq 'Evaluated') {
                 $factId = 'fact-{0:d6}' -f ($facts.Count + 1)
-                $confidenceModel = if ($portalFinding) { $models.portal } else { $subject.model }
+                $confidenceModel = if ($portalFinding) { $models.portal }
+                elseif ($finding.ruleId -ceq 'APIM-GOV-009') {
+                    @($models.diagnosticCoverage | Where-Object apiId -CEQ $subject.model.apiId)[0]
+                }
+                else { $subject.model }
                 $facts.Add([ordered]@{
                         factId = $factId
                         subjectAlias = $subject.alias
@@ -379,6 +403,9 @@ function New-ApimAnalysisPackage {
         }
         $package = [ordered]@{
             schemaVersion = if (@($replayed | Where-Object {
+                        $_.ruleId -cin @('APIM-GOV-003', 'APIM-GOV-009') -and $_.evaluation -ceq 'Evaluated'
+                    }).Count -gt 0) { '1.4' }
+            elseif (@($replayed | Where-Object {
                         $_.ruleId -clike 'APIM-POR-*' -and $_.evaluation -ceq 'Evaluated'
                     }).Count -gt 0) { '1.3' }
             elseif (@($replayed | Where-Object {

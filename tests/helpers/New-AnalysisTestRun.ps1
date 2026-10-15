@@ -19,7 +19,9 @@ function New-AnalysisTestRun {
         -RunId synthetic-airlock -StartedUtc ([datetimeoffset] '2026-10-14T12:00:00Z')
     if ($null -eq $Models) {
         $Models = [ordered]@{}
-        foreach ($name in @($script:ApimModelSchemaPaths.Keys | Where-Object { $_ -cnotin @('drift', 'portal', 'openApiQuality') })) {
+        foreach ($name in @($script:ApimModelSchemaPaths.Keys | Where-Object {
+                    $_ -cnotin @('drift', 'portal', 'openApiQuality', 'products', 'diagnosticCoverage')
+                })) {
             $file = if ($name -ceq 'apis') { 'apis.exposure.json' } else { "$name.json" }
             $Models[$name] = Get-Content -LiteralPath (
                 Join-Path $Repository "tests/fixtures/synthetic-reference/model/$file"

@@ -78,6 +78,7 @@ function Get-ApimCollectorRegistry {
         [pscustomobject]@{ Name = 'Identity'; Function = 'Invoke-ApimIdentityCollector'; Requires = @('Service'); Throttled = $false }
         [pscustomobject]@{ Name = 'Portal'; Function = 'Invoke-ApimPortalCollector'; Requires = @('Service'); Throttled = $false }
         [pscustomobject]@{ Name = 'OpenApi'; Function = 'Invoke-ApimOpenApiCollector'; Requires = @('Service', 'Apis'); Throttled = $true }
+        [pscustomobject]@{ Name = 'Organization'; Function = 'Invoke-ApimOrganizationCollector'; Requires = @('Service'); Throttled = $false }
     )
 }
 
@@ -102,6 +103,7 @@ function Invoke-ApimSmoke {
         [scriptblock] $OnProgress
     )
 
+    Test-ApimCountOnlyPrivacy -Config $Config
     $checks = @(Get-ApimCollectorRegistry)
 
     foreach ($check in $checks) {

@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Optional restricted diagnostic coverage model",
+  "type": "array",
+  "maxItems": 20000,
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["apiId", "apiFound", "configured", "loggerResolved", "samplingPercentage", "sourceScope", "isCritical", "modelStatus", "missingInputs"],
+    "properties": {
+      "apiId": { "type": "string", "minLength": 1 },
+      "apiFound": { "type": "boolean" },
+      "configured": { "type": ["boolean", "null"] },
+      "loggerResolved": { "type": ["boolean", "null"] },
+      "samplingPercentage": { "type": ["number", "null"], "minimum": 0, "maximum": 100 },
+      "sourceScope": { "enum": ["Api", "Service", "None", "Unknown"] },
+      "isCritical": { "type": ["boolean", "null"] },
+      "modelStatus": { "enum": ["Complete", "Partial"] },
+      "missingInputs": { "type": "array", "uniqueItems": true, "items": { "enum": ["api", "diagnostics", "logger", "sampling", "criticalIntent"] } }
+    }
+  }
+}

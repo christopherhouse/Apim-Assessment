@@ -77,9 +77,17 @@ Describe 'Manifest-bound partial portal ingestion' {
                 })
             $null = Save-RunManifest -RunPath $script:portalSavedPath -Manifest $manifest
             (Invoke-ApimAnalyze -RunFolder $script:portalSavedPath).ExitCode | Should -Be 0
+            foreach ($name in @('products', 'diagnosticCoverage')) {
+                Remove-Item -LiteralPath (Join-Path $script:portalSavedPath "model/$name.json")
+            }
             $models = Get-ApimModelSet -RunPath $script:portalSavedPath
             $models.Count | Should -Be 10
             $models.Contains('portal') | Should -BeFalse
+            $context = Get-ApimRunSetting -RunPath $script:portalSavedPath
+            $legacyFindings = @(Invoke-ApimRuleEngine -Rules @(
+                    Get-ApimRuleCatalog -CatalogPath $script:ApimReportRuleCatalogPath
+                ) -Models $models -Manifest $context.Manifest -Config $context.Config)
+            $null = Write-ApimFindingSet -RunPath $script:portalSavedPath -Findings $legacyFindings
             $findings = @(Get-ApimFindingSet -RunPath $script:portalSavedPath |
                     Where-Object { $_.ruleId -cin @('APIM-POR-001', 'APIM-POR-002', 'APIM-POR-003', 'APIM-POR-005') })
             $findings.Count | Should -Be 4

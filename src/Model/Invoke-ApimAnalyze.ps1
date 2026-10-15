@@ -74,7 +74,8 @@ function Get-ApimSavedApiModel {
             if (-not $api.properties.isCurrent) { continue }
             $productNames = @(
                 foreach ($product in $products.value) {
-                    if ($api.name -cin @($memberships[$product.name].value.name)) {
+                    if ($api.name -cin @($memberships[$product.name].value |
+                            ForEach-Object { $_.name })) {
                         [string] $product.name
                     }
                 }
@@ -311,6 +312,8 @@ function Invoke-ApimAnalyze {
             -Config $context.Config -Environment $context.Environment `
             -ServicePayload $service -ProductsAvailable $available.Products
         if ($null -ne $portal) { $models.portal = $portal }
+        $governance = Get-ApimSavedGovernanceModel -RunPath $RunFolder -Context $context
+        foreach ($name in $governance.Keys) { $models[$name] = $governance[$name] }
         if ($models.Contains('apis') -and $models.Contains('operations')) {
             $quality = Get-ApimSavedOpenApiQuality -RunPath $RunFolder -Context $context `
                 -Apis $models.apis -Operations $models.operations
@@ -341,7 +344,8 @@ function Invoke-ApimAnalyze {
         }
         $null = Write-ApimFindingSet -RunPath $RunFolder -Findings $findings
         if (@($script:ApimModelSchemaPaths.Keys | Where-Object {
-                    $_ -cnotin @('drift', 'portal', 'openApiQuality') -and -not $models.Contains($_)
+                    $_ -cnotin @('drift', 'portal', 'openApiQuality', 'products', 'diagnosticCoverage') -and
+                    -not $models.Contains($_)
                 }).Count -gt 0) {
             throw 'Required models could not be constructed.'
         }

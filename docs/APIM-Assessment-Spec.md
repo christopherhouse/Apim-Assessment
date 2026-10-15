@@ -188,6 +188,10 @@ tool/path isolation.
   RuleTargets = @{
     CriticalBackendIds = @() # exact backend IDs declared critical by an operator
   }
+  Governance = @{ # optional explicit intent; omission is Unknown, not a safe default
+    Products = @(@{ ProductId='external-product'; HasOwner=$true; IsExternal=$true })
+    CriticalApiIds = @('critical-api') # explicit empty array attests no critical APIs
+  }
   RuleExceptions = @{
     ApprovedPlainHttpBackendIds = @()
     ApprovedPlainHttpOperationKeys = @() # exact apiId/operationId keys
@@ -318,8 +322,19 @@ unlisted stale files.
 | `identityProviders.json`, `authorizationServers.json`, `openidConnectProviders.json`, `authorizationProviders.json` | respective collections | Closed structural allowlists: provider type enums, authorization-server enum arrays/nullable flags, OIDC usage flags, authorization-provider derived authorization-code/client-credentials configured flags. Drop secrets, client/tenant IDs, URLs, free text and unknown fields before persistence. |
 | `loggers.json`, `diagnostics.json`, `apiDiagnostics/<api>.json` | `{base}/loggers`, `{base}/diagnostics`, `{base}/apis/{api}/diagnostics` | Closed allowlists only. Loggers retain `name`, `loggerType`, target `resourceId`, and nullable `isBuffered`. Diagnostics retain `name`, `loggerId`, `alwaysLog`, `samplingType`/percentage, `verbosity`, nullable `logClientIp`, correlation protocol, sorted request/response header names, and nullable body-byte counts for frontend/backend. Missing fields/sections remain null and known empty header lists remain arrays. Drop logger credentials/descriptions, payload samples, data-masking configuration, header values, and unknown fields. Service files may remain with Partial status if bounded per-API collection fails. |
 | `portal/signin.json`, `signup.json`, `delegation.json`, `config.json`, `revisions.json` | `{base}/portalsettings/signin`, `/signup`, `/delegation`, `{base}/portalconfigs/default`, `{base}/portalRevisions` | Closed structural sign-in/sign-up/delegation flags, direct enableBasicAuth, require-signin flag and revision current/status. Singleton name may be null; missing settings stay null, never default false. Drop delegation validation keys, URLs, secrets and unknown fields before persistence. |
-| `groups.json`, `tags.json`, `apiVersionSets.json`, `gateways.json`, `workspaces.json`, `policyFragments.json` | respective collections | organization |
-| `users.summary.json` | `{base}/users` | **counts only** by `state` and `identities[].provider` unless `StoreUserIdentities=$true` |
+| `groups.json`, `tags.json`, `apiVersionSets.json`, `gateways.json`, `workspaces.json`, `policyFragments.json` | respective collections | Closed `name`/`properties` projections: only group `type`/nullable `builtIn` and version-set `versioningScheme` survive within properties. Drop display names, descriptions, external identities, fragment XML and unknown fields. |
+| `users.summary.json` | `{base}/users` | **Always counts only** (D-59); fixed state/provider categories, no records or identities. `StoreUserIdentities=$true` is rejected before authentication or run creation. |
+
+The Organization collector handles these seven endpoints independently using
+guarded GETs. A denied/unsupported/failed endpoint records Partial/Failed with
+only successful files listed; it is never persisted as an empty inventory.
+Known empty successful collections remain valid. User state categories are
+`active`, `blocked`, `pending`, `deleted`, `Unknown`; provider categories are
+`basic`, `aad`, `aadB2C`, `facebook`, `google`, `microsoft`, `twitter`, `Unknown`.
+Provider counts are per user per category, not identity-record counts; their sum
+may exceed total. Repeated user IDs are deduplicated in memory, conflicting
+state/provider summaries fail, and IDs never persist. Resume and smoke validate
+closed projections/count consistency and do not trust stale unlisted files.
 
 ### 7.3 Policies
 
@@ -354,7 +369,7 @@ Partial and no complete policy index is written.
 ### 7.5 Security posture (Resource Graph)
 - `security/defender.json`: `securityresources | where type == "microsoft.security/assessments"` filtered to APIM + App GW resource IDs (`displayName`, `status.code`, `metadata.severity`), plus Defender for APIs sub-assessments where available.
 - `security/policyCompliance.json`: `policyresources | where type == "microsoft.policyinsights/policystates"` for APIM/App GW resources.
-- `security/roleAssignments.json`: `authorizationresources` role assignments at RG and resource scope (principalId, principalType, roleDefinitionId → resolved role name). Principal display names only if `StoreUserIdentities=$true`.
+- `security/roleAssignments.json`: planned `authorizationresources` role assignments at RG and resource scope (principalId, principalType, roleDefinitionId → resolved role name). Principal display names are not collected; identity-storage opt-in is unsupported under D-59.
 
 ### 7.6 Logs (Log Analytics)
 Detect schema first: if `ApiManagementGatewayLogs` has rows in the window use **resource-specific** queries, else fall back to `AzureDiagnostics` variants (`queries/*.azdiag.kql`). Record which in manifest. Also record workspace retention (`Get-AzOperationalInsightsWorkspace`), and cap windows to retention.
@@ -530,7 +545,29 @@ the deterministic `data-scope` and unresolved-fragment status attributes.
 | `capacity.json` | day | `capacityAvg`, `capacityMax`, `capacityP95`, `units` |
 | `drift.json` | optional policy/catalog × environment pair | `category` (Git/Environment), stable `key`, `environmentA/B`, nullable `presentA/B` and `hashA/B`, `changeType` (All/ProdOnly/Differs/SourceOnly/Missing/Unknown), severity, fixed note, completeness metadata; closed restricted source inventories retain every selected environment |
 | `portal.json` | optional single object | nullable modern/legacy status, current-completed publication, direct basic-auth attribution, nullable sign-in/sign-up/delegation settings, provider types, nullable custom-domain inventory, explicit product/group intent and mismatch facts, completeness metadata |
+| `products.json` | optional product | `productId`, `productFound`, nullable `hasDescription`, `hasOwner`, `isExternal`, `approvalRequired`, completeness metadata |
+| `diagnosticCoverage.json` | optional current API | `apiId`, `apiFound`, nullable `configured`, `loggerResolved`, `samplingPercentage`, `isCritical`, effective `sourceScope`, completeness metadata |
 | `openApiQuality.json` | API | Spectral error/warn counts, score |
+
+Product governance and diagnostic coverage are additive under D-59. The ten
+required model files and legacy saved-run path are unchanged. Their sources are
+the existing validated Completed Products/Apis/Diagnostics collectors, not
+Organization success. Missing collector evidence never becomes a safe empty
+inventory. Present governance models are closed-schema validated and rebuilt
+from saved sources/settings before loading; modified model/source/intent fails
+closed. Product text is reduced to description presence, never owner identity.
+
+Optional closed `Governance.Products` contains unique exact `ProductId`,
+Boolean `HasOwner` and Boolean `IsExternal`; `CriticalApiIds` contains unique
+exact current API IDs. Validation rejects unknown fields, duplicate/malformed
+IDs, non-Booleans and arrays over 10,000. Intent is snapshotted in restricted
+camelCase run settings. Absent intent is Unknown, explicit empty critical IDs
+attest none, and unresolved targets retain Partial rows rather than disappearing.
+API diagnostics override service diagnostics; service fallback requires a known
+empty API collection. Missing collection/settings are not disabled diagnostics.
+Logger references resolve only against collected logger IDs. Sampling is a
+known fixed percentage in [0,100], never an assumed default; conflicting or
+unavailable evidence retains null/qualified gaps.
 
 Portal is additive under D-57, not an eleventh required baseline model.
 Existing ten-model runs remain loadable without recollection; offline Analyze
@@ -890,6 +927,18 @@ schemas unchanged. Confidence derives from portal evidence, not the unrelated
 service security model. No provider/client/tenant/product/group identifiers,
 domains, intent or exact coverage values enter the package.
 
+Package 1.4 adds only `ProductGovernanceWeak` and `ApiDiagnosticsWeak` for
+evaluated GOV-003/GOV-009. Facts bind respectively to existing Product/Api entity
+kinds and each finding must cite its own subject's matching condition.
+Unreferenced collected products receive unique, deterministically sorted aliases;
+membership/subscription references do not duplicate them. Diagnostic confidence
+comes from coverage evidence rather than an unrelated API model. The independent
+scanner, attestation, promotion, broker admission and claim entailment explicitly
+support 1.4; older schemas remain unchanged. Governance conditions support only
+the appropriate governance/diagnostic claims, not unsafe diagnostic capture.
+No inventory records, user counts, product description/intent, critical API IDs
+or exact sampling enter the package. No broker tools or permissions are added.
+
 Schema 1.1 requires six ascending configured usage thresholds beginning at
 zero. Zero is `Zero`; absent usage is `Unknown`; a positive count uses the
 greatest threshold not exceeding it, selecting `VeryLow`, `Low`, `Medium`,
@@ -1063,8 +1112,8 @@ RBAC, product-classification, telemetry, or authorization evidence (D-32).
 | APIM-GOV-010 | Policy missing `<base/>` drops inherited controls | Medium | `baseMissing` |
 | APIM-GOV-011 | Environment drift (Dev/Test/Prod) | Low | drift across envs |
 
-T-305 currently implements GOV-001/002/005/006/008/010 against the closed API
-and operation models. Product membership, owner tags, and revision counts are
+T-305 implements GOV-001/002/003/005/006/008/009/010; GOV-007/011 are provided
+by the separate drift slice. Product membership, owner tags, and revision counts are
 definitive catalog facts. GOV-006 flags APIs without a version set and complete
 version sets with at most one distinct version; a set with an unknown member
 version remains NotEvaluated unless another known positive exists. GOV-008
@@ -1072,9 +1121,18 @@ classifies API paths as `ApiVersionPrefix`, `VersionPrefix`,
 `OtherVersionSegment`, or `NoVersionSegment` and emits one service-level
 distribution finding when conventions differ. GOV-010 retains known
 missing-`<base/>` findings when another operation has Partial policy evidence;
-otherwise the incomplete fact is NotEvaluated (D-40). GOV-003 remains deferred
-until product ownership/approval is modeled, and GOV-009 until diagnostic
-enablement and sampling are modeled.
+otherwise the incomplete fact is NotEvaluated (D-40).
+GOV-003 flags a proven missing description, explicitly absent owner, or disabled
+approval for an explicitly external product, using the optional product model.
+GOV-009 flags known absent effective diagnostics, an unresolved logger reference,
+or a known sample below 100 percent on an explicitly critical API. A sample of
+100 passes that sampling check; noncritical APIs do not require full sampling.
+Absent/unresolved intent, collection, logger or sampling evidence retains one
+Info/NotEvaluated result per rule when no known positive exists, while a proven
+positive survives unrelated incomplete evidence. This assessment of configured
+diagnostics does not prove ingestion, retention or runtime logging delivery.
+GOV-004 remains deferred to usage collection; GOV-009 is owned by T-305 rather
+than implemented again under T-409 (D-59).
 
 ### 11.4 Reliability (REL) / Performance (PERF)
 | ID | Title | Sev | Logic |

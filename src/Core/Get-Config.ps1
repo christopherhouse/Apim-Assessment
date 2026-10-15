@@ -144,6 +144,61 @@ function Test-ConfigPortalProductVisibility {
     }
 }
 
+function Test-ConfigGovernance {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][System.Collections.IDictionary] $Value)
+
+    if (@($Value.Keys | Where-Object {
+                $_ -cnotin @('Products', 'CriticalApiIds')
+            }).Count -gt 0) {
+        throw "Configuration 'Governance' contains an unknown field."
+    }
+    foreach ($key in @('Products', 'CriticalApiIds')) {
+        if (-not $Value.Contains($key)) { continue }
+        $items = $Value[$key]
+        if ($null -eq $items -or $items -is [string] -or
+            $items -is [System.Collections.IDictionary] -or
+            $items -isnot [System.Collections.IEnumerable] -or
+            @($items).Count -gt 10000) {
+            throw "Configuration 'Governance.$key' must be a bounded array."
+        }
+        $ids = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+        foreach ($item in @($items)) {
+            $id = $item
+            if ($key -ceq 'Products') {
+                Test-ConfigMap -Value $item -Context 'Governance.Products entry'
+                if ($item.Count -ne 3 -or @($item.Keys | Where-Object {
+                            $_ -cnotin @('ProductId', 'HasOwner', 'IsExternal')
+                        }).Count -gt 0) {
+                    throw "Configuration 'Governance.Products' contains invalid fields."
+                }
+                $id = $item.ProductId
+                foreach ($flag in @('HasOwner', 'IsExternal')) {
+                    Test-ConfigBoolean -Value $item[$flag] -Context "Governance.Products.$flag"
+                }
+            }
+            if ($id -isnot [string] -or $id.Length -gt 256 -or
+                $id -cnotmatch '^[A-Za-z0-9][A-Za-z0-9._-]*$' -or
+                -not $ids.Add($id)) {
+                throw "Configuration 'Governance.$key' contains an invalid or duplicate ID."
+            }
+        }
+    }
+}
+
+function Test-ApimCountOnlyPrivacy {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][System.Collections.IDictionary] $Config)
+
+    $privacy = Get-RequiredConfigValue $Config 'Privacy' 'root'
+    Test-ConfigMap -Value $privacy -Context 'Privacy'
+    $store = Get-RequiredConfigValue $privacy 'StoreUserIdentities' 'Privacy'
+    Test-ConfigBoolean -Value $store -Context 'Privacy.StoreUserIdentities'
+    if ($store) {
+        throw 'User inventory supports aggregate counts only; identity storage is unavailable.'
+    }
+}
+
 function Test-ConfigOpenApiQuality {
     [CmdletBinding()]
     param(
@@ -558,12 +613,18 @@ function Get-Config {
         )
     }
 
+    if ($config.Contains('Governance')) {
+        Test-ConfigMap -Value $config.Governance -Context 'Governance'
+        Test-ConfigGovernance -Value $config.Governance
+    }
+
     $privacy = Get-RequiredConfigValue $config 'Privacy' 'root'
     Test-ConfigMap -Value $privacy -Context 'Privacy'
     foreach ($key in @('StoreUserIdentities', 'RedactPolicySecrets')) {
         Test-ConfigBoolean -Value (Get-RequiredConfigValue $privacy $key 'Privacy') `
             -Context "Privacy.$key"
     }
+    Test-ApimCountOnlyPrivacy -Config $config
 
     $analysisPackage = Get-RequiredConfigValue $config 'AnalysisPackage' 'root'
     Test-ConfigMap -Value $analysisPackage -Context 'AnalysisPackage'

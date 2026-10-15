@@ -14,7 +14,7 @@ function Assert-ApimAnalysisScan {
         EdgeAssumption = @('CloudflareAssumed', 'None', 'Unknown')
         Exposure = @('DirectPublic', 'ExternalInUse', 'ExternalUnintended', 'Restricted', 'Internal', 'Platform', 'Unknown')
         CallerAuth = @('Jwt', 'Mtls', 'JwtAndMtls', 'SubscriptionKeyOnly', 'None', 'Unknown')
-        UsageBucket = if ($Package.schemaVersion -cin @('1.1', '1.2', '1.3')) {
+        UsageBucket = if ($Package.schemaVersion -cin @('1.1', '1.2', '1.3', '1.4')) {
             @('Zero', 'VeryLow', 'Low', 'Medium', 'High', 'VeryHigh', 'Extreme', 'Unknown')
         } else { @('Zero', 'Low', 'Medium', 'High', 'Unknown') }
         CostTrend = @('Decreasing', 'Stable', 'Increasing', 'Unknown')
@@ -33,14 +33,17 @@ function Assert-ApimAnalysisScan {
             'LegacyPlatform'
         )
     }
-    if ($Package.schemaVersion -cin @('1.2', '1.3')) {
+    if ($Package.schemaVersion -cin @('1.2', '1.3', '1.4')) {
         $values.AssessmentCondition += @('SourcePolicyDrift', 'EnvironmentPolicyDrift')
     }
-    if ($Package.schemaVersion -ceq '1.3') {
+    if ($Package.schemaVersion -cin @('1.3', '1.4')) {
         $values.AssessmentCondition += @(
             'PortalUnavailable', 'PortalAuthenticationWeak', 'ProductVisibilityMismatch',
             'ApiDocumentationWeak', 'LegacyPortalEnabled'
         )
+    }
+    if ($Package.schemaVersion -ceq '1.4') {
+        $values.AssessmentCondition += @('ProductGovernanceWeak', 'ApiDiagnosticsWeak')
     }
     $booleanCodes = @(
         'DirectPublic', 'JwtConfigured', 'MtlsConfigured', 'IpFilterConfigured',
@@ -55,7 +58,7 @@ function Assert-ApimAnalysisScan {
         'findingId', 'ruleId', 'severity', 'evaluation', 'priorityBucket', 'factRefs'
     )
     $fieldValues = @{
-        schemaVersion = @('1.0', '1.1', '1.2', '1.3')
+        schemaVersion = @('1.0', '1.1', '1.2', '1.3', '1.4')
         kind = @('Service', 'Api', 'Operation', 'Product', 'Subscription', 'NamedValue', 'Backend', 'Certificate', 'Network', 'Route')
         confidence = @('High', 'Medium', 'Low')
         severity = @('High', 'Medium', 'Low', 'Info')
@@ -127,7 +130,7 @@ function Assert-ApimAnalysisScan {
             if ($node -match '[\\/<>=@%:&;]' -or
                 $node -match '(?i)[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}' -or
                 $node -match '[A-Za-z0-9+_/-]{48,}' -or
-                ($node.Contains('.') -and $node -cnotin @('1.0', '1.1', '1.2', '1.3'))) {
+                ($node.Contains('.') -and $node -cnotin @('1.0', '1.1', '1.2', '1.3', '1.4'))) {
                 throw 'ANALYSIS_SCAN_REJECTED'
             }
             if ($frame.field -ceq 'value') {

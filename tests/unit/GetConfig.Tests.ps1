@@ -36,6 +36,44 @@ AfterAll {
 }
 
 Describe 'Get-Config' {
+    It 'accepts explicit governance intent through the configuration entry point' {
+        $path = Get-SyntheticConfigFile -Transform {
+            param($Content)
+            $Content.Replace('Privacy = @{',
+                "Governance = @{ Products = @(@{ ProductId = 'partner'; HasOwner = `$true; IsExternal = `$true }); CriticalApiIds = @('orders-v1') }`nPrivacy = @{")
+        }
+        $actual = & $script:module { param($Path) Get-Config -Path $Path } $path
+        $actual.Governance.Products[0].HasOwner | Should -BeTrue
+        $actual.Governance.CriticalApiIds | Should -Be @('orders-v1')
+    }
+
+    It 'rejects invalid governance intent (<Kind>)' -ForEach @(
+        @{ Kind = 'unknown section field'; Value = @{ Extra = $true } }
+        @{ Kind = 'null targets'; Value = @{ CriticalApiIds = $null } }
+        @{ Kind = 'scalar targets'; Value = @{ CriticalApiIds = 'orders-v1' } }
+        @{ Kind = 'unsafe targets'; Value = @{ CriticalApiIds = @('../orders') } }
+        @{ Kind = 'duplicate targets'; Value = @{ CriticalApiIds = @('orders', 'ORDERS') } }
+        @{ Kind = 'missing owner'; Value = @{ Products = @(@{ ProductId = 'partner'; IsExternal = $true }) } }
+        @{ Kind = 'unknown product field'; Value = @{ Products = @(@{ ProductId = 'partner'; HasOwner = $true; IsExternal = $true; Extra = 1 }) } }
+        @{ Kind = 'nonboolean owner'; Value = @{ Products = @(@{ ProductId = 'partner'; HasOwner = 'true'; IsExternal = $true }) } }
+        @{ Kind = 'duplicate products'; Value = @{ Products = @(
+            @{ ProductId = 'partner'; HasOwner = $true; IsExternal = $true },
+            @{ ProductId = 'PARTNER'; HasOwner = $false; IsExternal = $false }
+        ) } }
+    ) {
+        { & $script:module { param($Value) Test-ConfigGovernance -Value $Value } $Value } |
+            Should -Throw
+    }
+
+    It 'rejects identity storage rather than silently returning user identities' {
+        $path = Get-SyntheticConfigFile -Transform {
+            param($Content)
+            $Content.Replace('StoreUserIdentities = $false', 'StoreUserIdentities = $true')
+        }
+        { & $script:module { param($Path) Get-Config -Path $Path } $path } |
+            Should -Throw '*aggregate counts only*'
+    }
+
     It 'validates optional integer OpenAPI quality penalties without changing legacy defaults' {
         $path = Get-SyntheticConfigFile -Transform {
             param($Content)

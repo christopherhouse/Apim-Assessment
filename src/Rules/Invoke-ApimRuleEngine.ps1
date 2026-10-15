@@ -8,6 +8,7 @@ $script:ApimFindingsSchemaPath = Join-Path (
 $script:ApimRuleScopes = @{
     Service = $null
     Api = 'apis'
+    Product = 'products'
     Operation = 'operations'
     Subscription = 'subscriptions'
     NamedValue = 'namedValues'
@@ -213,6 +214,7 @@ function Get-ApimRuleScopeKey {
         Network { return 'network' }
         Portal { return 'portal' }
         Api { return "api:$($Target.apiId)" }
+        Product { return "product:$($Target.productId)" }
         Operation {
             return "operation:$($Target.apiId)/$($Target.operationId)"
         }

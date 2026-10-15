@@ -16,7 +16,7 @@ builders create schema-validated API, operation, policy-matrix, subscription,
 service, named-value, backend, certificate, network, and pre-telemetry
 exposure records from saved synthetic-equivalent inputs. A private rule engine,
 seven NET catalog entries, fifteen model-backed
-SEC catalog entries, eight model-backed GOV catalog entries, all six REL catalog
+SEC catalog entries, ten model-backed GOV catalog entries, all six REL catalog
 entries, all five POR catalog entries, a closed findings schema, and private closed action-item aggregation
 plus a customer-neutral generated Excel action-plan template are available for
 offline synthetic testing. A private report writer can populate the current
@@ -32,7 +32,8 @@ presence comparison, and Environment Drift workbook rows are also available.
 Actual clean Copilot-session/tool isolation, approved roots/ACLs, organization
 approval and visual/live G3 acceptance remain owner gates.
 
-Ten required model contracts and optional drift/portal/OpenAPI-quality contracts share a private
+Ten required model contracts and optional drift/portal/OpenAPI-quality/product-governance/
+diagnostic-coverage contracts share a private
 schema gate for pending writes and saved-run loading. Requested drift additionally
 requires unchanged restricted inputs, current evidence, and model bindings.
 Private findings are validated against
@@ -45,9 +46,13 @@ fact/narrative codes, typed usage buckets/cost trends, unique IDs, citations,
 and executive assumption/data-gap carry-forward. Private package construction,
 independent privacy validation, local attestation, and immutable atomic promotion
 are also implemented and synthetic-tested. Packages use version 1.1, or 1.2 for
-evaluated drift findings, or 1.3 for evaluated POR findings, with only approved
+evaluated drift findings, 1.3 for evaluated POR findings, or 1.4 for evaluated
+GOV-003/GOV-009 findings, with only approved
 additional condition codes, never Git/source/environment or portal/provider/domain/
-product/group values or exact coverage. Existing Service/Api aliases are reused.
+product/group values or exact coverage. Existing Service/Product/Api aliases are reused.
+Package 1.4 exports only `ProductGovernanceWeak`/`ApiDiagnosticsWeak`, never
+organization inventories, user counts, intent or exact sampling. Earlier
+package schemas remain unchanged.
 The broker invokes these private helpers;
 standalone root package/promotion facades remain planned.
 No customer data is approved for model access by a schema/reference pass.
@@ -86,7 +91,7 @@ status objects, with Collect/Assessment carrying the run ID. Reports remain
 under that run's `report` directory and never overwrite previous workbooks.
 
 The implemented slice collects Service, Apis, Products, Subscriptions,
-SecurityAssets, Diagnostics, Identity, Portal, OpenApi, Policies, and Network. It accepts only
+SecurityAssets, Diagnostics, Identity, Portal, OpenApi, Organization, Policies, and Network. It accepts only
 Cloudflare/AssumedReachable edge settings and six increasing usage thresholds.
 `-SkipCost` and `-SkipLogs` confirm default exclusions of future cost and
 Log Analytics queries; explicit `:$false` on those two switches is rejected.
@@ -578,14 +583,54 @@ version as a finding. SEC-019 evaluates only normalized managed-identity type
 and never retains user-assigned identity IDs. Never pass restricted models or
 findings to Copilot.
 
-`rules/GOV.rules.ps1` includes GOV-001/002/005/006/008/010. These rules use
-closed API and operation facts only. GOV-006 flags unversioned APIs and complete
+`rules/GOV.rules.ps1` includes all GOV rules except usage-dependent GOV-004.
+GOV-006 flags unversioned APIs and complete
 version sets with one known version; an incomplete set is NotEvaluated unless
 another known positive exists. GOV-008 emits one service-level finding with
 bounded convention counts rather than one row per API. GOV-010 preserves a
 known missing-`<base/>` operation finding when another policy is Partial.
-GOV-003 and GOV-009 remain unavailable until product ownership/approval and
-diagnostic enablement/sampling are modeled.
+GOV-003 and GOV-009 use optional closed product-governance and
+diagnostic-coverage evidence. Add explicit intent to private configuration:
+
+```powershell
+Governance = @{
+    Products = @(
+        @{ ProductId = 'external-product'; HasOwner = $true; IsExternal = $true }
+        @{ ProductId = 'internal-product'; HasOwner = $false; IsExternal = $false }
+    )
+    CriticalApiIds = @('critical-api')
+}
+```
+
+These are exact resource-name IDs, not display names or owner identities.
+Unknown fields, duplicate/malformed IDs and non-Booleans fail validation.
+Absent product intent is Unknown; an explicit empty `CriticalApiIds = @()`
+attests none, while omission does not. Unresolved targets retain qualified gaps.
+Intent is snapshotted for offline replay. Change it through a new compatible
+collection run, not by editing saved settings/models/findings.
+
+GOV-003 flags missing description, explicitly missing owner, or disabled approval
+for an explicitly external product. GOV-009 flags known absent effective
+diagnostics, unresolved logger references, or a known sample below 100 percent
+on an explicitly critical API. API settings override service settings; service
+fallback requires a known empty API diagnostic list. Missing settings or fixed
+sampling values are Unknown, not disabled or zero. These are configuration
+checks, not proof of ingestion/retention/runtime delivery. A known positive
+survives unrelated gaps; otherwise incomplete evidence is Info/NotEvaluated.
+Ten-model legacy runs still load and report with qualified missing evidence.
+
+Organization is a separate seven-endpoint collector. It writes restricted
+groups, tags, version sets, gateways, workspaces and fragment metadata, dropping
+free text/identities/fragment XML and unknown fields before persistence.
+`raw/users.summary.json` contains only total plus fixed state/provider counts.
+No user records, names, UPNs, emails or identities persist. Provider counts are
+per user per category and may sum above total. `Privacy.StoreUserIdentities`
+must be false; true is rejected before authentication, ARM calls or run creation.
+An unsupported/denied endpoint is Failed/Partial, never an empty successful
+inventory; other successful files remain usable. Resume repairs incomplete or
+invalid output and smoke validates projections and count consistency.
+Organization failures do not invalidate independently collected product or
+diagnostic evidence. Live endpoint compatibility remains maintainer-only.
 
 `rules/REL.rules.ps1` includes REL-001 through REL-006. SKU, zone, and platform
 facts come from the closed service model. Critical backend evaluation is opt-in
@@ -650,9 +695,10 @@ output and must never be sent to Copilot or another model.
 
 ## Reusable collection smoke (Microsoft-owned test APIM only)
 
-The preparatory `scripts/Invoke-ApimSmoke.ps1` entry point exercises the eight
+The preparatory `scripts/Invoke-ApimSmoke.ps1` entry point exercises the twelve
 implemented collectors in fixed dependency order: Service, Apis, Products,
-Subscriptions, SecurityAssets, Diagnostics, Policies, Network. SecurityAssets
+Subscriptions, SecurityAssets, Diagnostics, Policies, Network, Identity, Portal,
+OpenApi, Organization. SecurityAssets
 writes only allowlisted metadata: named-value values are dropped after in-memory
 pattern detection, backend credential values are reduced to structural facts,
 and certificate data/private material is never stored. Diagnostics writes only
@@ -804,7 +850,7 @@ available to automation.
 The single script defaults to
 `$HOME\apim-smoke-private\smoke.psd1`; if you use another private directory,
 pass `-Config (Join-Path $private 'smoke.psd1')`. `Test` must match the
-environment name in that config. Exit 0 requires all eight checks,
+environment name in that config. Exit 0 requires all twelve checks,
 saved-output validation, and the secret scan to pass;
 `SMOKE_OUTPUT_VALID` and `SECRET_SCAN_PASS` with exit 3 mean only
 the completed checks' files validated and collection is still Partial.

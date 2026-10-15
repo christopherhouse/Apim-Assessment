@@ -31,6 +31,7 @@ Describe 'Validated collection resume and isolation' {
                     'raw/openidConnectProviders.json', 'raw/authorizationProviders.json')
                 Portal = @((Get-ApimPortalEndpoint).File)
                 OpenApi = @('raw/openapi/index.json')
+                Organization = @((Get-ApimOrganizationEndpoint).File)
             }
             foreach ($file in $files[$Name]) {
                 $payload = if ($Name -eq 'Service') {
@@ -38,6 +39,9 @@ Describe 'Validated collection resume and isolation' {
                 }
                 elseif ($Name -eq 'OpenApi') {
                     [pscustomobject]@{ schemaVersion = '1.0'; entries = @() }
+                }
+                elseif ($file -ceq 'raw/users.summary.json') {
+                    Get-ApimEmptyUserSummary
                 }
                 elseif ($Name -eq 'Policies') {
                     [pscustomobject]@{
@@ -70,7 +74,7 @@ Describe 'Validated collection resume and isolation' {
                 default { 0 }
             }
             $arguments = @{}
-            if ($Name -cin @('Identity', 'Portal', 'OpenApi')) { $arguments.Files = $files[$Name] }
+            if ($Name -cin @('Identity', 'Portal', 'OpenApi', 'Organization')) { $arguments.Files = $files[$Name] }
             Set-RunCollectorStatus -RunPath $RunPath -Name $Name `
                 -Status Completed -Items $items @arguments
         }
@@ -118,6 +122,9 @@ Describe 'Validated collection resume and isolation' {
             Mock Invoke-ApimOpenApiCollector {
                 Write-SyntheticCollectorOutput -RunPath $RunPath -Name OpenApi
             }
+            Mock Invoke-ApimOrganizationCollector {
+                Write-SyntheticCollectorOutput -RunPath $RunPath -Name Organization
+            }
             Mock Invoke-ApimArm { throw 'Unexpected Azure access.' }
         }
 
@@ -132,7 +139,7 @@ Describe 'Validated collection resume and isolation' {
                 -EnvironmentName Prod -TenantId $script:tenant -ResumeRunPath $path
             $result.RunId | Should -Be $initial.RunId
             $result.ExitCode | Should -Be 0
-            @($result.Checks | Where-Object Reused -EQ $true).Count | Should -Be 11
+            @($result.Checks | Where-Object Reused -EQ $true).Count | Should -Be 12
             (Get-RunManifest -RunPath $path).stages.report | Should -Be Completed
             foreach ($check in Get-ApimCollectorRegistry) {
                 Should -Invoke $check.Function -Times 1 -Exactly
@@ -161,23 +168,25 @@ Describe 'Validated collection resume and isolation' {
                 -EnvironmentName Prod -TenantId $script:tenant
             $path = Join-Path $script:resumeConfig.Output.Root $first.RunId
             $manifest = Get-RunManifest -RunPath $path
-            $manifest.collectors = @($manifest.collectors | Where-Object name -CNotIn @('Identity', 'Portal', 'OpenApi', 'Git'))
+            $manifest.collectors = @($manifest.collectors | Where-Object name -CNotIn @('Identity', 'Portal', 'OpenApi', 'Organization', 'Git'))
             $null = Save-RunManifest -RunPath $path -Manifest $manifest
             Remove-ApimCollectorOutput -RunPath $path -Name Identity
             Remove-ApimCollectorOutput -RunPath $path -Name Portal
             Remove-ApimCollectorOutput -RunPath $path -Name OpenApi
+            Remove-ApimCollectorOutput -RunPath $path -Name Organization
             $resumed = Invoke-ApimCollection -Config $script:resumeConfig `
                 -EnvironmentName Prod -TenantId $script:tenant -ResumeRunPath $path
             $resumed.ExitCode | Should -Be 0
             @($resumed.Checks | Where-Object Reused -EQ $true).Count | Should -Be 8
-            @($resumed.Checks | Where-Object Reused -EQ $false).Name | Should -Be @('Identity', 'Portal', 'OpenApi')
+            @($resumed.Checks | Where-Object Reused -EQ $false).Name | Should -Be @('Identity', 'Portal', 'OpenApi', 'Organization')
             Should -Invoke Invoke-ApimServiceCollector -Exactly -Times 1
         }
 
         It 'recollects damaged new evidence, clears owned stale files and invalidates downstream state (<Name>)' -TestCases @(
             @{ Name = 'Identity'; File = 'raw/identityProviders.json'; Stale = 'raw/authorizationServers.json' },
             @{ Name = 'Portal'; File = 'raw/portal/config.json'; Stale = 'raw/portal/stale.json' },
-            @{ Name = 'OpenApi'; File = 'raw/openapi/index.json'; Stale = 'raw/openapi/stale.json' }
+            @{ Name = 'OpenApi'; File = 'raw/openapi/index.json'; Stale = 'raw/openapi/stale.json' },
+            @{ Name = 'Organization'; File = 'raw/users.summary.json'; Stale = 'raw/groups.json' }
         ) {
             param($Name, $File, $Stale)
             $first = Invoke-ApimCollection -Config $script:resumeConfig `
