@@ -22,6 +22,23 @@ strictly increasing bands, and reconstructs scoring/edge settings from the
 manifest. Collection separately stores a versioned configuration SHA-256 for
 resume compatibility, never the full private configuration.
 
+## Restricted report lifecycle
+
+`comparison.schema.json` closes version 1.0 `diff.json`: source snapshot hashes,
+historical/current severity, comparable changes, separate reassessment gaps,
+pillar counts, and nullable KPI values/deltas with fixed availability reasons.
+`comparison-binding.schema.json` binds the serialized comparison's canonical
+digest in `restricted/comparison-binding.json`. Readers also recheck current
+models/findings/settings provenance. Hashes are integrity checks under an
+operator-owned filesystem, not signatures. Snapshot digests exclude changing
+stage statuses and normalize findings/model inventory order.
+
+`tracking.schema.json` closes imported report-only tracking records. Status is
+an approved operator workflow value or null; deterministic `findings.json`
+continues to require status Open. Workbook scope/key/date/formula/archive checks
+are additional gates. None of these contracts is model-safe or eligible for
+agent tools. Schema parsing also rejects duplicate JSON members.
+
 ## Model-safe contracts (T-317)
 
 `analysis-package.schema.json`, `expert-observations.schema.json`, and

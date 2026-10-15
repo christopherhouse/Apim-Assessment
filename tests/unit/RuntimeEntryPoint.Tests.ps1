@@ -71,7 +71,6 @@ Describe 'Bounded operational capabilities and exit mapping' {
                 @{ Option = 'SkipCost'; Value = $false }
                 @{ Option = 'SkipLogs'; Value = $false }
                 @{ Option = 'SkipGit'; Value = $false }
-                @{ Option = 'PreviousReport'; Value = 'synthetic-prior.xlsx' }
             ) {
             param($Option, $Value)
             $arguments = @{ Config = 'synthetic-config'; Environment = 'Prod' }
@@ -91,6 +90,18 @@ Describe 'Bounded operational capabilities and exit mapping' {
             $result = Invoke-ApimCollect -Config 'synthetic-config' -Environment Prod
             $result.ExitCode | Should -Be 2
             (ConvertTo-Json -InputObject $result) | Should -Not -Match 'canary|context-canary'
+        }
+
+        It 'forwards explicitly supplied tracking only to reporting and rejects collection-only use' {
+            $result = Invoke-ApimAssessment -Config 'synthetic-config' -Environment Prod `
+                -PreviousReport 'synthetic-prior.xlsx'
+            $result.ExitCode | Should -Be 0
+            Should -Invoke Invoke-ApimReport -Times 1 -Exactly -ParameterFilter {
+                $PreviousReport -ceq 'synthetic-prior.xlsx'
+            }
+            (Invoke-ApimAssessment -Config 'synthetic-config' -Environment Prod `
+                    -Stage Collect -PreviousReport 'synthetic-prior.xlsx').ExitCode | Should -Be 1
+            Should -Invoke Invoke-ApimCollection -Times 1 -Exactly
         }
 
         It 'returns exit 3 for collection-only failures and exit 4 for failed downstream analysis' {
@@ -170,5 +181,15 @@ Export-ModuleMember -Function Invoke-ApimAssessment
             ($output -join "`n") | Should -Not -Match 'nonexistent|Exception|TestDrive'
             ($output -join "`n") | Should -Match '^.*_FAILED EXIT_4$'
         }
+
+    }
+
+    It 'keeps comparison errors status-only across the process boundary' {
+        $output = & $script:pwshExecutable -NoProfile -File (
+            Join-Path $script:cliRepoRoot 'Compare-ApimRun.ps1'
+        ) -Baseline (Join-Path $TestDrive 'baseline-canary') `
+            -Current (Join-Path $TestDrive 'current-canary') 2>&1
+        $LASTEXITCODE | Should -Be 4
+        ($output -join "`n") | Should -Be 'COMPARISON_FAILED EXIT_4'
     }
 }

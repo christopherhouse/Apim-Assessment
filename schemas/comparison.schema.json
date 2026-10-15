@@ -1,0 +1,69 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Restricted saved-run comparison",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "baseline", "current", "changes", "gaps", "pillars", "kpis"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "baseline": { "$ref": "#/definitions/snapshot" },
+    "current": { "$ref": "#/definitions/snapshot" },
+    "changes": { "type": "array", "items": { "$ref": "#/definitions/change" } },
+    "gaps": { "type": "array", "items": { "$ref": "#/definitions/change" } },
+    "pillars": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["pillar", "new", "resolved", "persisting", "notReassessed"],
+        "properties": {
+          "pillar": { "$ref": "#/definitions/pillar" },
+          "new": { "type": "integer", "minimum": 0 },
+          "resolved": { "type": "integer", "minimum": 0 },
+          "persisting": { "type": "integer", "minimum": 0 },
+          "notReassessed": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "kpis": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["metric", "baseline", "current", "delta", "reason"],
+        "properties": {
+          "metric": { "enum": ["ReachableApis", "UnusedApis", "ActiveAllApiSubscriptions", "MonthlyCost"] },
+          "baseline": { "type": ["number", "null"], "minimum": 0 },
+          "current": { "type": ["number", "null"], "minimum": 0 },
+          "delta": { "type": ["number", "null"] },
+          "reason": { "enum": ["Available", "EvidenceIncomplete", "UsageUnavailable", "CostUnavailable", "WindowChanged"] }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "pillar": { "enum": ["Security", "Reliability", "OperationalExcellence", "CostOptimization", "PerformanceEfficiency"] },
+    "snapshot": {
+      "type": "object", "additionalProperties": false,
+      "required": ["runId", "toolVersion", "startedUtc", "sha256"],
+      "properties": {
+        "runId": { "type": "string", "minLength": 1 },
+        "toolVersion": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+        "startedUtc": { "type": "string", "format": "date-time" },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    },
+    "change": {
+      "type": "object", "additionalProperties": false,
+      "required": ["findingKey", "ruleId", "pillar", "change", "previousSeverity", "currentSeverity", "severityChanged", "reason"],
+      "properties": {
+        "findingKey": { "type": "string", "minLength": 1 },
+        "ruleId": { "type": "string", "pattern": "^APIM-[A-Z]+-[0-9]{3}$" },
+        "pillar": { "$ref": "#/definitions/pillar" },
+        "change": { "enum": ["New", "Resolved", "Persisting", "NotReassessed"] },
+        "previousSeverity": { "enum": ["High", "Medium", "Low", "Info", null] },
+        "currentSeverity": { "enum": ["High", "Medium", "Low", "Info", null] },
+        "severityChanged": { "type": "boolean" },
+        "reason": { "enum": ["ComparableSnapshots", "EvidenceIncomplete", "SettingsChanged", "HistoricalReplayMismatch"] }
+      }
+    }
+  }
+}

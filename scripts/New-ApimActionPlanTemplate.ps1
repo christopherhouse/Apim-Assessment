@@ -446,6 +446,20 @@ try {
             -LastColumn $definition.Headers.Count
     }
 
+    foreach ($definition in @(
+            @{ Sheet = 'Resolved Since Last Run'; Table = 'tblResolvedTracking'; Title = 'Resolved Since Last Run'; Subtitle = 'Absent from comparable evaluated results; not proof of remediation'; Headers = @('Kind', 'Key', 'Rule ID', 'Change', 'Owner', 'Status', 'Target Date', 'Notes') }
+            @{ Sheet = 'Not Reassessed'; Table = 'tblUnassessedTracking'; Title = 'Not Reassessed'; Subtitle = 'Prior tracking retained where current evidence cannot establish resolution'; Headers = @('Kind', 'Key', 'Rule ID', 'Change', 'Owner', 'Status', 'Target Date', 'Notes') }
+            @{ Sheet = 'Run Comparison'; Table = 'tblComparison'; Title = 'Run Comparison'; Subtitle = 'Comparable evaluated snapshots; absence is not independently verified remediation'; Headers = @('Finding Key', 'Rule ID', 'Pillar', 'Change', 'Previous Severity', 'Current Severity', 'Severity Changed', 'Reason') }
+            @{ Sheet = 'Comparison Gaps'; Table = 'tblComparisonGaps'; Title = 'Comparison Data Gaps'; Subtitle = 'Unavailable or changed assessment coverage is not a resolved finding'; Headers = @('Finding Key', 'Rule ID', 'Pillar', 'Change', 'Previous Severity', 'Current Severity', 'Severity Changed', 'Reason') }
+            @{ Sheet = 'Comparison Pillars'; Table = 'tblComparisonPillars'; Title = 'Comparison by Pillar'; Subtitle = 'Counts of comparable changes and not-reassessed rows'; Headers = @('Pillar', 'New', 'Resolved', 'Persisting', 'Not Reassessed') }
+            @{ Sheet = 'Comparison KPIs'; Table = 'tblComparisonKpis'; Title = 'Comparison KPIs'; Subtitle = 'Unavailable values and deltas remain blank with explicit reasons'; Headers = @('Metric', 'Baseline', 'Current', 'Delta', 'Reason') }
+        )) {
+        $worksheet = $package.Workbook.Worksheets.Add($definition.Sheet)
+        $null = Add-ApimTemplateTable -Worksheet $worksheet -TableName $definition.Table -Headers $definition.Headers
+        Format-ApimTemplateWorksheet -Worksheet $worksheet -Title $definition.Title `
+            -Subtitle $definition.Subtitle -LastColumn $definition.Headers.Count
+    }
+
     $method = $package.Workbook.Worksheets.Add('Method & Rules')
     $ruleHeaders = @(
         'Rule ID', 'Title', 'Pillar', 'MCSB', 'Severity', 'Scope', 'Requires',
@@ -579,6 +593,13 @@ try {
     $statusValidation.ShowErrorMessage = $true
     $statusValidation.ErrorTitle = 'Invalid status'
     $statusValidation.Error = 'Select a status from the list.'
+    $findingStatus = $findingSheet.DataValidations.AddListValidation("S4:S$maxDataRow")
+    foreach ($status in @('Open', 'In progress', 'Done', 'Accepted risk', 'Not applicable')) {
+        $findingStatus.Formula.Values.Add($status)
+    }
+    $findingStatus.ShowErrorMessage = $true
+    $findingStatus.ErrorTitle = 'Invalid status'
+    $findingStatus.Error = 'Select a status from the list.'
     $actionSheet.Cells["N4:N$maxDataRow"].Style.Numberformat.Format = (
         'yyyy-mm-dd'
     )

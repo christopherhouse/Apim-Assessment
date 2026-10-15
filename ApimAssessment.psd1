@@ -8,7 +8,7 @@
     CompatiblePSEditions = @('Core')
     FunctionsToExport = @(
         'Invoke-ApimCollect', 'Invoke-ApimAnalyze', 'Invoke-ApimReport',
-        'Invoke-ApimAssessment'
+        'Invoke-ApimAssessment', 'Compare-ApimRun'
     )
     CmdletsToExport   = @()
     VariablesToExport = @()
