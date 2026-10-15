@@ -484,7 +484,7 @@ Describe 'Private offline rule engine and findings contract' {
 
         It 'rejects unsupported rule scopes and missing declared target models' {
             $rule = Get-SyntheticRule
-            $rule.Scope = 'Portal'
+            $rule.Scope = 'Cost'
             {
                 Invoke-ApimRuleEngine -Rules @($rule) -Models $script:ruleModels `
                     -Manifest $script:ruleManifest -Config $script:ruleConfig
@@ -501,7 +501,7 @@ Describe 'Private offline rule engine and findings contract' {
             -TestCases @(
                 @{ Scope = @(); TargetField = $null }
                 @{ Scope = @('Api', 'Api'); TargetField = $null }
-                @{ Scope = @('Api', 'Portal'); TargetField = $null }
+                @{ Scope = @('Api', 'Cost'); TargetField = $null }
                 @{ Scope = @('Route', 'Api'); TargetField = 'auxiliaryRoutes' }
             ) {
             param($Scope, $TargetField)

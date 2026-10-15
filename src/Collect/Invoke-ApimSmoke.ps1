@@ -75,6 +75,8 @@ function Get-ApimCollectorRegistry {
         [pscustomobject]@{ Name = 'Diagnostics'; Function = 'Invoke-ApimDiagnosticsCollector'; Requires = @('Service', 'Apis'); Throttled = $true }
         [pscustomobject]@{ Name = 'Policies'; Function = 'Invoke-ApimPolicyCollector'; Requires = @('Service', 'Apis', 'Products'); Throttled = $true }
         [pscustomobject]@{ Name = 'Network'; Function = 'Invoke-ApimNetworkCollector'; Requires = @('Service'); Throttled = $false }
+        [pscustomobject]@{ Name = 'Identity'; Function = 'Invoke-ApimIdentityCollector'; Requires = @('Service'); Throttled = $false }
+        [pscustomobject]@{ Name = 'Portal'; Function = 'Invoke-ApimPortalCollector'; Requires = @('Service'); Throttled = $false }
     )
 }
 

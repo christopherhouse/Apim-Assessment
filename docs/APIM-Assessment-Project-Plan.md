@@ -117,7 +117,7 @@ Engagement alignment:
 | R3 | Cost Management API throttling | Med | Low | Backoff + `-SkipCost`; resume |
 | R4 | Cloudflare config unknown → origin-auth finding uncertain | High | Med | "Assumed reachable" banner; finding phrased "confirm with customer" |
 | R5 | Hard-coded secrets exposure in our own outputs | Low | High | Redaction after flagging; secret-scan acceptance test; local storage guidance |
-| R6 | Portal basic-auth detection ambiguity | Med | Low | Heuristic flagged in evidence; manual confirm |
+| R6 | Portal basic-auth detection ambiguity | Low | Low | Resolved by T-502/D-57: direct portalconfigs/default enableBasicAuth evidence; missing/conflicting facts remain Unknown, never inferred disabled. Live validation remains owner-only. |
 | R7 | Policy merge edge cases (fragments, multi-product) | Med | Med | Dedicated unit tests; evidence carries scope attribution |
 | R8 | Schedule pressure (customer urgency) | Med | Med | MVP slice first (M3) so working sessions start before v1.0 |
 | R9 | Template/formula drift as columns change | Med | Low | Table-bound formulas; integration test validates Summary against findings |

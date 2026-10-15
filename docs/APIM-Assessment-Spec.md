@@ -274,6 +274,11 @@ promotion-time link/traversal and time-of-check/time-of-use defenses.
 ```
 
 Rules: a collector failure **never** aborts the run; it is recorded as `Failed/Partial` and dependent rules emit `Info` "Not evaluated" findings (see §10.5).
+Collector records may additionally contain a closed `files` array of safe relative
+paths. Identity/Portal records bind their persisted allowlisted outputs this way;
+legacy records without it remain valid. Before Partial ingestion, validate the
+listed inventory, closed payload shapes and aggregate item count; never read
+unlisted stale files.
 
 ---
 
@@ -310,9 +315,9 @@ Rules: a collector failure **never** aborts the run; it is recorded as `Failed/P
 | `namedValues.json` | `{base}/namedValues` | Allowlisted `name`, `displayName`, `secret`, `keyVault.secretIdentifier`, `keyVault.lastStatus.code`, sorted `tags`, and derived `secretPatternLocations` (`displayName`/`value`). Inspect `value` in memory only, then always drop it. |
 | `backends.json` | `{base}/backends` | Allowlisted `name`, HTTP(S) `url` with user-info/query/fragment stripped plus `urlSanitized`, `protocol`, nullable TLS validation flags, structural credential summary (`configured`, types, authorization scheme, certificate count, header/query names, unknown-field Boolean), circuit-breaker/pool presence and pool count, and `type`. Never persist credential values or unknown fields. |
 | `certificates.json` | `{base}/certificates` | Allowlisted `name`, normalized `expirationDate`, and `keyVault.secretIdentifier`; drop certificate data, passwords, private material, identities, and unknown fields. |
-| `identityProviders.json`, `authorizationServers.json`, `openidConnectProviders.json`, `authorizationProviders.json` | respective collections | auth configuration |
+| `identityProviders.json`, `authorizationServers.json`, `openidConnectProviders.json`, `authorizationProviders.json` | respective collections | Closed structural allowlists: provider type enums, authorization-server enum arrays/nullable flags, OIDC usage flags, authorization-provider derived authorization-code/client-credentials configured flags. Drop secrets, client/tenant IDs, URLs, free text and unknown fields before persistence. |
 | `loggers.json`, `diagnostics.json`, `apiDiagnostics/<api>.json` | `{base}/loggers`, `{base}/diagnostics`, `{base}/apis/{api}/diagnostics` | Closed allowlists only. Loggers retain `name`, `loggerType`, target `resourceId`, and nullable `isBuffered`. Diagnostics retain `name`, `loggerId`, `alwaysLog`, `samplingType`/percentage, `verbosity`, nullable `logClientIp`, correlation protocol, sorted request/response header names, and nullable body-byte counts for frontend/backend. Missing fields/sections remain null and known empty header lists remain arrays. Drop logger credentials/descriptions, payload samples, data-masking configuration, header values, and unknown fields. Service files may remain with Partial status if bounded per-API collection fails. |
-| `portal/*.json` | `{base}/portalsettings/signin`, `/signup`, `/delegation`, `{base}/portalconfigs`, `{base}/portalRevisions` | portal enablement and publication |
+| `portal/signin.json`, `signup.json`, `delegation.json`, `config.json`, `revisions.json` | `{base}/portalsettings/signin`, `/signup`, `/delegation`, `{base}/portalconfigs/default`, `{base}/portalRevisions` | Closed structural sign-in/sign-up/delegation flags, direct enableBasicAuth, require-signin flag and revision current/status. Singleton name may be null; missing settings stay null, never default false. Drop delegation validation keys, URLs, secrets and unknown fields before persistence. |
 | `groups.json`, `tags.json`, `apiVersionSets.json`, `gateways.json`, `workspaces.json`, `policyFragments.json` | respective collections | organization |
 | `users.summary.json` | `{base}/users` | **counts only** by `state` and `identities[].provider` unless `StoreUserIdentities=$true` |
 
@@ -524,8 +529,25 @@ the deterministic `data-scope` and unresolved-fragment status attributes.
 | `cost.json` | resource × month (and day) | `resourceId`, `resourceType`, `meterCategory`, `cost`, `currency`; derived `costPerMillionCalls` (APIM + App GW) |
 | `capacity.json` | day | `capacityAvg`, `capacityMax`, `capacityP95`, `units` |
 | `drift.json` | optional policy/catalog × environment pair | `category` (Git/Environment), stable `key`, `environmentA/B`, nullable `presentA/B` and `hashA/B`, `changeType` (All/ProdOnly/Differs/SourceOnly/Missing/Unknown), severity, fixed note, completeness metadata; closed restricted source inventories retain every selected environment |
-| `portal.json` | single object | portal status, published revision, sign-in/sign-up settings, identity providers, custom domain, products visible to which groups |
+| `portal.json` | optional single object | nullable modern/legacy status, current-completed publication, direct basic-auth attribution, nullable sign-in/sign-up/delegation settings, provider types, nullable custom-domain inventory, explicit product/group intent and mismatch facts, completeness metadata |
 | `openApiQuality.json` | API | Spectral error/warn counts, score |
+
+Portal is additive under D-57, not an eleventh required baseline model.
+Existing ten-model runs remain loadable without recollection; offline Analyze
+refreshes the expanded catalog with explicit Info/NotEvaluated portal gaps.
+Malformed present portal evidence/models fail closed. Analyze reads only
+manifest-listed validated Completed/Partial Identity/Portal files; other missing
+facts remain null/Unknown. An absent custom-domain inventory is not an empty one.
+Publication requires a current revision with completed status; conflicting current
+revisions remain Unknown. A nonempty historical revision list is not publication.
+
+`Portal.ProductVisibility` is optional closed configuration: entries contain
+`ProductId`, Boolean `IsPublic`, and `IntendedGroupIds[]`. Reject duplicate/malformed
+IDs and unknown fields; snapshot the intent in restricted run settings for replay.
+Resolve exact resource names against collected products/group memberships.
+Missing/unresolved expectations never become safe/public defaults or disappear.
+Known positive mismatches remain findings despite unrelated incomplete evidence.
+No user enumeration or portal crawling is required.
 
 Drift is optional (D-56), not an eleventh required baseline model. Analyze accepts
 up to 15 explicit `-CompareRuns` inputs with matching customer/tenant, supported
@@ -706,9 +728,10 @@ Edge layer: with `Edge.Mode = AssumedReachable`, every public listener is treate
 ```
 `$ctx` gives access to config thresholds, all model files, and the manifest.
 The private engine evaluates Service, Api, Operation, Subscription, NamedValue,
-Backend, Certificate, Route, and Network targets backed by registered model
-contracts. Portal and Cost targets remain deferred until their model contracts
-exist (D-29/D-36). Rules must declare their target model and any additional
+Backend, Certificate, Route, Network, and Portal targets backed by registered model
+contracts. Portal uses neutral platform/not-applicable usage weighting and the
+optional closed portal model. Cost remains deferred until its model contract
+exists (D-29/D-36/D-57). Rules must declare their target model and any additional
 model they use in `Requires`.
 `Scope` may be a single implemented scope or a non-empty, unique array of
 implemented scopes. A multi-scope rule uses the same callbacks for each target,
@@ -814,6 +837,16 @@ aliases. Contract selection, independent scanner, hash attestation and semantic
 claim validation support it explicitly. No Git paths, commit IDs, policy hashes,
 XML, external run paths, or environment/resource identities enter the package.
 No broker operation, caller-path parameter, or agent permission is added.
+
+Package 1.3 adds only `PortalUnavailable`, `PortalAuthenticationWeak`,
+`ProductVisibilityMismatch`, `ApiDocumentationWeak`, and `LegacyPortalEnabled`
+for evaluated POR-001 through POR-005. Portal-scoped conditions bind explicitly
+to the existing Service alias; documentation conditions bind to the existing Api
+alias. Independent schema/scanner/attestation and semantic checks support this
+version, reject incorrect condition/subject bindings, and preserve earlier
+schemas unchanged. Confidence derives from portal evidence, not the unrelated
+service security model. No provider/client/tenant/product/group identifiers,
+domains, intent or exact coverage values enter the package.
 
 Schema 1.1 requires six ascending configured usage thresholds beginning at
 zero. Zero is `Zero`; absent usage is `Unknown`; a positive count uses the
@@ -1031,10 +1064,21 @@ and `stv2.1`; missing platform version remains NotEvaluated (D-41).
 | ID | Title | Sev | Logic |
 |---|---|---|---|
 | APIM-POR-001 | Developer portal not enabled/published | Medium | `developerPortalStatus != Enabled` or no published revision |
-| APIM-POR-002 | Username/password sign-in or open sign-up enabled | Medium | sign-up enabled / non-Entra identity paths (**build task: confirm exact property for basic identity**) |
+| APIM-POR-002 | Username/password sign-in or open sign-up enabled | Medium | direct `portalconfigs/default.properties.enableBasicAuth`, sign-up enabled, or non-Entra identity paths (D-57) |
 | APIM-POR-003 | Products not visible to intended groups / guests can see products | Low | productGroups includes `guests` for non-public products |
 | APIM-POR-004 | Weak API documentation | Low | operation description coverage < 80% or `openApiScore < 70` |
 | APIM-POR-005 | Legacy portal still enabled | Low | `legacyPortalStatus == Enabled` |
+
+POR-001/002/003/005 use the Portal singleton target. Missing required facts yield
+one Info/NotEvaluated per rule, but known positive evidence survives unrelated
+Partial gaps. Basic auth uses a returned Boolean, never the service default or
+an inference from an Entra-only provider list. Conflicting registration-delegation
+evidence remains Unknown. POR-003 checks explicit nonpublic guests and missing
+intended memberships only; absent/unresolved intent cannot pass. POR-004 targets
+each API using existing `hasDescription` operation facts at the exact 80-percent
+boundary and any legitimate non-null OpenAPI score at 70. Zero/incomplete
+operations do not become 100-percent coverage. T-105/T-504 and Spectral remain
+unimplemented; this is the specified documentation fallback.
 
 ### 11.6 Cost (COST)
 | ID | Title | Sev | Logic |
@@ -1157,8 +1201,8 @@ drift uses Analyze's separate optional model, not historical Compare.
 ## 14. CLI
 
 The implemented operational slice (D-50) exposes Collect, Analyze, Excel/HTML Report,
-and Assessment plus offline Compare over eight required collectors, optional
-committed Git policies, ten required models, optional bound drift, and the
+and Assessment plus offline Compare over ten required collectors, optional
+committed Git policies, ten required models, optional portal/bound drift, and the
 installed catalog. Analyze/Report are offline. Cost, Log Analytics, and
 custom/filtered catalogs remain future capabilities: unsupported requests fail
 explicitly. SkipCost/SkipLogs confirm default exclusions; explicit `:$false`
@@ -1181,7 +1225,10 @@ non-secret settings needed for reproducible analysis/package replay; scoring,
 edge settings, and date anchors come from the manifest. Missing models produce
 Info/NotEvaluated findings where possible and block Report/promotion. Report
 requires Completed analysis, all ten valid baseline models, valid requested
-drift bindings, and exact finding replay.
+drift bindings, any present closed portal model, and exact finding replay.
+Old runs without portal evidence remain usable after ordinary offline Analyze
+refreshes the expanded catalog. Portal absence is NotEvaluated, not a failed
+baseline model or an inferred disabled portal.
 Collection-only failures return 3; attempted downstream failure returns 4 while
 preserving collector status. Console output is bounded status/exit-code text.
 The examples involving future capabilities below describe the eventual v1
@@ -1335,7 +1382,7 @@ Private-configuration preflight may emit only fixed missing-file, invalid-config
 unsafe-location, or unmatched-environment categories; it must never render
 config values, identifiers, paths, or underlying exception messages.
 The same smoke entry point validates its newly saved manifest against the
-eight check outcomes and verifies required completed-collector files, JSON
+ten check outcomes and verifies required completed-collector files, JSON
 collection shapes/counts, and policy index/XML hashes locally before exit 0.
 Only bounded validation status is printed; a mismatched or missing output
 returns exit 4. A Partial run can validate completed files but remains exit 3.
@@ -1381,7 +1428,7 @@ It never prints exception text, response content, paths, or identifiers (D-21/D-
 
 | # | Item | Default if unresolved |
 |---|---|---|
-| 1 | Exact ARM property/mechanism to detect username/password identity on the developer portal | Detect via sign-up setting + identity providers; mark POR-002 evidence "heuristic" |
+| 1 | Exact ARM property/mechanism to detect username/password identity on the developer portal | Resolved by T-502/D-57: use `portalconfigs/default.properties.enableBasicAuth` as direct evidence; absent values stay Unknown, never inferred disabled from providers. |
 | 2 | Cloudflare origin-auth evidence (Authenticated Origin Pulls / secret header) not visible in Azure if done only via listener mTLS | Check listener SSL profile client-auth + WAF custom rules + APIM `check-header`; else finding with "Confirm with customer" note |
 | 3 | Git repo layout | Support APIOps extractor layout; configurable regex |
 | 4 | Whether App GW has any private listeners to APIM | Auto-detect; confidence downgrade if present |

@@ -98,6 +98,52 @@ function Test-ConfigBoolean {
     }
 }
 
+function Test-ConfigPortalProductVisibility {
+    [CmdletBinding()]
+    param(
+        [AllowNull()]
+        [object] $Value
+    )
+
+    if ($null -eq $Value -or $Value -is [string] -or
+        $Value -isnot [System.Collections.IEnumerable] -or
+        $Value -is [System.Collections.IDictionary]) {
+        throw "Configuration 'Portal.ProductVisibility' must be an array."
+    }
+    $products = [System.Collections.Generic.HashSet[string]]::new(
+        [System.StringComparer]::OrdinalIgnoreCase
+    )
+    foreach ($entry in @($Value)) {
+        Test-ConfigMap -Value $entry -Context 'Portal.ProductVisibility entry'
+        if (@($entry.Keys | Where-Object {
+                    $_ -notin @('ProductId', 'IsPublic', 'IntendedGroupIds')
+                }).Count -gt 0) {
+            throw 'Portal.ProductVisibility contains an unknown field.'
+        }
+        $id = Get-RequiredConfigValue $entry 'ProductId' 'Portal.ProductVisibility'
+        Test-ConfigString -Value $id -Context 'Portal.ProductVisibility.ProductId'
+        if ($id -cnotmatch '^[A-Za-z0-9][A-Za-z0-9._-]*$' -or
+            -not $products.Add($id)) {
+            throw 'Portal.ProductVisibility contains an invalid or duplicate product ID.'
+        }
+        Test-ConfigBoolean -Value (
+            Get-RequiredConfigValue $entry 'IsPublic' 'Portal.ProductVisibility'
+        ) -Context 'Portal.ProductVisibility.IsPublic'
+        $groups = Get-RequiredConfigValue $entry 'IntendedGroupIds' 'Portal.ProductVisibility'
+        Test-ConfigStringArray -Value $groups -AllowEmpty `
+            -Context 'Portal.ProductVisibility.IntendedGroupIds'
+        $uniqueGroups = [System.Collections.Generic.HashSet[string]]::new(
+            [System.StringComparer]::OrdinalIgnoreCase
+        )
+        foreach ($group in @($groups)) {
+            if ($group -cnotmatch '^[A-Za-z0-9][A-Za-z0-9._-]*$' -or
+                -not $uniqueGroups.Add($group)) {
+                throw 'Portal.ProductVisibility contains an invalid or duplicate group ID.'
+            }
+        }
+    }
+}
+
 function Test-ConfigNumber {
     [CmdletBinding()]
     param(
@@ -475,6 +521,16 @@ function Get-Config {
                 }
             }
         }
+    }
+
+    if ($config.Contains('Portal')) {
+        Test-ConfigMap -Value $config.Portal -Context 'Portal'
+        if (@($config.Portal.Keys | Where-Object { $_ -ne 'ProductVisibility' }).Count -gt 0) {
+            throw "Configuration 'Portal' contains an unknown field."
+        }
+        Test-ConfigPortalProductVisibility -Value (
+            Get-RequiredConfigValue $config.Portal 'ProductVisibility' 'Portal'
+        )
     }
 
     $privacy = Get-RequiredConfigValue $config 'Privacy' 'root'

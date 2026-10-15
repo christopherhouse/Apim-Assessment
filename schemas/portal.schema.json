@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "APIM portal model",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["developerPortalStatus", "legacyPortalStatus", "published", "basicAuthEnabled", "basicAuthEvidence", "signinRequired", "signinEnabled", "signupEnabled", "delegatedRegistration", "delegatedSubscriptions", "identityProviderTypes", "nonEntraProviderEnabled", "customDomains", "productVisibility", "modelStatus", "missingInputs"],
+  "properties": {
+    "developerPortalStatus": { "enum": ["Enabled", "Disabled", null] },
+    "legacyPortalStatus": { "enum": ["Enabled", "Disabled", null] },
+    "published": { "$ref": "#/definitions/nullableBoolean" },
+    "basicAuthEnabled": { "$ref": "#/definitions/nullableBoolean" },
+    "basicAuthEvidence": { "enum": ["Direct", "Unknown"] },
+    "signinRequired": { "$ref": "#/definitions/nullableBoolean" },
+    "signinEnabled": { "$ref": "#/definitions/nullableBoolean" },
+    "signupEnabled": { "$ref": "#/definitions/nullableBoolean" },
+    "delegatedRegistration": { "$ref": "#/definitions/nullableBoolean" },
+    "delegatedSubscriptions": { "$ref": "#/definitions/nullableBoolean" },
+    "identityProviderTypes": { "type": "array", "uniqueItems": true, "items": { "enum": ["aad", "aadB2C", "facebook", "google", "microsoft", "twitter"] } },
+    "nonEntraProviderEnabled": { "$ref": "#/definitions/nullableBoolean" },
+    "customDomains": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["type", "hostName"],
+        "properties": { "type": { "enum": ["DeveloperPortal", "Portal"] }, "hostName": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "productVisibility": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["productId", "productFound", "isPublic", "intendedGroupIds", "actualGroupIds", "visibilityMismatch"],
+        "properties": {
+          "productId": { "type": "string", "minLength": 1 },
+          "productFound": { "$ref": "#/definitions/nullableBoolean" },
+          "isPublic": { "type": "boolean" },
+          "intendedGroupIds": { "$ref": "#/definitions/ids" },
+          "actualGroupIds": { "$ref": "#/definitions/ids" },
+          "visibilityMismatch": { "$ref": "#/definitions/nullableBoolean" }
+        }
+      }
+    },
+    "modelStatus": { "enum": ["Complete", "Partial"] },
+    "missingInputs": {
+      "type": "array", "uniqueItems": true,
+      "items": { "enum": ["developerPortalStatus", "legacyPortalStatus", "published", "basicAuthEnabled", "signinRequired", "signinEnabled", "signupEnabled", "delegatedRegistration", "delegatedSubscriptions", "identityProviderTypes", "customDomains", "productVisibility"] }
+    }
+  },
+  "definitions": {
+    "nullableBoolean": { "type": ["boolean", "null"] },
+    "ids": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } }
+  }
+}

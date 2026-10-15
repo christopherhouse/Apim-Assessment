@@ -60,7 +60,7 @@ function ConvertFrom-ApimAnalysisContractJson {
         Assert-ApimAnalysisJsonMember -Element $document.RootElement
         $schemaPath = $script:ApimAnalysisSchemaPaths[$Kind]
         $version = $document.RootElement.GetProperty('schemaVersion').GetString()
-        if ($Kind -eq 'AnalysisPackage' -and $version -cin @('1.1', '1.2')) {
+        if ($Kind -eq 'AnalysisPackage' -and $version -cin @('1.1', '1.2', '1.3')) {
             $schemaPath = Join-Path $analysisSchemaRoot "analysis-package.v$version.schema.json"
         }
         $valid = Test-Json -Json $Json -SchemaFile $schemaPath `
@@ -151,6 +151,30 @@ function Get-ApimAnalysisPackageIndex {
         }
         Assert-ApimAnalysisReference -Item $finding -Index $index `
             -RequireCitation:($finding.evaluation -ceq 'Evaluated')
+        if ($finding.evaluation -ceq 'Evaluated' -and
+            $finding.ruleId -clike 'APIM-POR-*') {
+            $conditions = @{
+                'APIM-POR-001' = 'PortalUnavailable'
+                'APIM-POR-002' = 'PortalAuthenticationWeak'
+                'APIM-POR-003' = 'ProductVisibilityMismatch'
+                'APIM-POR-004' = 'ApiDocumentationWeak'
+                'APIM-POR-005' = 'LegacyPortalEnabled'
+            }
+            $kind = if ($finding.ruleId -ceq 'APIM-POR-004') { 'Api' } else { 'Service' }
+            $entity = @($Package.entities | Where-Object alias -CEQ $finding.subjectAlias)
+            $conditionFacts = @($Package.facts | Where-Object {
+                    $_.factId -cin $finding.factRefs -and
+                    $_.subjectAlias -ceq $finding.subjectAlias -and
+                    $_.code -ceq 'AssessmentCondition' -and
+                    $_.value -ceq $conditions[$finding.ruleId]
+                })
+            if ($Package.schemaVersion -cne '1.3' -or
+                -not $conditions.ContainsKey($finding.ruleId) -or
+                $entity.Count -ne 1 -or $entity[0].kind -cne $kind -or
+                $conditionFacts.Count -ne 1) {
+                throw 'Analysis contract has an unsupported portal condition binding.'
+            }
+        }
         if ($finding.evaluation -ceq 'NotEvaluated' -and
             ($finding.severity -cne 'Info' -or
                 $finding.priorityBucket -cne 'Unknown' -or

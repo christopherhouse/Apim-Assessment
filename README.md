@@ -31,7 +31,12 @@ report helper groups schema-valid findings into closed, deterministic action
 items without removing the instance rows needed by future Finding Details.
 Seven NET rules,
 fifteen currently model-backed SEC rules, eight currently model-backed GOV rules,
-and all six REL rules are implemented privately. NET-001
+all six REL rules, and all five POR rules are implemented privately. Secret-safe
+identity/authentication and portal configuration collectors feed an optional
+closed portal model. POR-002 reads `portalconfigs/default.properties.enableBasicAuth`
+directly; absent evidence stays Unknown. POR-003 requires explicit product/group
+intent; POR-004 uses operation-description coverage without OpenAPI export or
+Spectral. NET-001
 and NET-009 require explicit operator attestation of effective origin
 authentication and endpoint-owner need; without it, they produce
 Info/NotEvaluated rather than guessing. The SEC catalog covers reachable weak
@@ -55,11 +60,11 @@ actions, assumptions/gaps, roadmap, keyboard navigation, print and reduced-motio
 support. It has no remote dependencies and uses escaped local labels.
 
 An independent, **maintainer-only collection smoke command** now exercises all
-eight implemented collector checks in dependency order against a Microsoft-owned test
+ten implemented collector checks in dependency order against a Microsoft-owned test
 APIM. It is not an assessment entry point or a customer-run command: it cannot
 analyze or report, and its live execution is owned by authorized maintainers
 outside Copilot CLI. The maintainer reports the prior six checks completed on a
-test APIM; the newly registered SecurityAssets and Diagnostics checks have
+test APIM; SecurityAssets, Diagnostics, Identity, and Portal checks have
 synthetic acceptance but still need maintainer-only live validation. No agent
 used live Azure resources or inspected restricted output.
 The same smoke script now validates the newly saved manifest, completed
@@ -81,10 +86,10 @@ authorization metadata are not credentials. Descriptive "Bearer token" wording
 also remains clean; actual embedded token values and literal signing/decryption
 keys are still checked, including policies serialized inside JSON or logs.
 
-Ten required model contracts and one optional drift contract share a fail-closed schema gate.
+Ten required model contracts and optional drift/portal contracts share a fail-closed schema gate.
 Writers validate every pending serialized snapshot before writing any file, and
 the private saved-run loader requires all ten baseline files and validates any
-requested drift model and its restricted input binding before returning models
+present portal model and any requested drift model and its restricted input binding before returning models
 for downstream analysis. Ordinary single-run analysis does not require Git or
 comparison runs. Future model contracts remain deferred with their
 builders. The Analyze command builds the implemented models from validated saved
@@ -104,7 +109,10 @@ approved deterministic condition codes, and explicit unknowns replace raw
 evidence, exact metrics, and free text. Evaluated drift findings select the closed
 1.2 package with only two additional approved condition codes; Git paths, commits,
 policy hashes/XML, and environment identities never enter it. Versions 1.0 and
-1.1 remain supported unchanged.
+1.1 remain supported unchanged. Evaluated POR findings select closed package 1.3
+with five approved condition codes using existing Service/Api aliases and
+portal-evidence-qualified confidence; provider, domain, product/group identifiers,
+intent and exact coverage stay restricted. Package 1.2 remains supported unchanged.
 Promotion requires explicit complete host-supplied visible roots, isolated
 restricted/analysis/private-staging roots, and an exclusively controlled local
 filesystem. Unknown isolation, linked paths, tampering, and failed validation
@@ -133,11 +141,11 @@ data. The coding-agent checks use synthetic data only.
 | Strict private configuration validation and closed allowlisted saved-run analysis settings | Actual host isolation and approval acceptance |
 | Structured JSON-lines logging; validated resume and prerequisite-aware collector isolation | Full live workflow acceptance |
 | Guarded ARM transport with paging/retry; offline tracking, saved-run comparison, and cross-environment policy/API-presence drift | Full API-definition comparison |
-| Versioned run manifest lifecycle with an exact scoring snapshot, APIM service/API/product/subscription/policy/network and secret-safe security/diagnostic collectors, plus optional local committed Git policy hashes | Remaining APIM, telemetry, and cost collectors |
-| Maintainer-only cumulative collection smoke script with local output validation (eight registered checks) | Full live assessment acceptance |
+| Versioned run manifest lifecycle with an exact scoring snapshot, APIM service/API/product/subscription/policy/network and secret-safe security/diagnostic/identity/portal collectors, plus optional local committed Git policy hashes | Remaining APIM, telemetry, and cost collectors |
+| Maintainer-only cumulative collection smoke script with local output validation (ten registered checks) | Full live assessment acceptance |
 | Local saved-run secret-scan script for supported text and Excel artifacts, also required by smoke | Host-enforced model-safe admission acceptance |
-| Effective policy merge/flags plus ten required models and optional drift with schema-gated persistence and saved-run loading | Remaining model builders and telemetry exposure refinement |
-| Offline raw-to-model Analyze, seven NET checks, fifteen SEC checks, eight GOV checks, all six REL checks, configurable priority scoring, schema-gated findings, and closed action-item aggregation | Remaining SEC/GOV catalog entries, PERF and other catalogs |
+| Effective policy merge/flags plus ten required models and optional drift/portal with schema-gated persistence and saved-run loading | Remaining model builders and telemetry exposure refinement |
+| Offline raw-to-model Analyze, seven NET checks, fifteen SEC checks, eight GOV checks, all six REL checks, all five POR checks, configurable priority scoring, schema-gated findings, and closed action-item aggregation | Remaining SEC/GOV catalog entries, PERF and other catalogs |
 | Public validated-run Excel/HTML rendering, Environment Drift and Run Comparison views, tracking, local charts/diagrams, deterministic fallback, and validated approved-code synthesis | Future usage/cost population |
 | Compact raw-to-Excel/HTML and actual stdio broker integration plus a deterministic 60-API synthetic model generator and offline airlock canary/mutation integration | Full scaled raw collection fixture and live acceptance |
 | Closed model-safe contracts, allowlist package construction, independent privacy validation, hash attestation, immutable promotion, and digest-bound semantic proposal validation | Actual isolated Copilot/host admission acceptance |
@@ -176,7 +184,7 @@ artifact IDs reach a model, and operators resolve them locally.
 .\Compare-ApimRun.ps1 -Baseline <baseline-run-folder> -Current <current-run-folder>
 ```
 
-The current slice runs eight implemented collectors and the installed rule
+The current slice runs ten implemented collectors and the installed rule
 catalog, using `Cloudflare/AssumedReachable` edge settings. Collection requires
 Az.Accounts and Az.ResourceGraph; Excel requires pinned ImportExcel 7.8.10.
 `-Stage Collect` limits Assessment to collection. `-ThrottleLimit` controls
@@ -196,9 +204,17 @@ Resume requires matching configuration, run identity, tool version, and saved
 settings. It validates collector files/counts and indexed policy hashes before
 reuse; damaged or failed checks and their dependents rerun. Recollection clears
 owned stale files and invalidates Analyze/Report/package stage state. Analysis
-never reads stale files from failed collectors. Missing required model evidence
+never reads stale files from failed collectors. Portal analysis can retain validated,
+manifest-listed files from Partial Identity/Portal collection; missing facts remain
+qualified, never false/safe defaults. Missing required model evidence
 produces Info/NotEvaluated findings where possible and blocks downstream reports.
 Reports also reject findings that disagree with complete deterministic replay.
+Older ten-model saved runs remain usable: absent portal evidence yields
+Info/NotEvaluated portal findings after ordinary offline Analyze replay, not a
+recollection requirement. Present malformed portal models still fail closed.
+Optional `Portal.ProductVisibility` supplies exact product IDs, Boolean `IsPublic`,
+and `IntendedGroupIds`; it is validated and snapshotted for offline replay.
+Missing/unresolved intent cannot pass POR-003. See the runbook for the configuration.
 Analyze's optional `-CompareRuns` validates explicitly selected distinct
 environments in the same customer/tenant scope and saves closed restricted
 snapshots, not external run paths. Later Analyze/Report replay works without

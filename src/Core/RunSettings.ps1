@@ -38,6 +38,17 @@ function Test-ApimRunSetting {
             throw 'Run subnet CIDR is invalid.'
         }
     }
+    if ($settings.Contains('portalProductVisibility')) {
+        Test-ConfigPortalProductVisibility -Value @(
+            foreach ($entry in $settings.portalProductVisibility) {
+                @{
+                    ProductId = $entry.productId
+                    IsPublic = $entry.isPublic
+                    IntendedGroupIds = @($entry.intendedGroupIds)
+                }
+            }
+        )
+    }
     return $settings
 }
 
@@ -76,6 +87,18 @@ function Get-ApimRunSettingSnapshot {
                 $Config.RuleExceptions.ApprovedPlainHttpOperationKeys
             })
         usageBuckets = @($Config.AnalysisPackage.UsageBuckets)
+    }
+    if ($Config.Contains('Portal')) {
+        Test-ConfigPortalProductVisibility -Value $Config.Portal.ProductVisibility
+        $settings.portalProductVisibility = @(
+            foreach ($entry in $Config.Portal.ProductVisibility) {
+                [ordered]@{
+                    productId = $entry.ProductId
+                    isPublic = $entry.IsPublic
+                    intendedGroupIds = @($entry.IntendedGroupIds | Sort-Object)
+                }
+            }
+        )
     }
     $json = ConvertTo-Json -InputObject $settings -Depth 100 -WarningAction Stop
     $null = Test-ApimRunSetting -Json $json -Manifest $manifest
@@ -126,7 +149,19 @@ function Get-ApimRunSetting {
         }
         $scoring[$group] = $weights
     }
-    return [pscustomobject]@{
+    $portalConfig = @{}
+    if ($settings.Contains('portalProductVisibility')) {
+        $portalConfig.ProductVisibility = @(
+            foreach ($entry in $settings.portalProductVisibility) {
+                @{
+                    ProductId = $entry.productId
+                    IsPublic = $entry.isPublic
+                    IntendedGroupIds = @($entry.intendedGroupIds)
+                }
+            }
+        )
+    }
+    $result = [pscustomobject]@{
         Settings = $settings
         Manifest = $manifest
         Config = @{
@@ -153,4 +188,8 @@ function Get-ApimRunSetting {
             )
         }
     }
+    if ($settings.Contains('portalProductVisibility')) {
+        $result.Config.Portal = $portalConfig
+    }
+    return $result
 }

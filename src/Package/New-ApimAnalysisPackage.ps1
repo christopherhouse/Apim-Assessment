@@ -39,6 +39,11 @@ $script:ApimAnalysisConditions = [ordered]@{
     'APIM-REL-004' = 'ProbeMisaligned'
     'APIM-REL-005' = 'CertificateNearExpiry'
     'APIM-REL-006' = 'LegacyPlatform'
+    'APIM-POR-001' = 'PortalUnavailable'
+    'APIM-POR-002' = 'PortalAuthenticationWeak'
+    'APIM-POR-003' = 'ProductVisibilityMismatch'
+    'APIM-POR-004' = 'ApiDocumentationWeak'
+    'APIM-POR-005' = 'LegacyPortalEnabled'
 }
 
 function Get-ApimAnalysisUsageBand {
@@ -104,7 +109,7 @@ function New-ApimAnalysisPackage {
     try {
         $root = Resolve-ApimAnalysisRoot -Path $RunPath
         foreach ($relative in @('manifest.json', 'findings.json') +
-            @($script:ApimModelSchemaPaths.Keys | Where-Object { $_ -cne 'drift' } |
+            @($script:ApimModelSchemaPaths.Keys | Where-Object { $_ -cnotin @('drift', 'portal') } |
                 ForEach-Object { "model/$_.json" })) {
             $null = Read-ApimAnalysisSnapshot -Path (
                 Resolve-RunFilePath -RunPath $root -RelativePath $relative
@@ -330,7 +335,10 @@ function New-ApimAnalysisPackage {
             if (-not $script:ApimAnalysisConditions.Contains($finding.ruleId)) {
                 throw 'ANALYSIS_BUILD_REJECTED'
             }
-            $subjectKey = if ($finding.scope -ceq 'missing-input') { 'service' } else {
+            $portalFinding = $finding.ruleId -cin @(
+                'APIM-POR-001', 'APIM-POR-002', 'APIM-POR-003', 'APIM-POR-005'
+            ) -and $finding.scope -ceq 'portal'
+            $subjectKey = if ($finding.scope -ceq 'missing-input' -or $portalFinding) { 'service' } else {
                 $finding.scope
             }
             if (-not $subjects.ContainsKey($subjectKey)) { throw 'ANALYSIS_BUILD_REJECTED' }
@@ -340,13 +348,14 @@ function New-ApimAnalysisPackage {
             $bucket = 'Unknown'
             if ($finding.evaluation -ceq 'Evaluated') {
                 $factId = 'fact-{0:d6}' -f ($facts.Count + 1)
+                $confidenceModel = if ($portalFinding) { $models.portal } else { $subject.model }
                 $facts.Add([ordered]@{
                         factId = $factId
                         subjectAlias = $subject.alias
                         code = 'AssessmentCondition'
                         value = $script:ApimAnalysisConditions[$finding.ruleId]
-                        confidence = if ($subject.model.PSObject.Properties['modelStatus'] -and
-                            $subject.model.modelStatus -ceq 'Partial') { 'Medium' } else { 'High' }
+                        confidence = if ($confidenceModel.PSObject.Properties['modelStatus'] -and
+                            $confidenceModel.modelStatus -ceq 'Partial') { 'Medium' } else { 'High' }
                     })
                 $refs = @($factId)
                 $ratio = $finding.priorityScore / $maximum
@@ -370,6 +379,9 @@ function New-ApimAnalysisPackage {
         }
         $package = [ordered]@{
             schemaVersion = if (@($replayed | Where-Object {
+                        $_.ruleId -clike 'APIM-POR-*' -and $_.evaluation -ceq 'Evaluated'
+                    }).Count -gt 0) { '1.3' }
+            elseif (@($replayed | Where-Object {
                         $_.ruleId -cin @('APIM-GOV-007', 'APIM-GOV-011') -and
                         $_.evaluation -ceq 'Evaluated'
                     }).Count -gt 0) { '1.2' } else { '1.1' }

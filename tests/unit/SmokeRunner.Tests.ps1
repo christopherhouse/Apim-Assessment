@@ -114,6 +114,14 @@ Describe 'Cumulative collection smoke runner' {
                     -Status Completed -Items 1
                 'synthetic-private-network-path'
             }
+            Mock Invoke-ApimIdentityCollector {
+                $script:smokeOrder.Add('Identity')
+                Set-RunCollectorStatus -RunPath $RunPath -Name Identity -Status Completed
+            }
+            Mock Invoke-ApimPortalCollector {
+                $script:smokeOrder.Add('Portal')
+                Set-RunCollectorStatus -RunPath $RunPath -Name Portal -Status Completed
+            }
         }
 
         It 'runs all existing checks in dependency order and completes the manifest' {
@@ -124,7 +132,7 @@ Describe 'Cumulative collection smoke runner' {
 
             $names = @(
                 'Service', 'Apis', 'Products', 'Subscriptions',
-                'SecurityAssets', 'Diagnostics', 'Policies', 'Network'
+                'SecurityAssets', 'Diagnostics', 'Policies', 'Network', 'Identity', 'Portal'
             )
             @($script:smokeOrder) | Should -Be $names
             @($result.Checks.Name) | Should -Be $names
@@ -177,16 +185,16 @@ Describe 'Cumulative collection smoke runner' {
                 'Running', 'Finished', 'Running', 'Finished',
                 'Running', 'Finished', 'Running', 'Finished',
                 'Running', 'Finished', 'Finished', 'Finished',
-                'Running', 'Finished'
+                'Running', 'Finished', 'Running', 'Finished', 'Running', 'Finished'
             )
             @($script:smokeEvents.Name) | Should -Be @(
                 'Service', 'Service', 'Apis', 'Apis', 'Products', 'Products',
                 'Subscriptions', 'Subscriptions', 'SecurityAssets',
                 'SecurityAssets', 'Diagnostics', 'Policies', 'Network',
-                'Network'
+                'Network', 'Identity', 'Identity', 'Portal', 'Portal'
             )
             $script:smokeEvents[2].Index | Should -Be 2
-            $script:smokeEvents[2].Total | Should -Be 8
+            $script:smokeEvents[2].Total | Should -Be 10
             $script:smokeEvents[3].Status | Should -Be 'Failed'
             $script:smokeEvents[3].FailureCode | Should -Be 'UNKNOWN_FAILURE'
             $script:smokeEvents[10].Status | Should -Be 'Skipped'
@@ -229,7 +237,7 @@ Describe 'Cumulative collection smoke runner' {
                     '00000000-0000-0000-0000-000000000010'
                 ) -OnProgress $callback | Out-Null
 
-            $lines.Count | Should -Be 14
+            $lines.Count | Should -Be 18
             $lines[3] | Should -Match 'Apis - Failed \(UNKNOWN_FAILURE\)'
             $lines[10] | Should -Match 'Diagnostics - Skipped'
             $lines[11] | Should -Match 'Policies - Skipped'
@@ -249,7 +257,7 @@ Describe 'Cumulative collection smoke runner' {
 
             @($script:smokeOrder) | Should -Be @(
                 'Service', 'Apis', 'Products', 'Subscriptions',
-                'SecurityAssets', 'Network'
+                'SecurityAssets', 'Network', 'Identity', 'Portal'
             )
             $result.Status | Should -Be 'Partial'
             ($result.Checks | Where-Object Name -EQ Apis).Status |
@@ -293,7 +301,7 @@ Describe 'Cumulative collection smoke runner' {
             @($script:smokeOrder) | Should -Be @('Service')
             $result.Status | Should -Be 'Partial'
             @($result.Checks.Status | Where-Object { $_ -eq 'Skipped' }).Count |
-                Should -Be 7
+                Should -Be 9
             ($result.Checks | Where-Object Name -EQ Service).FailureCode |
                 Should -Be 'UNKNOWN_FAILURE'
             Should -Invoke Invoke-ApimNetworkCollector -Exactly -Times 0
@@ -319,7 +327,7 @@ Describe 'Cumulative collection smoke runner' {
             $service.Status | Should -Be 'Failed'
             $service.FailureCode | Should -Be "ARM_HTTP_$HttpStatus"
             @($result.Checks | Where-Object Status -EQ Skipped).Count |
-                Should -Be 7
+                Should -Be 9
             (ConvertTo-Json -InputObject $result -Depth 10) |
                 Should -Not -Match '00000000-0000'
         }
@@ -360,7 +368,7 @@ Describe 'Cumulative collection smoke runner' {
             ($result.Checks | Where-Object Name -EQ Service).FailureCode |
                 Should -Be $Code
             @($result.Checks | Where-Object Status -EQ Skipped).Count |
-                Should -Be 7
+                Should -Be 9
         }
 
         It 'distinguishes local I/O failures without printing a private path' {
@@ -511,9 +519,9 @@ Describe 'Saved collection smoke output validation' {
                 -Operator LocalMaintainer -RunId 'synthetic-smoke'
             $script:outputNames = @(
                 'Service', 'Apis', 'Products', 'Subscriptions',
-                'SecurityAssets', 'Diagnostics', 'Policies', 'Network'
+                'SecurityAssets', 'Diagnostics', 'Policies', 'Network', 'Identity', 'Portal'
             )
-            $script:outputItems = @(1, 1, 1, 1, 1, 1, 1, 7)
+            $script:outputItems = @(1, 1, 1, 1, 1, 1, 1, 7, 0, 4)
             $script:outputResult = [pscustomobject]@{
                 RunId = $script:outputRun.RunId
                 Status = 'Completed'
@@ -592,9 +600,29 @@ Describe 'Saved collection smoke output validation' {
                     Out-Null
             }
             for ($index = 0; $index -lt $script:outputNames.Count; $index++) {
+                $arguments = @{}
+                if ($script:outputNames[$index] -eq 'Identity') {
+                    $arguments.Files = @('raw/identityProviders.json', 'raw/authorizationServers.json',
+                        'raw/openidConnectProviders.json', 'raw/authorizationProviders.json')
+                    foreach ($file in $arguments.Files) {
+                        $null = Write-RunFile -RunPath $script:outputRun.Path -RelativePath $file `
+                            -InputObject ([pscustomobject]@{ value = @() })
+                    }
+                }
+                if ($script:outputNames[$index] -eq 'Portal') {
+                    $arguments.Files = @((Get-ApimPortalEndpoint).File)
+                    foreach ($endpoint in Get-ApimPortalEndpoint) {
+                        $payload = if ($endpoint.Kind -eq 'revisions') { [pscustomobject]@{ value = @() } }
+                            else { ConvertTo-ApimPortalResource -Resource ([pscustomobject]@{
+                                properties = [pscustomobject]@{}
+                            }) -Kind $endpoint.Kind }
+                        $null = Write-RunFile -RunPath $script:outputRun.Path `
+                            -RelativePath $endpoint.File -InputObject $payload
+                    }
+                }
                 Set-RunCollectorStatus -RunPath $script:outputRun.Path `
                     -Name $script:outputNames[$index] -Status Completed `
-                    -Items $script:outputItems[$index]
+                    -Items $script:outputItems[$index] @arguments
             }
             Set-RunStageStatus -RunPath $script:outputRun.Path `
                 -Stage collect -Status Completed
@@ -678,7 +706,7 @@ Describe 'Saved collection smoke output validation' {
             Set-RunStageStatus -RunPath $script:outputRun.Path `
                 -Stage collect -Status Partial
             $script:outputResult.Status = 'Partial'
-            $script:outputResult.Checks[-1].Status = 'Failed'
+            ($script:outputResult.Checks | Where-Object Name -EQ Network).Status = 'Failed'
             {
                 Test-ApimSmokeOutput -RunPath $script:outputRun.Path `
                     -Result $script:outputResult `
@@ -690,6 +718,7 @@ Describe 'Saved collection smoke output validation' {
 
 Describe 'Maintainer-only smoke command preflight' {
     BeforeAll {
+        $repoRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
         $script:smokeScript = Join-Path $repoRoot 'scripts/Invoke-ApimSmoke.ps1'
     }
 
@@ -857,6 +886,7 @@ Describe 'Maintainer-only smoke command preflight' {
 
 Describe 'Smoke progress presentation' {
     BeforeAll {
+        $repoRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
         . (Join-Path $repoRoot 'scripts/Format-ApimSmokeConsoleLine.ps1')
     }
 
