@@ -30,7 +30,7 @@ findings against a closed schema before restricted persistence. A private
 report helper groups schema-valid findings into closed, deterministic action
 items without removing the instance rows needed by future Finding Details.
 Seven NET rules,
-fifteen currently model-backed SEC rules, six currently model-backed GOV rules,
+fifteen currently model-backed SEC rules, eight currently model-backed GOV rules,
 and all six REL rules are implemented privately. NET-001
 and NET-009 require explicit operator attestation of effective origin
 authentication and endpoint-owner need; without it, they produce
@@ -47,6 +47,8 @@ the remaining GOV and other rule catalogs
 are not implemented. The offline Excel writer now
 populates the implemented deterministic report sheets, Run Info, the implemented
 rule catalog, and editable scoring weights from a validated saved run.
+Optional local committed Git policy collection, offline cross-environment
+policy/API-presence comparison, and the Environment Drift sheet are implemented.
 The public Report command replays findings before rendering paired Excel/HTML
 reports. HTML includes deterministic local topology/exposure charts, risks,
 actions, assumptions/gaps, roadmap, keyboard navigation, print and reduced-motion
@@ -79,10 +81,12 @@ authorization metadata are not credentials. Descriptive "Bearer token" wording
 also remains clean; actual embedded token values and literal signing/decryption
 keys are still checked, including policies serialized inside JSON or logs.
 
-All ten implemented model contracts now share a fail-closed schema gate.
+Ten required model contracts and one optional drift contract share a fail-closed schema gate.
 Writers validate every pending serialized snapshot before writing any file, and
-the private saved-run loader requires all ten files to validate before returning
-models for downstream analysis. Future model contracts remain deferred with their
+the private saved-run loader requires all ten baseline files and validates any
+requested drift model and its restricted input binding before returning models
+for downstream analysis. Ordinary single-run analysis does not require Git or
+comparison runs. Future model contracts remain deferred with their
 builders. The Analyze command builds the implemented models from validated saved
 collector evidence; this is not the model-data airlock.
 
@@ -97,7 +101,10 @@ them, and publish immutable package/attestation versions by atomic directory
 rename. Construction uses new allowlisted objects and deterministic aliases;
 identifier-only alias maps stay restricted. Six configured usage bands,
 approved deterministic condition codes, and explicit unknowns replace raw
-evidence, exact metrics, and free text. Version 1.0 remains supported.
+evidence, exact metrics, and free text. Evaluated drift findings select the closed
+1.2 package with only two additional approved condition codes; Git paths, commits,
+policy hashes/XML, and environment identities never enter it. Versions 1.0 and
+1.1 remain supported unchanged.
 Promotion requires explicit complete host-supplied visible roots, isolated
 restricted/analysis/private-staging roots, and an exclusively controlled local
 filesystem. Unknown isolation, linked paths, tampering, and failed validation
@@ -125,13 +132,13 @@ data. The coding-agent checks use synthetic data only.
 | Module manifest, deterministic source loader, and five bounded public commands | Remaining collectors and model capabilities |
 | Strict private configuration validation and closed allowlisted saved-run analysis settings | Actual host isolation and approval acceptance |
 | Structured JSON-lines logging; validated resume and prerequisite-aware collector isolation | Full live workflow acceptance |
-| Guarded ARM transport with paging/retry; offline tracking carry-forward and saved-run comparison | Cross-environment policy/API drift |
-| Versioned run manifest lifecycle with an exact scoring snapshot, plus APIM service/API/product/subscription/policy/network and secret-safe named-value/backend/certificate and logger/diagnostic collectors | Remaining APIM, telemetry, and cost collectors |
+| Guarded ARM transport with paging/retry; offline tracking, saved-run comparison, and cross-environment policy/API-presence drift | Full API-definition comparison |
+| Versioned run manifest lifecycle with an exact scoring snapshot, APIM service/API/product/subscription/policy/network and secret-safe security/diagnostic collectors, plus optional local committed Git policy hashes | Remaining APIM, telemetry, and cost collectors |
 | Maintainer-only cumulative collection smoke script with local output validation (eight registered checks) | Full live assessment acceptance |
 | Local saved-run secret-scan script for supported text and Excel artifacts, also required by smoke | Host-enforced model-safe admission acceptance |
-| Effective policy merge/flags plus ten implemented models with shared schema-gated persistence and saved-run loading | Remaining model builders and telemetry exposure refinement |
-| Offline raw-to-model Analyze, seven NET checks, fifteen SEC checks, six GOV checks, all six REL checks, configurable priority scoring, schema-gated findings, and closed action-item aggregation | Remaining SEC/GOV catalog entries, PERF and other catalogs |
-| Public validated-run Excel/HTML rendering, tracking carry-forward, Run Comparison views, local charts/diagrams, deterministic fallback, and validated approved-code synthesis | Future usage/cost/drift population |
+| Effective policy merge/flags plus ten required models and optional drift with schema-gated persistence and saved-run loading | Remaining model builders and telemetry exposure refinement |
+| Offline raw-to-model Analyze, seven NET checks, fifteen SEC checks, eight GOV checks, all six REL checks, configurable priority scoring, schema-gated findings, and closed action-item aggregation | Remaining SEC/GOV catalog entries, PERF and other catalogs |
+| Public validated-run Excel/HTML rendering, Environment Drift and Run Comparison views, tracking, local charts/diagrams, deterministic fallback, and validated approved-code synthesis | Future usage/cost population |
 | Compact raw-to-Excel/HTML and actual stdio broker integration plus a deterministic 60-API synthetic model generator and offline airlock canary/mutation integration | Full scaled raw collection fixture and live acceptance |
 | Closed model-safe contracts, allowlist package construction, independent privacy validation, hash attestation, immutable promotion, and digest-bound semantic proposal validation | Actual isolated Copilot/host admission acceptance |
 | Windows/Linux lint and test CI | Owner visual/live go-no-go approval |
@@ -163,6 +170,7 @@ artifact IDs reach a model, and operators resolve them locally.
 .\Invoke-ApimCollect.ps1 -Config <private-config.psd1> -Environment Prod
 .\Invoke-ApimCollect.ps1 -Config <private-config.psd1> -Environment Prod -Resume <run-folder>
 .\Invoke-ApimAnalyze.ps1 -RunFolder <run-folder>
+.\Invoke-ApimAnalyze.ps1 -RunFolder <prod-run-folder> -CompareRuns <dev-run-folder>,<test-run-folder>
 .\Invoke-ApimReport.ps1 -RunFolder <run-folder>
 .\Invoke-ApimReport.ps1 -RunFolder <run-folder> -PreviousReport <previous-workbook.xlsx>
 .\Compare-ApimRun.ps1 -Baseline <baseline-run-folder> -Current <current-run-folder>
@@ -172,11 +180,14 @@ The current slice runs eight implemented collectors and the installed rule
 catalog, using `Cloudflare/AssumedReachable` edge settings. Collection requires
 Az.Accounts and Az.ResourceGraph; Excel requires pinned ImportExcel 7.8.10.
 `-Stage Collect` limits Assessment to collection. `-ThrottleLimit` controls
-implemented child-collection concurrency. Cost, Log Analytics usage/security
-queries, and Git collection are excluded by default; `-SkipCost`, `-SkipLogs`,
-and `-SkipGit` explicitly confirm those exclusions. Passing any skip switch as
-`:$false`, or requesting custom/filtered rules or Analyze's cross-environment
-`-CompareRuns`, fails explicitly rather than pretending to implement it.
+implemented child-collection concurrency. Cost and Log Analytics usage/security
+queries remain excluded; `-SkipCost`/`-SkipLogs` confirm these exclusions and their
+explicit `:$false` values fail, as do custom/filtered rules.
+Configured `GitRepoPath` enables a local committed policy snapshot unless
+`-SkipGit` is set. No repository means Git is explicitly Skipped, while
+`-SkipGit:$false` without configuration fails before authentication.
+Git reads a pinned HEAD, not dirty/untracked files; it never clones, fetches,
+checks out, executes source scripts, or modifies the source repository.
 `-SkipLogs` does not skip the existing diagnostic-configuration collector.
 HTML is included in Report. Assisted access requires the separately admitted
 broker and owner-approved isolated host; it is never enabled by these commands.
@@ -188,6 +199,14 @@ owned stale files and invalidates Analyze/Report/package stage state. Analysis
 never reads stale files from failed collectors. Missing required model evidence
 produces Info/NotEvaluated findings where possible and blocks downstream reports.
 Reports also reject findings that disagree with complete deterministic replay.
+Analyze's optional `-CompareRuns` validates explicitly selected distinct
+environments in the same customer/tenant scope and saves closed restricted
+snapshots, not external run paths. Later Analyze/Report replay works without
+those source folders. Policy hashes compare protected normalized XML, not secret
+literal values or full API definitions. Incomplete evidence and unmapped Git
+scope coverage remain Unknown; no comparison source produces explicit
+Info/NotEvaluated drift findings rather than a match. The Environment Drift
+sheet includes comparison rows and coverage qualifications.
 `-PreviousReport` copies only operator tracking from a scope-matched toolkit
 workbook into new report rows, never into `findings.json`. It is supported by
 Report and full Assessment, not collection-only Assessment. Imported formulas,
@@ -402,13 +421,16 @@ backend intent/mapping, and product classification remain deferred.
 Public Analyze/Excel Report commands now invoke the private engine and writer.
 Model-safe promotion remains private; do not expose findings or models to an agent.
 
-The six private GOV checks use only complete API catalog and effective-policy
+Six of the eight private GOV checks use only complete API catalog and effective-policy
 facts for product membership, owner tags, online non-current revisions,
 version-set maturity, path-version convention consistency, and missing
 `<base/>` inheritance. Known missing-base findings remain evaluated when another
 operation is Partial; otherwise incomplete version or policy evidence produces
 one Info/NotEvaluated result. Product ownership/approval and diagnostic
 enablement/sampling remain deferred to their own closed models.
+The other two aggregate production Git policy differences and explicit
+cross-environment policy/API-presence drift, retaining Unknown coverage and
+missing-source qualifications.
 
 The six private REL checks cover production Premium zone redundancy, production
 capacity below two units, operator-declared critical backends without a circuit

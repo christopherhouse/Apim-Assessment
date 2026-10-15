@@ -290,6 +290,17 @@ function Get-Config {
         Test-ConfigString -Value (
             Get-RequiredConfigValue $environment 'GitRepoPath' $context
         ) -Context "$context.GitRepoPath" -AllowEmpty
+        if (-not [string]::IsNullOrEmpty($environment.GitRepoPath) -and
+            -not [IO.Path]::IsPathFullyQualified($environment.GitRepoPath)) {
+            throw "Configuration '$context.GitRepoPath' must be an absolute path."
+        }
+        $gitRoot = $environment.GitPolicyRoot
+        if ($gitRoot.Length -gt 1024 -or [IO.Path]::IsPathRooted($gitRoot) -or
+            $gitRoot -match '[\\:\x00-\x1f\x7f]' -or
+            @($gitRoot.Split('/') | Where-Object { $_ -in @('', '.', '..') }).Count) {
+            throw "Configuration '$context.GitPolicyRoot' must be a safe relative Git path."
+        }
+        $null = Get-ApimGitPolicyMappingConfiguration -Environment $environment
 
         foreach ($key in @(
                 'NetworkResourceGroups',

@@ -9,7 +9,7 @@ function Test-ApimRuntimeCapability {
         [System.Collections.IDictionary] $Options
     )
 
-    foreach ($name in @('SkipCost', 'SkipLogs', 'SkipGit')) {
+    foreach ($name in @('SkipCost', 'SkipLogs')) {
         if (@($Options.Keys) -ccontains $name -and -not $Options[$name]) {
             throw 'CAPABILITY_UNAVAILABLE'
         }
@@ -68,6 +68,10 @@ function Invoke-ApimCollect {
         $settings = Get-Config -Path $Config
         $target = Get-ApimEnvironmentConfig -Config $settings `
             -EnvironmentName $Environment
+        if ($PSBoundParameters.ContainsKey('SkipGit') -and -not $SkipGit -and
+            [string]::IsNullOrWhiteSpace($target.GitRepoPath)) {
+            throw 'GIT_CONFIGURATION_REQUIRED'
+        }
         if ($settings.Edge.Provider -cne 'Cloudflare' -or
             $settings.Edge.Mode -cne 'AssumedReachable' -or
             @($settings.AnalysisPackage.UsageBuckets).Count -ne 6) {
@@ -95,7 +99,7 @@ function Invoke-ApimCollect {
     try {
         return Invoke-ApimCollection -Config $settings `
             -EnvironmentName $Environment -TenantId $tenantId `
-            -ResumeRunPath $Resume -ThrottleLimit $ThrottleLimit
+            -ResumeRunPath $Resume -ThrottleLimit $ThrottleLimit -SkipGit:$SkipGit
     }
     catch {
         return [pscustomobject]@{
@@ -139,8 +143,10 @@ function Invoke-ApimAssessment {
             RunId = $null; Status = 'Failed'; ExitCode = 1; ErrorCode = 'CAPABILITY_UNAVAILABLE'
         }
     }
-    $collection = Invoke-ApimCollect -Config $Config -Environment $Environment `
-        -Resume $Resume -ThrottleLimit $ThrottleLimit
+    $collectArguments = @{ Config = $Config; Environment = $Environment
+        Resume = $Resume; ThrottleLimit = $ThrottleLimit }
+    if ($PSBoundParameters.ContainsKey('SkipGit')) { $collectArguments.SkipGit = $SkipGit }
+    $collection = Invoke-ApimCollect @collectArguments
     if ($collection.ExitCode -notin @(0, 3) -or $Stage -eq 'Collect') {
         return $collection
     }

@@ -115,6 +115,64 @@ Describe 'Validated collection resume and isolation' {
             Should -Invoke Invoke-ApimArm -Times 0 -Exactly
         }
 
+        It 'marks unconfigured or explicitly excluded Git Skipped without invoking Git (<Configured>)' `
+            -TestCases @(@{ Configured = $false }, @{ Configured = $true }) {
+            param($Configured)
+            if ($Configured) { $script:resumeConfig.Environments[0].GitRepoPath = $TestDrive }
+            Mock Get-ApimGitPolicySnapshot { throw 'Unexpected Git access.' }
+            $arguments = @{}
+            if ($Configured) { $arguments.SkipGit = $true }
+            $result = Invoke-ApimCollection -Config $script:resumeConfig `
+                -EnvironmentName Prod -TenantId $script:tenant @arguments
+            $result.ExitCode | Should -Be 0
+            $path = Join-Path $script:resumeConfig.Output.Root $result.RunId
+            ((Get-RunManifest -RunPath $path).collectors | Where-Object name -CEQ Git).status |
+                Should -Be Skipped
+            Should -Invoke Get-ApimGitPolicySnapshot -Times 0 -Exactly
+        }
+
+        It 'reuses a pinned Git snapshot and invalidates downstream state on HEAD changes or failure' {
+            $script:resumeConfig.Environments[0].GitRepoPath = $TestDrive
+            $script:gitCommit = 'a' * 40
+            Mock Get-ApimGitPolicySnapshot {
+                [ordered]@{ schemaVersion = '1.0'; commitSha = $script:gitCommit
+                    scopeTypes = @('Global'); policies = @() }
+            }
+            Mock Invoke-ApimGitCollector {
+                $null = Write-RunFile -RunPath $RunPath -RelativePath 'git/policyHashes.json' `
+                    -InputObject (Get-ApimGitPolicySnapshot -Environment $Environment)
+                Set-RunCollectorStatus -RunPath $RunPath -Name Git -Status Completed
+            }
+            $first = Invoke-ApimCollection -Config $script:resumeConfig `
+                -EnvironmentName Prod -TenantId $script:tenant
+            $first.ExitCode | Should -Be 0
+            $path = Join-Path $script:resumeConfig.Output.Root $first.RunId
+            $arguments = @{ Config = $script:resumeConfig; EnvironmentName = 'Prod'
+                TenantId = $script:tenant; ResumeRunPath = $path }
+            Set-RunStageStatus -RunPath $path -Stage report -Status Completed
+            (Invoke-ApimCollection @arguments).ExitCode | Should -Be 0
+            (Get-RunManifest -RunPath $path).stages.report | Should -Be Completed
+            Should -Invoke Invoke-ApimGitCollector -Times 1 -Exactly
+            $script:gitCommit = 'b' * 40
+            (Invoke-ApimCollection @arguments).ExitCode | Should -Be 0
+            Should -Invoke Invoke-ApimGitCollector -Times 2 -Exactly
+            (Get-RunManifest -RunPath $path).stages.report | Should -Be NotStarted
+            $manifest = Get-RunManifest -RunPath $path
+            $manifest.modelSafe.build = 'Completed'
+            $manifest.modelSafe.validation = 'Passed'
+            $manifest.modelSafe.promotion = 'Completed'
+            $manifest.modelSafe.packageSha256 = 'c' * 64
+            $null = Save-RunManifest -RunPath $path -Manifest $manifest
+            Mock Get-ApimGitPolicySnapshot { throw 'private-git-canary' }
+            $failed = Invoke-ApimCollection @arguments
+            $failed.ExitCode | Should -Be 3
+            $manifest = Get-RunManifest -RunPath $path
+            ($manifest.collectors | Where-Object name -CEQ Git).status | Should -Be Failed
+            $manifest.modelSafe.promotion | Should -Be NotStarted
+            $manifest.modelSafe.packageSha256 | Should -BeNullOrEmpty
+            (ConvertTo-Json $failed) | Should -Not -Match 'canary'
+        }
+
         It 'reruns damaged API output and its dependents but retains independent checks' {
             $initial = Invoke-ApimCollection -Config $script:resumeConfig `
                 -EnvironmentName Prod -TenantId $script:tenant

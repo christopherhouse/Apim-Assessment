@@ -141,7 +141,7 @@ function Invoke-ApimAnalyze {
     )
 
     if (@($PSBoundParameters.Keys | Where-Object {
-                $_ -cin @('RulesPath', 'OnlyRules', 'CompareRuns')
+                $_ -cin @('RulesPath', 'OnlyRules')
             }).Count -gt 0) {
         return [pscustomobject]@{ Status = 'Failed'; ExitCode = 1; ErrorCode = 'CAPABILITY_UNAVAILABLE' }
     }
@@ -254,6 +254,14 @@ function Invoke-ApimAnalyze {
                         -ExposureRecords $models.exposure)
             }
         }
+        $driftArguments = @{ RunPath = $RunFolder }
+        if ($PSBoundParameters.ContainsKey('CompareRuns')) {
+            if (@($CompareRuns).Count -eq 0) { throw 'Comparison inputs are empty.' }
+            $driftArguments.CompareRuns = $CompareRuns
+        }
+        else { $driftArguments.UseSavedInputs = $true }
+        $drift = Save-ApimDriftModel @driftArguments
+        if ($null -ne $drift) { $models.drift = @($drift) }
         $rules = @(Get-ApimRuleCatalog -CatalogPath $script:ApimReportRuleCatalogPath)
         $findings = @(Invoke-ApimRuleEngine -Rules $rules -Models $models `
                 -Manifest $manifest -Config $context.Config)
@@ -261,7 +269,8 @@ function Invoke-ApimAnalyze {
             $null = Write-ApimModelSet -RunPath $RunFolder -Models $models
         }
         $null = Write-ApimFindingSet -RunPath $RunFolder -Findings $findings
-        if ($models.Count -ne $script:ApimModelSchemaPaths.Count) {
+        if (@($models.Keys | Where-Object { $_ -cne 'drift' }).Count -ne
+            ($script:ApimModelSchemaPaths.Count - 1)) {
             throw 'Required models could not be constructed.'
         }
         $null = Get-ApimModelSet -RunPath $RunFolder

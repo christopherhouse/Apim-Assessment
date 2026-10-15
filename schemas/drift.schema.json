@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "array",
+  "maxItems": 9997,
+  "items": {
+    "type": "object", "additionalProperties": false,
+    "required": ["category", "key", "environmentA", "environmentB", "presentA", "presentB", "hashA", "hashB", "changeType", "severity", "note", "modelStatus", "missingInputs"],
+    "properties": {
+      "category": { "enum": ["Git", "Environment"] },
+      "key": { "type": "string", "minLength": 1, "maxLength": 1024 },
+      "environmentA": { "type": "string", "minLength": 1, "maxLength": 128 },
+      "environmentB": { "type": "string", "minLength": 1, "maxLength": 128 },
+      "presentA": { "type": ["boolean", "null"] },
+      "presentB": { "type": ["boolean", "null"] },
+      "hashA": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" },
+      "hashB": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" },
+      "changeType": { "enum": ["All", "Differs", "ProdOnly", "SourceOnly", "Missing", "Unknown"] },
+      "severity": { "enum": ["Medium", "Low", "Info"] },
+      "note": { "enum": ["RedactedPolicyComparison", "CatalogPresenceOnly", "SourceCoverageUnavailable", "EvidenceIncomplete"] },
+      "modelStatus": { "enum": ["Complete", "Partial"] },
+      "missingInputs": { "type": "array", "uniqueItems": true, "items": { "enum": ["sourceCoverage", "comparisonEvidence"] } }
+    }
+  }
+}

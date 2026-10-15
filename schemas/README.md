@@ -2,7 +2,8 @@
 
 Versioned manifest, model, findings, action, and model-safe JSON schemas live here.
 `manifest.schema.json` is validated before each manifest write with
-`Test-Json -SchemaFile`. Closed schemas cover all ten registered model files,
+`Test-Json -SchemaFile`. Closed schemas cover ten required baseline model files,
+the optional bound drift model,
 instance findings, and aggregated action items. Future model contracts remain
 deferred to their builders. Follow specification sections 6, 8, 9, and 10, use
 camelCase fields and stable keys, and do not turn unavailable collector data
@@ -38,6 +39,30 @@ an approved operator workflow value or null; deterministic `findings.json`
 continues to require status Open. Workbook scope/key/date/formula/archive checks
 are additional gates. None of these contracts is model-safe or eligible for
 agent tools. Schema parsing also rejects duplicate JSON members.
+
+## Optional restricted drift (T-505/T-506)
+
+`git-policy-hashes.schema.json` closes version 1.0 committed Git output:
+commit SHA, sorted scope coverage and unique ordered policy scope/hash records.
+Runtime validation also enforces coverage, uniqueness and ordinal ordering.
+No XML, source path, author, remote or credentials may be stored.
+
+`drift-inputs.schema.json` closes version 1.0 restricted current/source policy
+and API-presence inventories. It supports one optional Git source and up to 15
+explicit environment runs without retaining external source paths. Identity
+grouping, collector completeness, policy XML/hash checks and unique scope keys
+are additional gates. `drift.schema.json` closes optional pairwise model rows:
+presence and protected hashes are nullable; Unknown and fixed gap codes preserve
+missing scope coverage/incomplete evidence. Full API definitions are not diffed.
+The existing ten-model baseline remains required; absence of optional drift does
+not break ordinary single-run loading.
+
+`restricted/drift-binding.json` has a fixed runtime-validated version 1.0 shape:
+`schemaVersion`, `inputsSha256`, and `modelSha256`. Readers rebuild drift from
+saved inputs and compare current deployed/saved Git evidence too. Missing or
+changed requested artifacts fail. Reanalysis never needs the external run paths.
+These local integrity bindings are not signatures, and none of these artifacts
+is model-safe or eligible for agent access.
 
 ## Model-safe contracts (T-317)
 
@@ -75,9 +100,14 @@ arbitrary strings or new fields.
 
 `analysis-package.v1.1.schema.json` adds approved `AssessmentCondition` values
 and six configured positive usage bands to the existing closed package shape.
-The original 1.0 schema is not broadened; the contract gate selects exactly
-1.0 or 1.1 and rejects other versions. Specialist/executive contracts remain
-1.0 and may cite either supported package version.
+`analysis-package.v1.2.schema.json` preserves that shape and adds only the two
+approved conditions `SourcePolicyDrift` and `EnvironmentPolicyDrift`, projected
+onto existing service aliases. Older schemas are not broadened; the contract
+gate selects exactly 1.0, 1.1 or 1.2 and rejects other versions. The independent
+scanner and attestation accept 1.2 explicitly; semantic governance claims require
+its cited condition evidence. Git paths, commits, policy hashes, XML and
+environment identities have no field. Specialist/executive contracts remain
+1.0 and may cite any supported package version.
 
 The builder replays the implemented rules against validated saved models and
 configuration, checks the saved findings, and constructs condition facts from

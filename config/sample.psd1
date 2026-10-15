@@ -15,7 +15,7 @@
                 '/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-example-prod'
             )
             LogicAppResourceGroups   = @('rg-example-prod')
-            GitRepoPath              = ''
+            GitRepoPath              = '' # Optional absolute local clone; empty means Skipped.
             GitPolicyRoot            = 'apim/policies'
         }
     )

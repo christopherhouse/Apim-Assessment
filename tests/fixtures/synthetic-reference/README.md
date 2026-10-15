@@ -93,6 +93,23 @@ sets contain only one known version, and the orders operation has a missing
 path convention, so GOV-001 and GOV-008 do not fire until focused tests mutate
 those facts.
 
+Git and drift acceptance creates disposable synthetic repositories/runs during
+tests rather than tracking a source export. Git tests cover four default scope
+mappings plus explicitly configured fragments, committed/dirty/untracked
+semantics, protected-hash parity, mapping ambiguity/collisions, links, root
+escapes and failed collectors. No fixture contains Git author/remotes or secrets
+in its persisted policy inventory. The compact eight-policy/two-API snapshots
+compare as eight policy rows plus two catalog rows per environment pair.
+No Git/comparison sources leave the baseline at ten required models and emit
+Info/NotEvaluated GOV-007/GOV-011 results; explicitly selected sources add one
+optional drift model. Equal complete environments produce no GOV-011 finding.
+Focused mutations produce one policy difference or production-only policy,
+retain Unknown for partial inventories/unmapped Git scopes, and reject stale
+input/model/Git bindings. Replay succeeds after the external source folder moves.
+Integrated acceptance renders populated Environment Drift plus paired HTML,
+and independently validates package 1.2 with only the approved drift code and
+existing service alias, never source names, hashes, XML or paths.
+
 `scaled/New-SyntheticReference.ps1` now generates the separate T-201 model
 scenario: 60 APIs, four all-API subscriptions, 14 APIs without products, seven
 key-only externally reachable APIs, three missing `<base/>` cases, and two

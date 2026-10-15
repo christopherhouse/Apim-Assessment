@@ -29,8 +29,10 @@ $script:ApimAnalysisConditions = [ordered]@{
     'APIM-GOV-002' = 'OwnerTagMissing'
     'APIM-GOV-005' = 'NonCurrentRevisionOnline'
     'APIM-GOV-006' = 'VersioningIncomplete'
+    'APIM-GOV-007' = 'SourcePolicyDrift'
     'APIM-GOV-008' = 'MixedPathVersioning'
     'APIM-GOV-010' = 'InheritedControlsDropped'
+    'APIM-GOV-011' = 'EnvironmentPolicyDrift'
     'APIM-REL-001' = 'ZoneRedundancyAbsent'
     'APIM-REL-002' = 'CapacityBelowMinimum'
     'APIM-REL-003' = 'CriticalBackendResilienceAbsent'
@@ -102,7 +104,8 @@ function New-ApimAnalysisPackage {
     try {
         $root = Resolve-ApimAnalysisRoot -Path $RunPath
         foreach ($relative in @('manifest.json', 'findings.json') +
-            @($script:ApimModelSchemaPaths.Keys | ForEach-Object { "model/$_.json" })) {
+            @($script:ApimModelSchemaPaths.Keys | Where-Object { $_ -cne 'drift' } |
+                ForEach-Object { "model/$_.json" })) {
             $null = Read-ApimAnalysisSnapshot -Path (
                 Resolve-RunFilePath -RunPath $root -RelativePath $relative
             )
@@ -366,7 +369,10 @@ function New-ApimAnalysisPackage {
                 })
         }
         $package = [ordered]@{
-            schemaVersion = '1.1'
+            schemaVersion = if (@($replayed | Where-Object {
+                        $_.ruleId -cin @('APIM-GOV-007', 'APIM-GOV-011') -and
+                        $_.evaluation -ceq 'Evaluated'
+                    }).Count -gt 0) { '1.2' } else { '1.1' }
             entities = $entities.ToArray()
             facts = $facts.ToArray()
             findings = $pending.ToArray()
