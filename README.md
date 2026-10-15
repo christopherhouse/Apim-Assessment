@@ -35,8 +35,11 @@ all six REL rules, and all five POR rules are implemented privately. Secret-safe
 identity/authentication and portal configuration collectors feed an optional
 closed portal model. POR-002 reads `portalconfigs/default.properties.enableBasicAuth`
 directly; absent evidence stays Unknown. POR-003 requires explicit product/group
-intent; POR-004 uses operation-description coverage without OpenAPI export or
-Spectral. NET-001
+intent. A guarded OpenAPI collector exports current HTTP APIs, rejects
+secret-bearing documents before persistence, and records non-HTTP skips.
+POR-004 combines operation-description coverage with optional offline Spectral
+quality scores; unavailable tooling or unsupported references leave the score
+null, never a synthetic pass. NET-001
 and NET-009 require explicit operator attestation of effective origin
 authentication and endpoint-owner need; without it, they produce
 Info/NotEvaluated rather than guessing. The SEC catalog covers reachable weak
@@ -60,11 +63,11 @@ actions, assumptions/gaps, roadmap, keyboard navigation, print and reduced-motio
 support. It has no remote dependencies and uses escaped local labels.
 
 An independent, **maintainer-only collection smoke command** now exercises all
-ten implemented collector checks in dependency order against a Microsoft-owned test
+eleven implemented collector checks in dependency order against a Microsoft-owned test
 APIM. It is not an assessment entry point or a customer-run command: it cannot
 analyze or report, and its live execution is owned by authorized maintainers
 outside Copilot CLI. The maintainer reports the prior six checks completed on a
-test APIM; SecurityAssets, Diagnostics, Identity, and Portal checks have
+test APIM; SecurityAssets, Diagnostics, Identity, Portal, and OpenApi checks have
 synthetic acceptance but still need maintainer-only live validation. No agent
 used live Azure resources or inspected restricted output.
 The same smoke script now validates the newly saved manifest, completed
@@ -86,10 +89,11 @@ authorization metadata are not credentials. Descriptive "Bearer token" wording
 also remains clean; actual embedded token values and literal signing/decryption
 keys are still checked, including policies serialized inside JSON or logs.
 
-Ten required model contracts and optional drift/portal contracts share a fail-closed schema gate.
+Ten required model contracts and optional drift/portal/OpenAPI-quality contracts share a fail-closed schema gate.
 Writers validate every pending serialized snapshot before writing any file, and
 the private saved-run loader requires all ten baseline files and validates any
-present portal model and any requested drift model and its restricted input binding before returning models
+present portal/quality model and any requested drift model, including restricted
+source/settings bindings, before returning models
 for downstream analysis. Ordinary single-run analysis does not require Git or
 comparison runs. Future model contracts remain deferred with their
 builders. The Analyze command builds the implemented models from validated saved
@@ -141,10 +145,11 @@ data. The coding-agent checks use synthetic data only.
 | Strict private configuration validation and closed allowlisted saved-run analysis settings | Actual host isolation and approval acceptance |
 | Structured JSON-lines logging; validated resume and prerequisite-aware collector isolation | Full live workflow acceptance |
 | Guarded ARM transport with paging/retry; offline tracking, saved-run comparison, and cross-environment policy/API-presence drift | Full API-definition comparison |
-| Versioned run manifest lifecycle with an exact scoring snapshot, APIM service/API/product/subscription/policy/network and secret-safe security/diagnostic/identity/portal collectors, plus optional local committed Git policy hashes | Remaining APIM, telemetry, and cost collectors |
-| Maintainer-only cumulative collection smoke script with local output validation (ten registered checks) | Full live assessment acceptance |
+| Versioned run manifest lifecycle with an exact scoring snapshot, APIM service/API/product/subscription/policy/network and secret-safe security/diagnostic/identity/portal/OpenAPI collectors, plus optional local committed Git policy hashes | Remaining APIM, telemetry, and cost collectors |
+| Maintainer-only cumulative collection smoke script with local output validation (eleven registered checks) | Full live assessment acceptance |
 | Local saved-run secret-scan script for supported text and Excel artifacts, also required by smoke | Host-enforced model-safe admission acceptance |
-| Effective policy merge/flags plus ten required models and optional drift/portal with schema-gated persistence and saved-run loading | Remaining model builders and telemetry exposure refinement |
+| Effective policy merge/flags plus ten required models and optional drift/portal/OpenAPI quality with schema-gated persistence and saved-run loading | Remaining model builders and telemetry exposure refinement |
+| Optional pinned offline Spectral, trusted APIM style rules and source/settings-bound quality scores with description fallback | Full API-definition drift and maintainer live export validation |
 | Offline raw-to-model Analyze, seven NET checks, fifteen SEC checks, eight GOV checks, all six REL checks, all five POR checks, configurable priority scoring, schema-gated findings, and closed action-item aggregation | Remaining SEC/GOV catalog entries, PERF and other catalogs |
 | Public validated-run Excel/HTML rendering, Environment Drift and Run Comparison views, tracking, local charts/diagrams, deterministic fallback, and validated approved-code synthesis | Future usage/cost population |
 | Compact raw-to-Excel/HTML and actual stdio broker integration plus a deterministic 60-API synthetic model generator and offline airlock canary/mutation integration | Full scaled raw collection fixture and live acceptance |
@@ -184,7 +189,7 @@ artifact IDs reach a model, and operators resolve them locally.
 .\Compare-ApimRun.ps1 -Baseline <baseline-run-folder> -Current <current-run-folder>
 ```
 
-The current slice runs ten implemented collectors and the installed rule
+The current slice runs eleven implemented collectors and the installed rule
 catalog, using `Cloudflare/AssumedReachable` edge settings. Collection requires
 Az.Accounts and Az.ResourceGraph; Excel requires pinned ImportExcel 7.8.10.
 `-Stage Collect` limits Assessment to collection. `-ThrottleLimit` controls
@@ -326,19 +331,38 @@ This repository setup does not change GitHub repository settings.
 
 The full collection runtime will use `Az.Accounts`,
 `Az.ResourceGraph`, `Az.OperationalInsights`, `Az.Monitor`, and `ImportExcel`.
-Optional OpenAPI linting will use Node.js and Spectral. They are not needed to
+Optional OpenAPI linting uses Node 22.x or 24+ on PATH and toolkit-local pinned
+Spectral 6.17.0 in `.tools\spectral`, installed explicitly by
+`scripts\Install-OptionalTools.ps1`. Global/PATH Spectral commands and environment
+overrides are not discovered. These optional tools are not needed to
 import or validate the current core module. The implemented collectors call the
 guarded ARM transport; API/product/policy child requests use bounded parallel
 runspaces with a configurable `ThrottleLimit` (default 6). Policy 404 responses
 are indexed as absent, while detected hard-coded secret candidates are recorded
-by structural location and redacted before XML is persisted. No public command
-invokes the collectors yet and all automated tests mock Azure responses.
+by structural location and redacted before XML is persisted. Automated tests
+never invoke live collectors; all Azure responses are mocked.
 The guarded transport omits `-Payload` entirely for bodyless GET requests;
 an explicitly empty payload fails before the Az cmdlet is called.
 Policy collection requests XML-encoded policy content, parses it strictly,
 redacts secret candidates before storage, and remains Partial if any policy
 cannot be safely parsed. Previously sanitized policies may already be stored;
 an incomplete run has no complete policy index.
+
+OpenAPI collection uses guarded ARM export and a narrowly validated HTTPS Azure
+Blob link fallback without ARM credential forwarding or redirects. Signed links
+are transient and never persisted. Each document is capped at 5 MiB/depth 64 and
+must pass JSON/shape validation and the in-memory secret scanner before writing.
+Successful files remain usable
+under Partial collection; stale unlisted files are ignored.
+Analyze automatically uses a supported installed Spectral with the shipped local
+ruleset, never `npx`, runtime installation, or remote/file-reference resolution.
+Same-document references are supported. Defaults deduct 10 points per error and
+2 per warning; optional closed `OpenApiQuality` configuration snapshots integer
+`ErrorPenalty`/`WarningPenalty` values from 0 through 100. Missing/failed tools or
+unsupported exports/references retain explicit statuses and description fallback.
+Saved quality is bound to source/ruleset digests, tool version and scoring
+settings; Report validates and replays it without executing Spectral.
+See the [runbook](docs/RUNBOOK.md) for explicit optional-tool setup.
 
 Diagnostics collection reads service loggers, service diagnostics, and bounded
 per-API diagnostics through guarded GET requests. It persists only allowlisted
@@ -577,11 +601,12 @@ ApimAssessment.psd1 / .psm1  Module metadata and source loader
 src/
   Core/                     Config, ARM guard, manifest persistence, logging, retries
   Collect/                  Isolated read-only collectors (service/catalog/subscription/policy)
-  Model/                    Policy merge/flags, ten model contracts, offline analysis
+  Model/                    Policy merge/flags, required/optional models, offline analysis
   Rules/                    Rule engine and priority scoring
   Package/                  Airlock, narrow broker, digest-bound semantic output gates
   Report/                   Paired Excel/HTML export, tracking and saved-run comparison
 rules/                      Implemented and planned rule catalogs
+rulesets/                   Trusted local optional OpenAPI lint rules
 queries/                    Log Analytics and Resource Graph KQL (planned)
 schemas/                    Closed versioned run, model, report and broker contracts
 template/                   Implemented Excel and self-contained HTML templates
@@ -590,7 +615,7 @@ tests/
   unit/                     Offline Pester tests
   integration/              Synthetic raw-to-reports, airlock and stdio workflow tests
   fixtures/synthetic-reference/  Synthetic reference-topology fixture scaffold
-scripts/                    Branch guard, checks, stdio broker/worker, release packaging
+scripts/                    Branch guard, checks, optional-tool setup, broker, packaging
 docs/                       Specification, plan, register and operating guides
 .github/
   agents/                   Development and broker-only assessment profiles
@@ -600,7 +625,8 @@ docs/                       Specification, plan, register and operating guides
 
 Four root assessment scripts are implemented. Compare/package root-script
 facades in the specification remain future capabilities. Release archives
-include deterministic runtime/templates and the two broker scripts; operator
+include deterministic runtime/templates, the trusted ruleset, optional-tool
+setup and the two broker scripts; operator
 agent/skill profiles are installed from the reviewed source checkout, not
 automatically installed or configured by a release archive.
 

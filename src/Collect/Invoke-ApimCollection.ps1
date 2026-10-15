@@ -60,7 +60,7 @@ function Remove-ApimCollectorOutput {
 
         [Parameter(Mandatory)]
         [ValidateSet('Service', 'Apis', 'Products', 'Subscriptions',
-            'SecurityAssets', 'Diagnostics', 'Policies', 'Network', 'Identity', 'Portal')]
+            'SecurityAssets', 'Diagnostics', 'Policies', 'Network', 'Identity', 'Portal', 'OpenApi')]
         [string] $Name
     )
 
@@ -76,6 +76,7 @@ function Remove-ApimCollectorOutput {
         Identity = @('raw/identityProviders.json', 'raw/authorizationServers.json',
             'raw/openidConnectProviders.json', 'raw/authorizationProviders.json')
         Portal = @('raw/portal')
+        OpenApi = @('raw/openapi')
     }
     $paths = @(
         foreach ($relative in $owned[$Name]) {

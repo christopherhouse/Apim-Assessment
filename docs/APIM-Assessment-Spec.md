@@ -307,7 +307,7 @@ unlisted stale files.
 | `apiRevisions/<api>.json` | `{base}/apis/{api}/revisions` | revision list, `isOnline`, `isCurrent` |
 | `operations/<api>.json` | `{base}/apis/{api}/operations` | `method`, `urlTemplate`, `description`, `templateParameters` |
 | `apiTags/<api>.json` | `{base}/apis/{api}/tags` | tags |
-| `openapi/<api>.json` | `{base}/apis/{api}?export=true&format=openapi+json` (fallback `openapi+json-link` then download) | OpenAPI doc |
+| `openapi/<api>.json` | `{base}/apis/{api}?export=true&format=openapi+json` (validated `openapi+json-link` fallback) | Validated, secret-candidate-free JSON OpenAPI doc plus closed `openapi/index.json` inventory (D-58) |
 | `products.json` | `{base}/products` | `state`, `subscriptionRequired`, `approvalRequired`, `subscriptionsLimit`, `description` |
 | `productApis/<product>.json` | `{base}/products/{p}/apis` | API membership |
 | `productGroups/<product>.json` | `{base}/products/{p}/groups` | visibility |
@@ -645,6 +645,43 @@ private builder rejects additional or malformed attestation fields.
 ### 8.6 OpenAPI score (optional)
 If Spectral is available: run `spectral lint` with ruleset `spectral:oas` + `rulesets/apim-style.yaml` (naming, versioning, descriptions, error responses). Score = `max(0, 100 − 10×errors − 2×warnings)` (configurable). Otherwise `openApiScore=null` and a description-coverage metric from operations is used.
 
+T-105/T-504 implement this as an optional closed `model/openApiQuality.json`
+array with one row per current API. Rows retain status, nullable error/warning
+counts and score, expected/described operation counts and nullable coverage,
+source/ruleset digests, tool version, exact scoring penalties, completeness and
+fixed missing-input reasons. Scored rows alone have numerical scores.
+Optional root configuration `OpenApiQuality` contains only integer
+`ErrorPenalty`/`WarningPenalty` values from 0 through 100 (defaults 10/2);
+the restricted run-setting snapshot retains configured values for replay.
+Absent configuration does not change legacy settings digests.
+
+Collection uses guarded GET-only ARM export and a credential-free HTTPS download
+only for a validated matching Azure Blob api-export target. No redirects,
+authorization-failure fallback, signed-link persistence or arbitrary URL fetch
+is permitted. Unsupported API types are explicitly skipped. Candidate documents
+are parsed strictly and scanned in memory; secret candidates or incomplete
+validation prevent persistence rather than introducing OpenAPI redaction.
+Mixed collection failures preserve validated manifest-listed Partial files.
+
+Only toolkit-local installed Spectral 6.17.0 under `.tools/spectral`, Node 22.x
+or 24+ on PATH, and the trusted shipped local ruleset are used automatically.
+Global/PATH Spectral commands and environment overrides are not discovered.
+Explicit development setup is separate from assessment
+execution; runtime never installs tools. References must remain within the same
+document; remote and local-file references are not fetched. Tool absence,
+unsupported references or execution failures retain distinct unavailable
+statuses and qualified operation-description fallback. Zero/incomplete
+operation inventories have null coverage, never synthetic perfect coverage.
+
+Saved quality binds to the manifest-listed exports, trusted ruleset, tool
+version and snapshotted penalties through a restricted digest binding. The
+saved-run gate validates the closed model and semantic counts/scores plus those
+bindings. Reporting replays saved evidence without running a linter. Reanalysis
+explicitly regenerates quality; malformed listed evidence fails closed and stale
+unlisted exports are ignored. Legacy runs without the optional model remain
+usable. Definitions, diagnostics, paths, digests and exact metrics stay restricted;
+model-safe package 1.3 reuses only `ApiDocumentationWeak` and existing Api aliases.
+
 ---
 
 ## 9. Exposure classification (critical logic)
@@ -732,7 +769,12 @@ Backend, Certificate, Route, Network, and Portal targets backed by registered mo
 contracts. Portal uses neutral platform/not-applicable usage weighting and the
 optional closed portal model. Cost remains deferred until its model contract
 exists (D-29/D-36/D-57). Rules must declare their target model and any additional
-model they use in `Requires`.
+model they use in `Requires`. Additive fallback evidence may instead be
+declared in `OptionalRequires`: absent/unavailable optional models do not block
+evaluation, but present models must validate and are included in finding source
+files. Required/optional input names are supported model paths and unique.
+POR-004 declares optional quality this way while retaining its required API and
+operation models for legacy description fallback.
 `Scope` may be a single implemented scope or a non-empty, unique array of
 implemented scopes. A multi-scope rule uses the same callbacks for each target,
 must require every target model, retains one catalog ID, and still emits only
@@ -1077,8 +1119,10 @@ evidence remains Unknown. POR-003 checks explicit nonpublic guests and missing
 intended memberships only; absent/unresolved intent cannot pass. POR-004 targets
 each API using existing `hasDescription` operation facts at the exact 80-percent
 boundary and any legitimate non-null OpenAPI score at 70. Zero/incomplete
-operations do not become 100-percent coverage. T-105/T-504 and Spectral remain
-unimplemented; this is the specified documentation fallback.
+operations do not become 100-percent coverage. Optional T-105/T-504 evidence
+adds source-bound offline Spectral scores under section 8.6; absent or failed
+linting retains the specified documentation fallback. Finding evidence identifies
+the method and unavailable-quality reasons without claiming a linter ran.
 
 ### 11.6 Cost (COST)
 | ID | Title | Sev | Logic |

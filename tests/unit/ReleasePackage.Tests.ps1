@@ -7,7 +7,7 @@ BeforeAll {
             'Invoke-ApimReport.ps1', 'Invoke-ApimAssessment.ps1', 'Compare-ApimRun.ps1')) {
         Copy-Item -LiteralPath (Join-Path $repoRoot $file) -Destination $packageRepo
     }
-    foreach ($directory in @('scripts', 'src', 'rules', 'queries', 'schemas', 'template', 'docs', 'config')) {
+    foreach ($directory in @('scripts', 'src', 'rules', 'rulesets', 'queries', 'schemas', 'template', 'docs', 'config')) {
         Copy-Item -LiteralPath (Join-Path $repoRoot $directory) -Destination $packageRepo -Recurse -Force
     }
     foreach ($directory in @('runs', 'tests', 'artifacts', 'dist', '.git', '.github')) {
@@ -43,6 +43,10 @@ Describe 'Release source package' {
             $entries | Should -Contain 'template/ApimExecutiveSummary.html'
             $entries | Should -Contain 'scripts/Start-ApimBroker.ps1'
             $entries | Should -Contain 'scripts/Invoke-BrokerWorker.ps1'
+            $entries | Should -Contain 'rulesets/apim-style.yaml'
+            $entries | Should -Contain 'scripts/OptionalDependencies.psd1'
+            $entries | Should -Contain 'scripts/Install-OptionalTools.ps1'
+            $entries | Should -Contain 'schemas/openApiQuality.schema.json'
             @($entries | Where-Object {
                 $_ -match '^(runs|tests|artifacts|dist|\.git|\.github)/' -or
                 ($_ -like 'config/*' -and $_ -ne 'config/sample.psd1')

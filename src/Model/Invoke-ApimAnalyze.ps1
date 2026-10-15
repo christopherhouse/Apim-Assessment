@@ -222,6 +222,7 @@ function Invoke-ApimAnalyze {
         foreach ($relative in @(
                 @($script:ApimModelSchemaPaths.Keys | ForEach-Object { "model/$_.json" })
                 'findings.json'
+                'restricted/openapi-binding.json'
             )) {
             $path = Resolve-RunFilePath -RunPath $RunFolder -RelativePath $relative
             Test-ConfigPathLink -Path $path -Context 'Prior analysis output'
@@ -310,6 +311,20 @@ function Invoke-ApimAnalyze {
             -Config $context.Config -Environment $context.Environment `
             -ServicePayload $service -ProductsAvailable $available.Products
         if ($null -ne $portal) { $models.portal = $portal }
+        if ($models.Contains('apis') -and $models.Contains('operations')) {
+            $quality = Get-ApimSavedOpenApiQuality -RunPath $RunFolder -Context $context `
+                -Apis $models.apis -Operations $models.operations
+            if ($null -ne $quality) {
+                $models.openApiQuality = @($quality.Rows)
+                foreach ($api in $models.apis) {
+                    $row = @($models.openApiQuality | Where-Object apiId -CEQ $api.apiId)
+                    if ($row.Count -ne 1) { throw 'OpenAPI quality API coverage rejected.' }
+                    $api.openApiScore = $row[0].score
+                }
+                Save-ApimOpenApiQualityBinding -RunPath $RunFolder -Quality $models.openApiQuality `
+                    -Context $context -Exports $quality.Exports
+            }
+        }
         $driftArguments = @{ RunPath = $RunFolder }
         if ($PSBoundParameters.ContainsKey('CompareRuns')) {
             if (@($CompareRuns).Count -eq 0) { throw 'Comparison inputs are empty.' }
@@ -326,7 +341,7 @@ function Invoke-ApimAnalyze {
         }
         $null = Write-ApimFindingSet -RunPath $RunFolder -Findings $findings
         if (@($script:ApimModelSchemaPaths.Keys | Where-Object {
-                    $_ -cnotin @('drift', 'portal') -and -not $models.Contains($_)
+                    $_ -cnotin @('drift', 'portal', 'openApiQuality') -and -not $models.Contains($_)
                 }).Count -gt 0) {
             throw 'Required models could not be constructed.'
         }

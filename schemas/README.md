@@ -3,7 +3,7 @@
 Versioned manifest, model, findings, action, and model-safe JSON schemas live here.
 `manifest.schema.json` is validated before each manifest write with
 `Test-Json -SchemaFile`. Closed schemas cover ten required baseline model files,
-the optional bound drift model,
+the optional bound drift, portal and OpenAPI-quality models,
 instance findings, and aggregated action items. Future model contracts remain
 deferred to their builders. Follow specification sections 6, 8, 9, and 10, use
 camelCase fields and stable keys, and do not turn unavailable collector data
@@ -15,7 +15,8 @@ into an empty successful result.
 snapshot stored at `restricted/run-settings.json`. It contains only the
 run/tool binding, configured gateway identities and subnet CIDRs, certificate
 expiry threshold, exact backend/operation rule exceptions and critical targets,
-and six usage-band thresholds. All fields use camelCase. It excludes private
+six usage-band thresholds, optional explicit portal product visibility and
+optional OpenAPI error/warning penalties. All fields use camelCase. It excludes private
 configuration, paths, tokens, credentials, and user identities. Gateway
 identities remain restricted; this schema does not authorize model access.
 The loader validates the schema, identity/version binding, CIDR values, and
@@ -63,6 +64,30 @@ saved inputs and compare current deployed/saved Git evidence too. Missing or
 changed requested artifacts fail. Reanalysis never needs the external run paths.
 These local integrity bindings are not signatures, and none of these artifacts
 is model-safe or eligible for agent access.
+
+## Optional restricted OpenAPI quality (T-105/T-504)
+
+`openApiQuality.schema.json` closes an optional version 1.0 per-API array.
+Only `Scored` rows have numerical error/warning counts and score. Other fixed
+statuses preserve tool/export/reference/unsupported-type failures, nullable
+scores and qualified description coverage. Runtime semantic validation rejects
+duplicate/orphan APIs, incorrect score arithmetic, operation-count/coverage
+conflicts and API backfill mismatches.
+
+The runtime-validated `restricted/openapi-binding.json` has exactly
+`schemaVersion`, `modelSha256`, `exportsSha256`, `settingsSha256` and
+`rulesetSha256`. Readers compare the model, validated manifest-listed export
+inventory, exact penalties and trusted local ruleset. Each row's source digest
+must match its exported document. Binding retains tool version through the
+closed quality model digest; replay never executes a linter or depends on an
+installed tool. Local digests assume operator-owned storage, not digital signing.
+Missing optional quality does not break legacy ten-model runs, while a present
+model or orphaned binding fails closed if invalid.
+
+Raw OpenAPI documents and closed export indexes remain restricted collector
+output; neither those artifacts nor quality rows, exact metrics, source hashes,
+diagnostic output, server URLs or samples are eligible for model access.
+Existing package 1.3 `ApiDocumentationWeak` is the only quality condition.
 
 ## Model-safe contracts (T-317)
 

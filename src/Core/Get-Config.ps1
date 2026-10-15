@@ -144,6 +144,27 @@ function Test-ConfigPortalProductVisibility {
     }
 }
 
+function Test-ConfigOpenApiQuality {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [System.Collections.IDictionary] $Value
+    )
+
+    if ($Value.Count -ne 2 -or @($Value.Keys | Where-Object {
+                $_ -cnotin @('ErrorPenalty', 'WarningPenalty')
+            }).Count -gt 0) {
+        throw "Configuration 'OpenApiQuality' contains invalid fields."
+    }
+    foreach ($key in @('ErrorPenalty', 'WarningPenalty')) {
+        $number = Get-RequiredConfigValue $Value $key 'OpenApiQuality'
+        Test-ConfigNumber -Value $number -Context "OpenApiQuality.$key"
+        if ([double] $number -gt 100 -or [math]::Truncate([double] $number) -ne $number) {
+            throw "Configuration 'OpenApiQuality.$key' must be an integer from 0 through 100."
+        }
+    }
+}
+
 function Test-ConfigNumber {
     [CmdletBinding()]
     param(
@@ -521,6 +542,10 @@ function Get-Config {
                 }
             }
         }
+    }
+
+    if ($config.Contains('OpenApiQuality')) {
+        Test-ConfigOpenApiQuality -Value $config.OpenApiQuality
     }
 
     if ($config.Contains('Portal')) {

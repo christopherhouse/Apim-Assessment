@@ -42,6 +42,12 @@ Build in vertical slices so a trustworthy report exists early:
 The coding agent builds and tests against **synthetic fixtures** only; authorized
 maintainers perform live runs in a customer-approved environment.
 
+The T-105/T-504 OpenAPI-quality slice adds guarded secret-candidate-free exports,
+optional pinned offline Spectral, source/settings-bound quality evidence and
+POR-004 description fallback. It does not implement telemetry/cost, inventory
+organization, owner-only acceptance or live validation. Definitions and exact
+quality metrics remain restricted; the existing closed package condition is reused.
+
 ### 4.1 Trust model
 
 - PowerShell remains authoritative for collection, normalization, findings, scoring, evidence, data safety validation, and report rendering.

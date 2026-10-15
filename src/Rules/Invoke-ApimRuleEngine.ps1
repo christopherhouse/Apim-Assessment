@@ -92,6 +92,7 @@ function Assert-ApimRule {
             $Rule.DataGaps -isnot [scriptblock]) -or
         $Rule.Enabled -isnot [bool] -or
         $Rule.Requires -isnot [array] -or
+        ($Rule.Contains('OptionalRequires') -and $Rule.OptionalRequires -isnot [array]) -or
         $Rule.SourceFiles -isnot [array] -or
         $Rule.SourceFiles.Count -eq 0 -or
         $Rule.References -isnot [array]) {
@@ -103,12 +104,15 @@ function Assert-ApimRule {
             $Rule.TargetField -cne 'auxiliaryRoutes')) {
         throw 'Rule definition has an invalid contract.'
     }
-    foreach ($required in $Rule.Requires) {
+    $optionalInputs = @(if ($Rule.Contains('OptionalRequires')) { $Rule.OptionalRequires })
+    $inputNames = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    foreach ($required in @($Rule.Requires) + $optionalInputs) {
         if ($required -isnot [string] -or
             $required -cnotmatch '^model/([A-Za-z]+)\.json$' -or
             @($script:ApimModelSchemaPaths.Keys) -cnotcontains $Matches[1]) {
             throw 'Rule requires an unsupported model input.'
         }
+        if (-not $inputNames.Add($required)) { throw 'Rule contains duplicate model inputs.' }
     }
     foreach ($file in $Rule.SourceFiles) {
         if ($file -isnot [string] -or
@@ -340,6 +344,10 @@ function Invoke-ApimRuleEngine {
             throw 'Unavailable rule input was unsupported.'
         }
     }
+    $ctx.Models = [ordered]@{}
+    foreach ($name in $Models.Keys) {
+        if ("model/$name.json" -cnotin $UnavailableInputs) { $ctx.Models[$name] = $Models[$name] }
+    }
     foreach ($rule in $Rules) {
         Assert-ApimRule -Rule $rule
         if (-not $ids.Add($rule.Id)) {
@@ -350,11 +358,12 @@ function Invoke-ApimRuleEngine {
         }
         $ruleScopes = @(Resolve-ApimRuleScope -Scope $rule.Scope)
         $missing = [System.Collections.Generic.List[string]]::new()
-        foreach ($required in $rule.Requires) {
+        $optionalInputs = @(if ($rule.Contains('OptionalRequires')) { $rule.OptionalRequires })
+        foreach ($required in @($rule.Requires) + $optionalInputs) {
             $name = $required.Substring(6, $required.Length - 11)
             if ($required -cin $UnavailableInputs -or
                 -not $Models.Contains($name) -or $null -eq $Models[$name]) {
-                if (-not $missing.Contains($required)) {
+                if ($required -cin $rule.Requires -and -not $missing.Contains($required)) {
                     $missing.Add($required)
                 }
                 continue
@@ -383,6 +392,10 @@ function Invoke-ApimRuleEngine {
                     throw 'Rule definition must require its target model.'
                 }
             }
+            $sourceFiles = @($rule.SourceFiles) + @($optionalInputs | Where-Object {
+                    $name = $_.Substring(6, $_.Length - 11)
+                    $_ -cnotin $UnavailableInputs -and $Models.Contains($name) -and $null -ne $Models[$name]
+                })
         }
         if ($missing.Count -eq 0 -and $rule.Contains('DataGaps') -and
             $null -ne $rule.DataGaps) {
@@ -421,7 +434,7 @@ function Invoke-ApimRuleEngine {
                     evidenceText = 'Required assessment evidence was unavailable.'
                     recommendation = $rule.Recommendation
                     effort = $rule.Effort
-                    sourceFiles = @($rule.SourceFiles)
+                    sourceFiles = @($sourceFiles | Select-Object -Unique)
                     status = 'Open'
                     evaluation = 'NotEvaluated'
                 })
@@ -494,7 +507,7 @@ function Invoke-ApimRuleEngine {
                         evidenceText = $evidenceText
                         recommendation = $rule.Recommendation
                         effort = $rule.Effort
-                        sourceFiles = @($rule.SourceFiles)
+                        sourceFiles = @($sourceFiles | Select-Object -Unique)
                         status = 'Open'
                         evaluation = 'Evaluated'
                     })

@@ -32,6 +32,15 @@
       "uniqueItems": true,
       "items": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*$" }
     },
+    "openApiQuality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["errorPenalty", "warningPenalty"],
+      "properties": {
+        "errorPenalty": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "warningPenalty": { "type": "integer", "minimum": 0, "maximum": 100 }
+      }
+    },
     "portalProductVisibility": {
       "type": "array",
       "items": {

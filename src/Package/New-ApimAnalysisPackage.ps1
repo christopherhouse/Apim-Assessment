@@ -109,7 +109,7 @@ function New-ApimAnalysisPackage {
     try {
         $root = Resolve-ApimAnalysisRoot -Path $RunPath
         foreach ($relative in @('manifest.json', 'findings.json') +
-            @($script:ApimModelSchemaPaths.Keys | Where-Object { $_ -cnotin @('drift', 'portal') } |
+            @($script:ApimModelSchemaPaths.Keys | Where-Object { $_ -cnotin @('drift', 'portal', 'openApiQuality') } |
                 ForEach-Object { "model/$_.json" })) {
             $null = Read-ApimAnalysisSnapshot -Path (
                 Resolve-RunFilePath -RunPath $root -RelativePath $relative

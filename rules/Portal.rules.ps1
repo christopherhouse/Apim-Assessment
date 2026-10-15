@@ -96,6 +96,7 @@ foreach ($definition in @(
     Severity = 'Low'
     Scope = 'Api'
     Requires = @('model/apis.json', 'model/operations.json')
+    OptionalRequires = @('model/openApiQuality.json')
     DataGaps = {
         param($ctx)
         $incomplete = $false
@@ -119,18 +120,38 @@ foreach ($definition in @(
     Evidence = {
         param($x, $ctx)
         $operations = @($ctx.Models.operations | Where-Object apiId -CEQ $x.apiId)
-        [ordered]@{
+        $quality = @(if ($ctx.Models.Contains('openApiQuality')) {
+                $ctx.Models.openApiQuality | Where-Object apiId -CEQ $x.apiId
+            })
+        $evidence = [ordered]@{
             describedOperations = @($operations | Where-Object hasDescription -EQ $true).Count
             operationCount = $operations.Count
             expectedOperationCount = $x.operationCount
             openApiScore = $x.openApiScore
-            method = 'OperationDescriptionCoverage'
+            method = if ($quality.Count -eq 1 -and $quality[0].status -ceq 'Scored') {
+                'SpectralAndOperationDescriptionCoverage'
+            } else { 'OperationDescriptionCoverage' }
         }
+        if ($quality.Count -eq 1) {
+            $evidence.qualityStatus = $quality[0].status
+            $evidence.qualityMissingInputs = @($quality[0].missingInputs)
+        }
+        return $evidence
     }
     EvidenceText = {
         param($x, $ctx)
-        $null = $x; $null = $ctx
-        'Operation-description coverage is below 80 percent or an available OpenAPI score is below 70; no OpenAPI export or Spectral execution was performed.'
+        $quality = @(if ($ctx.Models.Contains('openApiQuality')) {
+                $ctx.Models.openApiQuality | Where-Object apiId -CEQ $x.apiId
+            })
+        if ($quality.Count -eq 1 -and $quality[0].status -ceq 'Scored') {
+            'Operation-description coverage is below 80 percent or the saved, validated Spectral OpenAPI score is below 70.'
+        }
+        elseif ($null -ne $x.openApiScore) {
+            'Operation-description coverage is below 80 percent or an available OpenAPI score is below 70.'
+        }
+        else {
+            'Operation-description coverage is below 80 percent; an OpenAPI quality score is unavailable, so description coverage is the fallback.'
+        }
     }
     Recommendation = 'Improve operation descriptions and review available OpenAPI quality evidence; description coverage is the offline fallback, not a full specification-quality scan.'
     Effort = 'M'

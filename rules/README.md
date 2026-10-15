@@ -15,6 +15,9 @@ callbacks evaluate each target independently, while a missing required model or
 fact still produces one NotEvaluated finding for the rule. `TargetField` remains
 limited to a single Route scope. Rule callbacks receive the target and a context
 with `Config`, `Models`, and `Manifest`.
+`OptionalRequires` declares additive model evidence: absence does not block
+fallback evaluation, but any available optional input must pass its schema gate
+and is included in finding source files. Required/optional inputs must be unique.
 NET-009's Route target is the allowlisted `network.auxiliaryRoutes` field,
 not an API route in `exposure.json`.
 `SEC.rules.ps1` contains
@@ -67,3 +70,10 @@ Rule authors must check any relevant per-record `missingInputs` before returning
 a negative result. References are supplied by maintainers, not invented by
 the tool.
 Generate `docs/RULES.md` from the catalog when task T-607 is implemented.
+
+`Portal.rules.ps1` implements POR-001 through POR-005. POR-004 keeps its
+70-score/80-percent boundaries and operation-description fallback. When the
+optional validated `openApiQuality` model is present, evidence identifies
+Spectral versus fallback and fixed unavailable-quality reasons. This optional
+evidence does not become a required model for legacy saved runs; rule references
+remain empty and package 1.3 projects only `ApiDocumentationWeak`.

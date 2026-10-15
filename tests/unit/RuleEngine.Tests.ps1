@@ -197,6 +197,51 @@ Describe 'Private offline rule engine and findings contract' {
             } | Should -Throw "Model 'apis' failed schema validation."
         }
 
+        It 'uses declared optional evidence only when available and rejects malformed present evidence' {
+            $rule = Get-SyntheticRule
+            $rule.OptionalRequires = @('model/operations.json')
+            $rule.Evidence = {
+                param($x, $ctx)
+                $null = $x
+                @{ optionalAvailable = $ctx.Models.Contains('operations') }
+            }
+            $models = [ordered]@{ apis = $script:ruleModels.apis }
+            $without = @(Invoke-ApimRuleEngine -Rules @($rule) -Models $models `
+                    -Manifest $script:ruleManifest -Config $script:ruleConfig)
+            $without.Count | Should -Be 1
+            $without[0].evidence.optionalAvailable | Should -BeFalse
+            $without[0].sourceFiles | Should -Not -Contain 'model/operations.json'
+            $models.operations = Get-Content -LiteralPath (
+                Join-Path $script:ruleRepoRoot 'tests/fixtures/synthetic-reference/model/operations.json'
+            ) -Raw | ConvertFrom-Json -NoEnumerate
+            $with = @(Invoke-ApimRuleEngine -Rules @($rule) -Models $models `
+                    -Manifest $script:ruleManifest -Config $script:ruleConfig)
+            $with[0].evidence.optionalAvailable | Should -BeTrue
+            $with[0].sourceFiles | Should -Contain 'model/operations.json'
+            $unavailable = @(Invoke-ApimRuleEngine -Rules @($rule) -Models $models `
+                    -Manifest $script:ruleManifest -Config $script:ruleConfig `
+                    -UnavailableInputs @('model/operations.json'))
+            $unavailable[0].evidence.optionalAvailable | Should -BeFalse
+            $unavailable[0].sourceFiles | Should -Not -Contain 'model/operations.json'
+            $models.operations = @([pscustomobject]@{ unexpected = $true })
+            { Invoke-ApimRuleEngine -Rules @($rule) -Models $models `
+                    -Manifest $script:ruleManifest -Config $script:ruleConfig } |
+                Should -Throw "Model 'operations' failed schema validation."
+        }
+
+        It 'rejects malformed optional-input declarations' {
+            foreach ($optional in @(
+                    @{ value = 'model/operations.json' }
+                    @{ value = @('model/unsupported.json') }
+                    @{ value = @('model/apis.json') }
+                    @{ value = @('model/operations.json', 'model/operations.json') }
+                )) {
+                $rule = Get-SyntheticRule
+                $rule.OptionalRequires = $optional.value
+                { Assert-ApimRule -Rule $rule } | Should -Throw
+            }
+        }
+
         It 'sorts by descending priority, then ordinal rule ID and scope' {
             $first = Get-SyntheticRule
             $first.Id = 'APIM-SEC-010'
