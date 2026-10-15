@@ -175,6 +175,8 @@ criticality. Focused models/rules cover missing description/owner, external
 approval, unresolved IDs/loggers, API/service precedence, missing evidence and
 critical sampling 0/99.99/100. Removing the optional files preserves legacy
 loading/reporting; source/model/settings mutations fail integrity validation.
+Reordered saved governance rows preserve comparison snapshot identity without
+weakening these checks.
 
 The delivery fixture adds one unreferenced product, explicit product intent,
 one critical API sampled at 23.5 percent and a 17-user aggregate. It produces

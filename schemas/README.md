@@ -102,7 +102,9 @@ missing-input enums retain Unknown. Exact IDs remain restricted. No owner
 identity or description text is modeled. Unresolved intent targets remain rows.
 The runtime rebuilds present models from validated saved collectors and
 snapshotted settings before loading them; schema-valid source/model/intent
-tampering fails closed. Legacy ten-model runs need neither new file.
+tampering fails closed. Row order is normalized by stable product/API ID before
+comparison; reordering inventories cannot change saved comparison identity or
+bypass value validation. Legacy ten-model runs need neither new file.
 
 Organization's seven saved outputs have closed runtime gates, including a
 version 1.0 counts-only user summary with integer totals, fixed state/provider

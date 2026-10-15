@@ -42,6 +42,17 @@ Describe 'Offline governance evidence integrity' {
             @($models.diagnosticCoverage | Where-Object configured -EQ $true).Count | Should -Be 2
         }
 
+        It 'accepts reordered saved governance inventories without changing snapshot identity' {
+            (Invoke-ApimAnalyze -RunFolder $script:governanceSavedPath).ExitCode | Should -Be 0
+            $before = Get-ApimComparisonSnapshot -RunPath $script:governanceSavedPath
+            foreach ($name in @('products', 'diagnosticCoverage')) {
+                [array]::Reverse($before.models[$name])
+            }
+            $null = Write-ApimModelSet -RunPath $script:governanceSavedPath -Models $before.models
+            $after = Get-ApimComparisonSnapshot -RunPath $script:governanceSavedPath
+            $after.identity.sha256 | Should -BeExactly $before.identity.sha256
+        }
+
         It 'does not trust unvalidated stale diagnostic files from a Partial collector' {
             $manifest = Get-RunManifest $script:governanceSavedPath
             $record = @($manifest.collectors | Where-Object name -CEQ Diagnostics)[0]

@@ -202,9 +202,13 @@ function Test-ApimSavedGovernanceModel {
     $expected = Get-ApimSavedGovernanceModel -RunPath $RunPath `
         -Context (Get-ApimRunSetting -RunPath $RunPath)
     foreach ($name in $names) {
-        if (-not $expected.Contains($name) -or -not (
-                Test-ApimAuthSavedProjection -Payload $Models[$name] -Projection $expected[$name]
-            )) {
+        if (-not $expected.Contains($name)) {
+            throw 'Saved governance evidence does not match the validated source and intent.'
+        }
+        $idField = if ($name -ceq 'products') { 'productId' } else { 'apiId' }
+        $actual = @($Models[$name] | Sort-Object -Property $idField -CaseSensitive)
+        $rebuilt = @($expected[$name] | Sort-Object -Property $idField -CaseSensitive)
+        if (-not (Test-ApimAuthSavedProjection -Payload $actual -Projection $rebuilt)) {
             throw 'Saved governance evidence does not match the validated source and intent.'
         }
     }
