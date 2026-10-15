@@ -66,6 +66,7 @@ function Invoke-ApimCollect {
     try {
         Test-ApimRuntimeCapability -Options $PSBoundParameters
         $settings = Get-Config -Path $Config
+        Test-ApimCountOnlyPrivacy -Config $settings
         $target = Get-ApimEnvironmentConfig -Config $settings `
             -EnvironmentName $Environment
         if ($PSBoundParameters.ContainsKey('SkipGit') -and -not $SkipGit -and

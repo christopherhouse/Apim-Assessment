@@ -126,6 +126,10 @@ Describe 'Cumulative collection smoke runner' {
                 $script:smokeOrder.Add('OpenApi')
                 Set-RunCollectorStatus -RunPath $RunPath -Name OpenApi -Status Completed
             }
+            Mock Invoke-ApimOrganizationCollector {
+                $script:smokeOrder.Add('Organization')
+                Set-RunCollectorStatus -RunPath $RunPath -Name Organization -Status Completed
+            }
         }
 
         It 'runs all existing checks in dependency order and completes the manifest' {
@@ -136,7 +140,7 @@ Describe 'Cumulative collection smoke runner' {
 
             $names = @(
                 'Service', 'Apis', 'Products', 'Subscriptions',
-                'SecurityAssets', 'Diagnostics', 'Policies', 'Network', 'Identity', 'Portal', 'OpenApi'
+                'SecurityAssets', 'Diagnostics', 'Policies', 'Network', 'Identity', 'Portal', 'OpenApi', 'Organization'
             )
             @($script:smokeOrder) | Should -Be $names
             @($result.Checks.Name) | Should -Be $names
@@ -191,16 +195,16 @@ Describe 'Cumulative collection smoke runner' {
                 'Running', 'Finished', 'Running', 'Finished',
                 'Running', 'Finished', 'Running', 'Finished',
                 'Running', 'Finished', 'Finished', 'Finished',
-                'Running', 'Finished', 'Running', 'Finished', 'Running', 'Finished', 'Finished'
+                'Running', 'Finished', 'Running', 'Finished', 'Running', 'Finished', 'Finished', 'Running', 'Finished'
             )
             @($script:smokeEvents.Name) | Should -Be @(
                 'Service', 'Service', 'Apis', 'Apis', 'Products', 'Products',
                 'Subscriptions', 'Subscriptions', 'SecurityAssets',
                 'SecurityAssets', 'Diagnostics', 'Policies', 'Network',
-                'Network', 'Identity', 'Identity', 'Portal', 'Portal', 'OpenApi'
+                'Network', 'Identity', 'Identity', 'Portal', 'Portal', 'OpenApi', 'Organization', 'Organization'
             )
             $script:smokeEvents[2].Index | Should -Be 2
-            $script:smokeEvents[2].Total | Should -Be 11
+            $script:smokeEvents[2].Total | Should -Be 12
             $script:smokeEvents[3].Status | Should -Be 'Failed'
             $script:smokeEvents[3].FailureCode | Should -Be 'UNKNOWN_FAILURE'
             $script:smokeEvents[10].Status | Should -Be 'Skipped'
@@ -243,7 +247,7 @@ Describe 'Cumulative collection smoke runner' {
                     '00000000-0000-0000-0000-000000000010'
                 ) -OnProgress $callback | Out-Null
 
-            $lines.Count | Should -Be 19
+            $lines.Count | Should -Be 21
             $lines[3] | Should -Match 'Apis - Failed \(UNKNOWN_FAILURE\)'
             $lines[10] | Should -Match 'Diagnostics - Skipped'
             $lines[11] | Should -Match 'Policies - Skipped'
@@ -263,7 +267,7 @@ Describe 'Cumulative collection smoke runner' {
 
             @($script:smokeOrder) | Should -Be @(
                 'Service', 'Apis', 'Products', 'Subscriptions',
-                'SecurityAssets', 'Network', 'Identity', 'Portal'
+                'SecurityAssets', 'Network', 'Identity', 'Portal', 'Organization'
             )
             $result.Status | Should -Be 'Partial'
             ($result.Checks | Where-Object Name -EQ Apis).Status |
@@ -308,7 +312,7 @@ Describe 'Cumulative collection smoke runner' {
             @($script:smokeOrder) | Should -Be @('Service')
             $result.Status | Should -Be 'Partial'
             @($result.Checks.Status | Where-Object { $_ -eq 'Skipped' }).Count |
-                Should -Be 10
+                Should -Be 11
             ($result.Checks | Where-Object Name -EQ Service).FailureCode |
                 Should -Be 'UNKNOWN_FAILURE'
             Should -Invoke Invoke-ApimNetworkCollector -Exactly -Times 0
@@ -334,7 +338,7 @@ Describe 'Cumulative collection smoke runner' {
             $service.Status | Should -Be 'Failed'
             $service.FailureCode | Should -Be "ARM_HTTP_$HttpStatus"
             @($result.Checks | Where-Object Status -EQ Skipped).Count |
-                Should -Be 10
+                Should -Be 11
             (ConvertTo-Json -InputObject $result -Depth 10) |
                 Should -Not -Match '00000000-0000'
         }
@@ -375,7 +379,7 @@ Describe 'Cumulative collection smoke runner' {
             ($result.Checks | Where-Object Name -EQ Service).FailureCode |
                 Should -Be $Code
             @($result.Checks | Where-Object Status -EQ Skipped).Count |
-                Should -Be 10
+                Should -Be 11
         }
 
         It 'distinguishes local I/O failures without printing a private path' {
@@ -526,9 +530,9 @@ Describe 'Saved collection smoke output validation' {
                 -Operator LocalMaintainer -RunId 'synthetic-smoke'
             $script:outputNames = @(
                 'Service', 'Apis', 'Products', 'Subscriptions',
-                'SecurityAssets', 'Diagnostics', 'Policies', 'Network', 'Identity', 'Portal', 'OpenApi'
+                'SecurityAssets', 'Diagnostics', 'Policies', 'Network', 'Identity', 'Portal', 'OpenApi', 'Organization'
             )
-            $script:outputItems = @(1, 1, 1, 1, 1, 1, 1, 7, 0, 4, 0)
+            $script:outputItems = @(1, 1, 1, 1, 1, 1, 1, 7, 0, 4, 0, 0)
             $script:outputResult = [pscustomobject]@{
                 RunId = $script:outputRun.RunId
                 Status = 'Completed'
@@ -608,6 +612,15 @@ Describe 'Saved collection smoke output validation' {
             }
             for ($index = 0; $index -lt $script:outputNames.Count; $index++) {
                 $arguments = @{}
+                if ($script:outputNames[$index] -eq 'Organization') {
+                    $arguments.Files = @((Get-ApimOrganizationEndpoint).File)
+                    foreach ($endpoint in Get-ApimOrganizationEndpoint) {
+                        $payload = if ($endpoint.Kind -ceq 'users') { Get-ApimEmptyUserSummary }
+                            else { [pscustomobject]@{ value = @() } }
+                        $null = Write-RunFile -RunPath $script:outputRun.Path `
+                            -RelativePath $endpoint.File -InputObject $payload
+                    }
+                }
                 if ($script:outputNames[$index] -eq 'OpenApi') {
                     $arguments.Files = @('raw/openapi/index.json')
                     $null = Write-RunFile -RunPath $script:outputRun.Path `

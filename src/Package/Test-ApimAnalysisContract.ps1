@@ -60,7 +60,7 @@ function ConvertFrom-ApimAnalysisContractJson {
         Assert-ApimAnalysisJsonMember -Element $document.RootElement
         $schemaPath = $script:ApimAnalysisSchemaPaths[$Kind]
         $version = $document.RootElement.GetProperty('schemaVersion').GetString()
-        if ($Kind -eq 'AnalysisPackage' -and $version -cin @('1.1', '1.2', '1.3')) {
+        if ($Kind -eq 'AnalysisPackage' -and $version -cin @('1.1', '1.2', '1.3', '1.4')) {
             $schemaPath = Join-Path $analysisSchemaRoot "analysis-package.v$version.schema.json"
         }
         $valid = Test-Json -Json $Json -SchemaFile $schemaPath `
@@ -143,6 +143,14 @@ function Get-ApimAnalysisPackageIndex {
             -not $index.entities.Contains($fact.subjectAlias)) {
             throw 'Analysis contract has invalid fact IDs or subjects.'
         }
+        if ($fact.code -ceq 'AssessmentCondition' -and
+            $fact.value -cin @('ProductGovernanceWeak', 'ApiDiagnosticsWeak')) {
+            $kind = if ($fact.value -ceq 'ProductGovernanceWeak') { 'Product' } else { 'Api' }
+            $entity = @($Package.entities | Where-Object alias -CEQ $fact.subjectAlias)
+            if ($Package.schemaVersion -cne '1.4' -or $entity.Count -ne 1 -or $entity[0].kind -cne $kind) {
+                throw 'Analysis contract has an unsupported governance condition binding.'
+            }
+        }
     }
     foreach ($finding in $Package.findings) {
         if (-not $index.findings.Add($finding.findingId) -or
@@ -168,11 +176,24 @@ function Get-ApimAnalysisPackageIndex {
                     $_.code -ceq 'AssessmentCondition' -and
                     $_.value -ceq $conditions[$finding.ruleId]
                 })
-            if ($Package.schemaVersion -cne '1.3' -or
+            if ($Package.schemaVersion -cnotin @('1.3', '1.4') -or
                 -not $conditions.ContainsKey($finding.ruleId) -or
                 $entity.Count -ne 1 -or $entity[0].kind -cne $kind -or
                 $conditionFacts.Count -ne 1) {
                 throw 'Analysis contract has an unsupported portal condition binding.'
+            }
+        }
+        if ($finding.evaluation -ceq 'Evaluated' -and
+            $finding.ruleId -cin @('APIM-GOV-003', 'APIM-GOV-009')) {
+            $condition = if ($finding.ruleId -ceq 'APIM-GOV-003') { 'ProductGovernanceWeak' }
+                else { 'ApiDiagnosticsWeak' }
+            $conditionFacts = @($Package.facts | Where-Object {
+                    $_.factId -cin $finding.factRefs -and
+                    $_.subjectAlias -ceq $finding.subjectAlias -and
+                    $_.code -ceq 'AssessmentCondition' -and $_.value -ceq $condition
+                })
+            if ($Package.schemaVersion -cne '1.4' -or $conditionFacts.Count -ne 1) {
+                throw 'Analysis contract has an unsupported governance condition binding.'
             }
         }
         if ($finding.evaluation -ceq 'NotEvaluated' -and

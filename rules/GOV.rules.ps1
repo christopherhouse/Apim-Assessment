@@ -77,6 +77,56 @@ Set-StrictMode -Version Latest
         Enabled = $true
     }
     @{
+        Id = 'APIM-GOV-003'
+        Title = 'Product governance is incomplete'
+        Pillar = 'OperationalExcellence'
+        Mcsb = 'n/a'
+        Severity = 'Low'
+        Scope = 'Product'
+        Requires = @('model/products.json')
+        DataGaps = {
+            param($ctx)
+            $positive = @($ctx.Models.products | Where-Object {
+                    @(Get-ApimProductGovernanceReason -Product $_).Count -gt 0
+                }).Count -gt 0
+            if (-not $positive -and @($ctx.Models.products | Where-Object {
+                        $_.modelStatus -ceq 'Partial'
+                    }).Count -gt 0) {
+                'model/products.json#governance'
+            }
+        }
+        Test = {
+            param($x, $ctx)
+            $null = $ctx
+            @(Get-ApimProductGovernanceReason -Product $x).Count -gt 0
+        }
+        Evidence = {
+            param($x, $ctx)
+            [ordered]@{
+                reasonCodes = @(Get-ApimProductGovernanceReason -Product $x)
+                sourceScope = 'Product'
+                intentSource = 'SavedConfiguration'
+                hasDescription = $x.hasDescription
+                hasOwner = $x.hasOwner
+                isExternal = $x.isExternal
+                approvalRequired = $x.approvalRequired
+                modelStatus = $x.modelStatus
+                missingInputs = @($x.missingInputs)
+                incompleteTargets = @($ctx.Models.products | Where-Object modelStatus -CEQ Partial).Count
+            }
+        }
+        EvidenceText = {
+            param($x, $ctx)
+            $null = $x; $null = $ctx
+            'A confirmed product description, ownership or external-approval gap is present; unknown intent remains qualified.'
+        }
+        Recommendation = 'Review the product description, explicitly assigned ownership and external subscription approval against approved governance requirements.'
+        Effort = 'S'
+        References = @()
+        SourceFiles = @('raw/products.json', 'model/products.json')
+        Enabled = $true
+    }
+    @{
         Id = 'APIM-GOV-005'
         Title = 'Non-current API revision remains online'
         Pillar = 'OperationalExcellence'
@@ -269,6 +319,58 @@ Set-StrictMode -Version Latest
         Effort = 'M'
         References = @()
         SourceFiles = @('raw/apis.json', 'model/apis.json')
+        Enabled = $true
+    }
+    @{
+        Id = 'APIM-GOV-009'
+        Title = 'API diagnostic coverage is incomplete'
+        Pillar = 'OperationalExcellence'
+        Mcsb = 'n/a'
+        Severity = 'Medium'
+        Scope = 'Api'
+        Requires = @('model/apis.json', 'model/diagnosticCoverage.json')
+        DataGaps = {
+            param($ctx)
+            $positive = $false
+            $incomplete = @($ctx.Models.diagnosticCoverage | Where-Object modelStatus -CEQ Partial).Count -gt 0
+            foreach ($api in $ctx.Models.apis) {
+                $rows = @($ctx.Models.diagnosticCoverage | Where-Object apiId -CEQ $api.apiId)
+                if ($rows.Count -ne 1) { $incomplete = $true; continue }
+                if (@(Get-ApimDiagnosticCoverageReason -Coverage $rows[0]).Count -gt 0) {
+                    $positive = $true
+                }
+            }
+            if (-not $positive -and $incomplete) { 'model/diagnosticCoverage.json#coverage' }
+        }
+        Test = {
+            param($x, $ctx)
+            $rows = @($ctx.Models.diagnosticCoverage | Where-Object apiId -CEQ $x.apiId)
+            return $rows.Count -eq 1 -and @(Get-ApimDiagnosticCoverageReason -Coverage $rows[0]).Count -gt 0
+        }
+        Evidence = {
+            param($x, $ctx)
+            $row = @($ctx.Models.diagnosticCoverage | Where-Object apiId -CEQ $x.apiId)[0]
+            [ordered]@{
+                reasonCodes = @(Get-ApimDiagnosticCoverageReason -Coverage $row)
+                sourceScope = $row.sourceScope
+                configured = $row.configured
+                loggerResolved = $row.loggerResolved
+                samplingPercentage = $row.samplingPercentage
+                isCritical = $row.isCritical
+                modelStatus = $row.modelStatus
+                missingInputs = @($row.missingInputs)
+                incompleteTargets = @($ctx.Models.diagnosticCoverage | Where-Object modelStatus -CEQ Partial).Count
+            }
+        }
+        EvidenceText = {
+            param($x, $ctx)
+            $null = $x; $null = $ctx
+            'Effective diagnostics are absent, a logger reference is unresolved, or explicitly critical API sampling is below 100 percent; missing settings are not zero.'
+        }
+        Recommendation = 'Review effective API/service diagnostics, logger references and full sampling requirements for explicitly critical APIs.'
+        Effort = 'M'
+        References = @()
+        SourceFiles = @('raw/loggers.json', 'raw/diagnostics.json', 'raw/apiDiagnostics/', 'model/diagnosticCoverage.json', 'model/apis.json')
         Enabled = $true
     }
     @{

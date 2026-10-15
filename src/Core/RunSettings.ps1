@@ -38,6 +38,20 @@ function Test-ApimRunSetting {
             throw 'Run subnet CIDR is invalid.'
         }
     }
+    if ($settings.Contains('governance')) {
+        $governance = @{}
+        if ($settings.governance.Contains('products')) {
+            $governance.Products = @(
+                foreach ($entry in $settings.governance.products) {
+                    @{ ProductId = $entry.productId; HasOwner = $entry.hasOwner; IsExternal = $entry.isExternal }
+                }
+            )
+        }
+        if ($settings.governance.Contains('criticalApiIds')) {
+            $governance.CriticalApiIds = @($settings.governance.criticalApiIds)
+        }
+        Test-ConfigGovernance -Value $governance
+    }
     if ($settings.Contains('openApiQuality')) {
         Test-ConfigOpenApiQuality -Value @{
             ErrorPenalty = $settings.openApiQuality.errorPenalty
@@ -93,6 +107,20 @@ function Get-ApimRunSettingSnapshot {
                 $Config.RuleExceptions.ApprovedPlainHttpOperationKeys
             })
         usageBuckets = @($Config.AnalysisPackage.UsageBuckets)
+    }
+    if ($Config.Contains('Governance')) {
+        Test-ConfigGovernance -Value $Config.Governance
+        $settings.governance = [ordered]@{}
+        if ($Config.Governance.Contains('Products')) {
+            $settings.governance.products = @(
+                foreach ($entry in $Config.Governance.Products) {
+                    [ordered]@{ productId = $entry.ProductId; hasOwner = $entry.HasOwner; isExternal = $entry.IsExternal }
+                }
+            )
+        }
+        if ($Config.Governance.Contains('CriticalApiIds')) {
+            $settings.governance.criticalApiIds = @($Config.Governance.CriticalApiIds)
+        }
     }
     if ($Config.Contains('OpenApiQuality')) {
         Test-ConfigOpenApiQuality -Value $Config.OpenApiQuality
@@ -199,6 +227,19 @@ function Get-ApimRunSetting {
                     @{ Name = $gateway.name; ResourceGroup = $gateway.resourceGroup }
                 }
             )
+        }
+    }
+    if ($settings.Contains('governance')) {
+        $result.Config.Governance = @{}
+        if ($settings.governance.Contains('products')) {
+            $result.Config.Governance.Products = @(
+                foreach ($entry in $settings.governance.products) {
+                    @{ ProductId = $entry.productId; HasOwner = $entry.hasOwner; IsExternal = $entry.isExternal }
+                }
+            )
+        }
+        if ($settings.governance.Contains('criticalApiIds')) {
+            $result.Config.Governance.CriticalApiIds = @($settings.governance.criticalApiIds)
         }
     }
     if ($settings.Contains('openApiQuality')) {

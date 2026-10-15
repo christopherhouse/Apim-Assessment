@@ -144,7 +144,7 @@ files, ignore unlisted stale files, and replay/report the old ten-model path.
 OpenAPI acceptance generates disposable JSON definitions and export envelopes,
 never imports a real definition. The compact collected-run helper adds two
 current HTTP exports plus one closed index; Analyze adds the optional quality
-model (twelve models with portal, thirteen when drift is also selected).
+model (twelve models with portal before the additive governance models below).
 Collector tests exercise non-HTTP skips, inline/link transport, safe failure
 metadata, malformed/duplicate JSON, size limits, secret-candidate rejection,
 and Partial output/resume. Quality tests cover pinned real-tool and mocked
@@ -157,6 +157,35 @@ the Spectral method and package 1.3 `ApiDocumentationWeak` only; exact quality
 counts/digests and definitions never enter the independently validated package.
 Removing OpenApi collection and explicitly reanalyzing removes obsolete quality
 and its binding; legacy ten-model inputs still work without recollection.
+
+Organization acceptance uses mocked paged GETs and disposable synthetic
+payloads for seven endpoints. Cases cover empty lists, closed structural
+projections, unknown fields/fragment XML/user-identity canaries, state/provider
+aggregation, deduplicated users/providers, malformed/conflicting records,
+403/404/503 outcomes, independent Partial files, saved-output tampering,
+resume/legacy repair and smoke. No real user or customer record is used.
+The compact collected-run helper adds six empty structural inventories and one
+zero-user summary. These are known successful empties, not failed endpoints.
+
+Analyze adds two optional governance models: two product rows and two
+diagnostic-coverage rows for the compact fixture, now fourteen models with
+portal/quality, fifteen with drift. Default absent intent stays Unknown,
+producing qualified GOV-003/GOV-009 gaps without fabricated ownership or
+criticality. Focused models/rules cover missing description/owner, external
+approval, unresolved IDs/loggers, API/service precedence, missing evidence and
+critical sampling 0/99.99/100. Removing the optional files preserves legacy
+loading/reporting; source/model/settings mutations fail integrity validation.
+
+The delivery fixture adds one unreferenced product, explicit product intent,
+one critical API sampled at 23.5 percent and a 17-user aggregate. It produces
+one GOV-003 and one GOV-009 positive, three unique Product aliases and closed
+package 1.4 with only `ProductGovernanceWeak`/`ApiDiagnosticsWeak`. Tests reject
+older-version/new-condition and wrong-kind/subject/citation mutations, validate
+and promote the package, exercise broker digest admission and specialist
+entailment, render existing Excel/HTML summaries and replay package generation
+offline. Intent, description, raw IDs, user counts and exact sampling never
+enter the package. HTML retains its bounded top-risk/action selection; full
+instance and catalog rows remain in the workbook.
 
 `analysis-contracts/` adds four independent T-317 JSON examples, not a package
 generated or promoted from the raw/model fixture tree. Its package contains

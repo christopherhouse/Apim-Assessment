@@ -32,6 +32,27 @@
       "uniqueItems": true,
       "items": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*$" }
     },
+    "governance": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "products": {
+          "type": "array",
+          "maxItems": 10000,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["productId", "hasOwner", "isExternal"],
+            "properties": {
+              "productId": { "type": "string", "minLength": 1, "maxLength": 256, "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$" },
+              "hasOwner": { "type": "boolean" },
+              "isExternal": { "type": "boolean" }
+            }
+          }
+        },
+        "criticalApiIds": { "$ref": "#/$defs/ids", "maxItems": 10000 }
+      }
+    },
     "openApiQuality": {
       "type": "object",
       "additionalProperties": false,

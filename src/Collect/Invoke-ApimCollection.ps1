@@ -60,7 +60,7 @@ function Remove-ApimCollectorOutput {
 
         [Parameter(Mandatory)]
         [ValidateSet('Service', 'Apis', 'Products', 'Subscriptions',
-            'SecurityAssets', 'Diagnostics', 'Policies', 'Network', 'Identity', 'Portal', 'OpenApi')]
+            'SecurityAssets', 'Diagnostics', 'Policies', 'Network', 'Identity', 'Portal', 'OpenApi', 'Organization')]
         [string] $Name
     )
 
@@ -77,6 +77,7 @@ function Remove-ApimCollectorOutput {
             'raw/openidConnectProviders.json', 'raw/authorizationProviders.json')
         Portal = @('raw/portal')
         OpenApi = @('raw/openapi')
+        Organization = @((Get-ApimOrganizationEndpoint).File)
     }
     $paths = @(
         foreach ($relative in $owned[$Name]) {
@@ -121,6 +122,7 @@ function Invoke-ApimCollection {
         [switch] $SkipGit
     )
 
+    Test-ApimCountOnlyPrivacy -Config $Config
     $checks = @(Get-ApimCollectorRegistry)
     foreach ($check in $checks) {
         if ($null -eq (Get-Command -Name $check.Function `

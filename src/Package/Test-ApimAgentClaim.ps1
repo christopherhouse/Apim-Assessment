@@ -10,9 +10,9 @@ $script:ApimClaimEvidence = @{
     BroadSubscriptionScope = @{ AssessmentCondition = @('ActiveAllApiSubscription') }
     SecretHandlingRisk = @{ AssessmentCondition = @('PolicyCredentialDetected', 'PlainTextSecretDetected'); HardcodedSecret = @($true) }
     WeakTlsPosture = @{ AssessmentCondition = @('WeakGatewayTls', 'LegacyTlsEnabled', 'BackendTlsNotValidated', 'UnapprovedPlainHttp'); BackendTlsValidationDisabled = @($true) }
-    InsufficientDiagnostics = @{}
+    InsufficientDiagnostics = @{ AssessmentCondition = @('ApiDiagnosticsWeak') }
     ReliabilityGap = @{ AssessmentCondition = @('ZoneRedundancyAbsent', 'CapacityBelowMinimum', 'CriticalBackendResilienceAbsent', 'ProbeMisaligned', 'CertificateNearExpiry') }
-    GovernanceGap = @{ AssessmentCondition = @('ProductMissing', 'OwnerTagMissing', 'NonCurrentRevisionOnline', 'VersioningIncomplete', 'MixedPathVersioning', 'InheritedControlsDropped', 'MinimumApiVersionAbsent', 'LegacyPlatform', 'SourcePolicyDrift', 'EnvironmentPolicyDrift', 'PortalUnavailable', 'ProductVisibilityMismatch', 'ApiDocumentationWeak', 'LegacyPortalEnabled') }
+    GovernanceGap = @{ AssessmentCondition = @('ProductMissing', 'OwnerTagMissing', 'NonCurrentRevisionOnline', 'VersioningIncomplete', 'MixedPathVersioning', 'InheritedControlsDropped', 'MinimumApiVersionAbsent', 'LegacyPlatform', 'SourcePolicyDrift', 'EnvironmentPolicyDrift', 'PortalUnavailable', 'ProductVisibilityMismatch', 'ApiDocumentationWeak', 'LegacyPortalEnabled', 'ProductGovernanceWeak') }
 }
 $script:ApimClaimRecommendations = @{
     HostWidePublication = @('ConfirmExposure', 'RestrictPublication')

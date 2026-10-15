@@ -30,7 +30,7 @@ findings against a closed schema before restricted persistence. A private
 report helper groups schema-valid findings into closed, deterministic action
 items without removing the instance rows needed by future Finding Details.
 Seven NET rules,
-fifteen currently model-backed SEC rules, eight currently model-backed GOV rules,
+fifteen currently model-backed SEC rules, ten currently model-backed GOV rules,
 all six REL rules, and all five POR rules are implemented privately. Secret-safe
 identity/authentication and portal configuration collectors feed an optional
 closed portal model. POR-002 reads `portalconfigs/default.properties.enableBasicAuth`
@@ -39,7 +39,12 @@ intent. A guarded OpenAPI collector exports current HTTP APIs, rejects
 secret-bearing documents before persistence, and records non-HTTP skips.
 POR-004 combines operation-description coverage with optional offline Spectral
 quality scores; unavailable tooling or unsupported references leave the score
-null, never a synthetic pass. NET-001
+null, never a synthetic pass. The organization collector saves six closed
+structural inventories and a counts-only user summary; user identity storage
+is rejected before authentication or run creation. Optional product-governance
+and diagnostic-coverage models use explicit local ownership, external-product
+and critical-API intent for GOV-003/GOV-009. Missing intent remains Unknown;
+no owner or criticality is inferred from names. NET-001
 and NET-009 require explicit operator attestation of effective origin
 authentication and endpoint-owner need; without it, they produce
 Info/NotEvaluated rather than guessing. The SEC catalog covers reachable weak
@@ -63,11 +68,11 @@ actions, assumptions/gaps, roadmap, keyboard navigation, print and reduced-motio
 support. It has no remote dependencies and uses escaped local labels.
 
 An independent, **maintainer-only collection smoke command** now exercises all
-eleven implemented collector checks in dependency order against a Microsoft-owned test
+twelve implemented collector checks in dependency order against a Microsoft-owned test
 APIM. It is not an assessment entry point or a customer-run command: it cannot
 analyze or report, and its live execution is owned by authorized maintainers
 outside Copilot CLI. The maintainer reports the prior six checks completed on a
-test APIM; SecurityAssets, Diagnostics, Identity, Portal, and OpenApi checks have
+test APIM; SecurityAssets, Diagnostics, Identity, Portal, OpenApi, and Organization checks have
 synthetic acceptance but still need maintainer-only live validation. No agent
 used live Azure resources or inspected restricted output.
 The same smoke script now validates the newly saved manifest, completed
@@ -89,10 +94,11 @@ authorization metadata are not credentials. Descriptive "Bearer token" wording
 also remains clean; actual embedded token values and literal signing/decryption
 keys are still checked, including policies serialized inside JSON or logs.
 
-Ten required model contracts and optional drift/portal/OpenAPI-quality contracts share a fail-closed schema gate.
+Ten required model contracts and optional drift/portal/OpenAPI-quality/product-governance/
+diagnostic-coverage contracts share a fail-closed schema gate.
 Writers validate every pending serialized snapshot before writing any file, and
 the private saved-run loader requires all ten baseline files and validates any
-present portal/quality model and any requested drift model, including restricted
+present portal/quality/governance model and any requested drift model, including restricted
 source/settings bindings, before returning models
 for downstream analysis. Ordinary single-run analysis does not require Git or
 comparison runs. Future model contracts remain deferred with their
@@ -117,6 +123,11 @@ policy hashes/XML, and environment identities never enter it. Versions 1.0 and
 with five approved condition codes using existing Service/Api aliases and
 portal-evidence-qualified confidence; provider, domain, product/group identifiers,
 intent and exact coverage stay restricted. Package 1.2 remains supported unchanged.
+Evaluated GOV-003/GOV-009 select closed package 1.4 with only
+`ProductGovernanceWeak`/`ApiDiagnosticsWeak`, bound to existing Product/Api aliases.
+Unreferenced collected products receive unique aliases too. No organization
+inventory, user counts, product intent or exact sampling is exported; older
+package versions remain unchanged.
 Promotion requires explicit complete host-supplied visible roots, isolated
 restricted/analysis/private-staging roots, and an exclusively controlled local
 filesystem. Unknown isolation, linked paths, tampering, and failed validation
@@ -145,12 +156,12 @@ data. The coding-agent checks use synthetic data only.
 | Strict private configuration validation and closed allowlisted saved-run analysis settings | Actual host isolation and approval acceptance |
 | Structured JSON-lines logging; validated resume and prerequisite-aware collector isolation | Full live workflow acceptance |
 | Guarded ARM transport with paging/retry; offline tracking, saved-run comparison, and cross-environment policy/API-presence drift | Full API-definition comparison |
-| Versioned run manifest lifecycle with an exact scoring snapshot, APIM service/API/product/subscription/policy/network and secret-safe security/diagnostic/identity/portal/OpenAPI collectors, plus optional local committed Git policy hashes | Remaining APIM, telemetry, and cost collectors |
-| Maintainer-only cumulative collection smoke script with local output validation (eleven registered checks) | Full live assessment acceptance |
+| Versioned run manifest lifecycle with an exact scoring snapshot, APIM service/API/product/subscription/policy/network and secret-safe security/diagnostic/identity/portal/OpenAPI/organization collectors, plus optional local committed Git policy hashes | Remaining telemetry and cost collectors |
+| Maintainer-only cumulative collection smoke script with local output validation (twelve registered checks) | Full live assessment acceptance |
 | Local saved-run secret-scan script for supported text and Excel artifacts, also required by smoke | Host-enforced model-safe admission acceptance |
-| Effective policy merge/flags plus ten required models and optional drift/portal/OpenAPI quality with schema-gated persistence and saved-run loading | Remaining model builders and telemetry exposure refinement |
+| Effective policy merge/flags plus ten required models and optional drift/portal/OpenAPI quality/product governance/diagnostic coverage with schema-gated persistence and saved-run loading | Remaining model builders and telemetry exposure refinement |
 | Optional pinned offline Spectral, trusted APIM style rules and source/settings-bound quality scores with description fallback | Full API-definition drift and maintainer live export validation |
-| Offline raw-to-model Analyze, seven NET checks, fifteen SEC checks, eight GOV checks, all six REL checks, all five POR checks, configurable priority scoring, schema-gated findings, and closed action-item aggregation | Remaining SEC/GOV catalog entries, PERF and other catalogs |
+| Offline raw-to-model Analyze, seven NET checks, fifteen SEC checks, ten GOV checks, all six REL checks, all five POR checks, configurable priority scoring, schema-gated findings, and closed action-item aggregation | Remaining SEC/GOV catalog entries, PERF and other catalogs |
 | Public validated-run Excel/HTML rendering, Environment Drift and Run Comparison views, tracking, local charts/diagrams, deterministic fallback, and validated approved-code synthesis | Future usage/cost population |
 | Compact raw-to-Excel/HTML and actual stdio broker integration plus a deterministic 60-API synthetic model generator and offline airlock canary/mutation integration | Full scaled raw collection fixture and live acceptance |
 | Closed model-safe contracts, allowlist package construction, independent privacy validation, hash attestation, immutable promotion, and digest-bound semantic proposal validation | Actual isolated Copilot/host admission acceptance |
@@ -189,7 +200,7 @@ artifact IDs reach a model, and operators resolve them locally.
 .\Compare-ApimRun.ps1 -Baseline <baseline-run-folder> -Current <current-run-folder>
 ```
 
-The current slice runs eleven implemented collectors and the installed rule
+The current slice runs twelve implemented collectors and the installed rule
 catalog, using `Cloudflare/AssumedReachable` edge settings. Collection requires
 Az.Accounts and Az.ResourceGraph; Excel requires pinned ImportExcel 7.8.10.
 `-Stage Collect` limits Assessment to collection. `-ThrottleLimit` controls
@@ -461,14 +472,18 @@ backend intent/mapping, and product classification remain deferred.
 Public Analyze/Excel Report commands now invoke the private engine and writer.
 Model-safe promotion remains private; do not expose findings or models to an agent.
 
-Six of the eight private GOV checks use only complete API catalog and effective-policy
+Six of the ten private GOV checks use only complete API catalog and effective-policy
 facts for product membership, owner tags, online non-current revisions,
 version-set maturity, path-version convention consistency, and missing
 `<base/>` inheritance. Known missing-base findings remain evaluated when another
 operation is Partial; otherwise incomplete version or policy evidence produces
-one Info/NotEvaluated result. Product ownership/approval and diagnostic
-enablement/sampling remain deferred to their own closed models.
-The other two aggregate production Git policy differences and explicit
+one Info/NotEvaluated result. GOV-003 uses optional closed product evidence for
+missing description/explicitly missing owner or disabled approval on explicitly
+external products. GOV-009 uses effective diagnostic configuration/logger
+resolution and known fixed sampling below 100 percent on explicitly critical
+APIs; absent intent or evidence is Unknown, never zero or an inferred pass.
+See the runbook for optional `Governance.Products`/`CriticalApiIds` configuration.
+Two more aggregate production Git policy differences and explicit
 cross-environment policy/API-presence drift, retaining Unknown coverage and
 missing-source qualifications.
 

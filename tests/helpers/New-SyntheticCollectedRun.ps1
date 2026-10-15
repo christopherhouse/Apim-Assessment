@@ -102,6 +102,13 @@ function New-SyntheticCollectedRun {
         -InputObject ([ordered]@{ schemaVersion = '1.0'; entries = $openApiEntries })
     Set-RunCollectorStatus -RunPath $run.Path -Name OpenApi -Status Completed `
         -Items $openApiCount -Files $openApiFiles
+    foreach ($endpoint in Get-ApimOrganizationEndpoint) {
+        $payload = if ($endpoint.Kind -ceq 'users') { Get-ApimEmptyUserSummary }
+            else { [pscustomobject]@{ value = @() } }
+        $null = Write-RunFile -RunPath $run.Path -RelativePath $endpoint.File -InputObject $payload
+    }
+    Set-RunCollectorStatus -RunPath $run.Path -Name Organization -Status Completed `
+        -Items 0 -Files @((Get-ApimOrganizationEndpoint).File)
     Save-ApimRunSetting -RunPath $run.Path -Config $config `
         -Environment $config.Environments[0]
     $null = Write-RunFile -RunPath $run.Path `

@@ -19,6 +19,8 @@ $script:ApimModelSchemaPaths = [ordered]@{
     drift = Join-Path $modelSchemaRoot 'drift.schema.json'
     portal = Join-Path $modelSchemaRoot 'portal.schema.json'
     openApiQuality = Join-Path $modelSchemaRoot 'openApiQuality.schema.json'
+    products = Join-Path $modelSchemaRoot 'products.schema.json'
+    diagnosticCoverage = Join-Path $modelSchemaRoot 'diagnosticCoverage.schema.json'
 }
 
 function Test-ApimModelJson {
@@ -41,7 +43,7 @@ function Test-ApimModelJson {
         throw "Model schema '$Name' was unavailable."
     }
 
-    if ($Name -ceq 'openApiQuality') {
+    if ($Name -cin @('openApiQuality', 'products', 'diagnosticCoverage')) {
         $document = $null
         try {
             if ([Text.Encoding]::UTF8.GetByteCount($Json) -gt 16MB) {
@@ -64,6 +66,17 @@ function Test-ApimModelJson {
     }
     if (-not $isValid) {
         throw "Model '$Name' failed schema validation."
+    }
+    if ($Name -cin @('products', 'diagnosticCoverage')) {
+        $rows = ConvertFrom-Json -InputObject $Json -Depth 8 -NoEnumerate -ErrorAction Stop
+        $idField = if ($Name -ceq 'products') { 'productId' } else { 'apiId' }
+        $ids = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+        foreach ($row in $rows) {
+            if (-not $ids.Add($row.$idField) -or
+                ($row.modelStatus -ceq 'Complete') -ne ($row.missingInputs.Count -eq 0)) {
+                throw "Model '$Name' failed semantic validation."
+            }
+        }
     }
 }
 
@@ -129,7 +142,8 @@ function Get-ApimModelSet {
         $path = Resolve-RunFilePath -RunPath $RunPath `
             -RelativePath (Join-Path 'model' "$name.json")
         Test-ConfigPathLink -Path $path -Context 'Model file path'
-        if ($name -cin @('drift', 'portal', 'openApiQuality') -and -not (Test-Path -LiteralPath $path)) {
+        if ($name -cin @('drift', 'portal', 'openApiQuality', 'products', 'diagnosticCoverage') -and
+            -not (Test-Path -LiteralPath $path)) {
             continue
         }
         if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
@@ -152,5 +166,6 @@ function Get-ApimModelSet {
     }
     Test-ApimSavedDrift -RunPath $RunPath -Models $models
     Test-ApimSavedOpenApiQuality -RunPath $RunPath -Models $models
+    Test-ApimSavedGovernanceModel -RunPath $RunPath -Models $models
     return $models
 }

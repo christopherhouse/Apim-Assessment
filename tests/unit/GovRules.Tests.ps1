@@ -56,14 +56,16 @@ Describe 'Evidence-backed GOV catalog' {
             }
         }
 
-        It 'loads the eight currently model-backed GOV rules with empty references' {
+        It 'loads the ten currently model-backed GOV rules with empty references' {
             @($script:govRules.Id | Sort-Object) | Should -Be @(
                 'APIM-GOV-001',
                 'APIM-GOV-002',
+                'APIM-GOV-003',
                 'APIM-GOV-005',
                 'APIM-GOV-006',
                 'APIM-GOV-007',
                 'APIM-GOV-008',
+                'APIM-GOV-009',
                 'APIM-GOV-010',
                 'APIM-GOV-011'
             )
@@ -100,6 +102,137 @@ Describe 'Evidence-backed GOV catalog' {
             $models.apis[1].ownerTag = 'team:platform'
             @(Get-SyntheticGovFinding -RuleId 'APIM-GOV-002' `
                     -Models $models).Count | Should -Be 0
+        }
+
+        It 'flags only a proven product governance reason (<Reason>)' -ForEach @(
+            @{ Reason = 'DescriptionMissing' }
+            @{ Reason = 'OwnerMissing' }
+            @{ Reason = 'ExternalApprovalDisabled' }
+        ) {
+            $models = Get-SyntheticGovModelSet
+            $description = if ($Reason -ceq 'DescriptionMissing') { '' } else { 'Synthetic description.' }
+            $models.products = Get-ApimProductGovernanceModel -ProductsPayload ([pscustomobject]@{
+                value = @([pscustomobject]@{ name = 'orphan-product'; properties = @{
+                    description = $description; approvalRequired = $Reason -cne 'ExternalApprovalDisabled'
+                } })
+            }) -ProductIntent @(@{
+                ProductId = 'orphan-product'; HasOwner = $Reason -cne 'OwnerMissing'; IsExternal = $true
+            })
+            $found = @(Get-SyntheticGovFinding -RuleId APIM-GOV-003 -Models $models)
+            $found.Count | Should -Be 1
+            $found[0].scope | Should -Be 'product:orphan-product'
+            $found[0].findingKey | Should -Be 'APIM-GOV-003|apim-example-prod|product:orphan-product'
+            $found[0].severity | Should -Be Low
+            $found[0].evaluation | Should -Be Evaluated
+            $found[0].evidence.reasonCodes | Should -Be @($Reason)
+            $found[0].evidence.sourceScope | Should -Be Product
+            $found[0].sourceFiles | Should -Contain model/products.json
+        }
+
+        It 'does not flag a governed internal product for approval disabled' {
+            $models = Get-SyntheticGovModelSet
+            $models.products = Get-ApimProductGovernanceModel -ProductsPayload ([pscustomobject]@{
+                value = @([pscustomobject]@{ name = 'internal'; properties = @{
+                    description = 'Synthetic description.'; approvalRequired = $false
+                } })
+            }) -ProductIntent @(@{ ProductId = 'internal'; HasOwner = $true; IsExternal = $false })
+            @(Get-SyntheticGovFinding -RuleId APIM-GOV-003 -Models $models).Count | Should -Be 0
+        }
+
+        It 'emits one unknown product assessment without discarding a known positive (<Positive>)' -ForEach @(
+            @{ Positive = $false }; @{ Positive = $true }
+        ) {
+            $models = Get-SyntheticGovModelSet
+            $description = if ($Positive) { '' } else { 'Synthetic description.' }
+            $models.products = Get-ApimProductGovernanceModel -ProductsPayload ([pscustomobject]@{
+                value = @([pscustomobject]@{ name = 'internal'; properties = @{ description = $description } })
+            }) -ProductIntent @(@{ ProductId = 'unresolved'; HasOwner = $false; IsExternal = $true })
+            $found = @(Get-SyntheticGovFinding -RuleId APIM-GOV-003 -Models $models)
+            $found.Count | Should -Be 1
+            if ($Positive) {
+                $found[0].evaluation | Should -Be Evaluated
+                $found[0].evidence.reasonCodes | Should -Be @('DescriptionMissing')
+                $found[0].evidence.incompleteTargets | Should -Be 2
+            }
+            else {
+                $found[0].evaluation | Should -Be NotEvaluated
+                $found[0].severity | Should -Be Info
+            }
+        }
+
+        It 'evaluates effective diagnostic coverage without invented sampling (<Kind>)' -ForEach @(
+            @{ Kind = 'missing'; Expected = 'DiagnosticsAbsent' }
+            @{ Kind = 'logger'; Expected = 'LoggerUnresolved' }
+            @{ Kind = 'lowCritical'; Expected = 'CriticalSamplingBelowFull' }
+            @{ Kind = 'fullCritical'; Expected = '' }
+            @{ Kind = 'lowNoncritical'; Expected = '' }
+            @{ Kind = 'unknownSampling'; Expected = 'NotEvaluated' }
+            @{ Kind = 'unknownIntent'; Expected = 'NotEvaluated' }
+            @{ Kind = 'unknownDiagnostics'; Expected = 'NotEvaluated' }
+        ) {
+            $models = Get-SyntheticGovModelSet
+            $diagnostic = [pscustomobject]@{ name = 'insights'; properties = @{
+                loggerId = '/loggers/insights'; sampling = @{ samplingType = 'fixed'; percentage = 100 }
+            } }
+            $coverageArguments = @{
+                ApisPayload = [pscustomobject]@{ value = @(
+                    [pscustomobject]@{ name = 'orders-v1'; properties = @{ isCurrent = $true } }
+                    [pscustomobject]@{ name = 'status-v1'; properties = @{ isCurrent = $true } }
+                ) }
+                LoggersPayload = [pscustomobject]@{ value = @([pscustomobject]@{ name = 'insights' }) }
+                ServiceDiagnosticsPayload = [pscustomobject]@{ value = @($diagnostic) }
+                DiagnosticsByApi = @{
+                    'orders-v1' = [pscustomobject]@{ value = @() }
+                    'status-v1' = [pscustomobject]@{ value = @() }
+                }
+                Governance = @{ CriticalApiIds = @('orders-v1') }
+                ServiceResourcePath = '/synthetic'
+            }
+            switch ($Kind) {
+                missing { $coverageArguments.ServiceDiagnosticsPayload.value = @() }
+                logger { $diagnostic.properties.loggerId = '/loggers/missing' }
+                lowCritical { $diagnostic.properties.sampling.percentage = 99.99 }
+                lowNoncritical {
+                    $diagnostic.properties.sampling.percentage = 1
+                    $coverageArguments.Governance.CriticalApiIds = @()
+                }
+                unknownSampling { $diagnostic.properties.sampling.percentage = $null }
+                unknownIntent { $coverageArguments.Governance = $null }
+                unknownDiagnostics { $coverageArguments.DiagnosticsByApi = @{} }
+            }
+            $models.diagnosticCoverage = Get-ApimDiagnosticCoverageModel @coverageArguments
+            $found = @(Get-SyntheticGovFinding -RuleId APIM-GOV-009 -Models $models)
+            if ($Expected -ceq '') { $found.Count | Should -Be 0 }
+            elseif ($Expected -ceq 'NotEvaluated') {
+                $found.Count | Should -Be 1
+                $found[0].evaluation | Should -Be NotEvaluated
+                $found[0].severity | Should -Be Info
+            }
+            else {
+                $found.Count | Should -Be $(if ($Kind -ceq 'lowCritical') { 1 } else { 2 })
+                $found[0].evaluation | Should -Be Evaluated
+                $found[0].severity | Should -Be Medium
+                $found[0].evidence.reasonCodes | Should -Be @($Expected)
+                $found[0].sourceFiles | Should -Contain model/diagnosticCoverage.json
+            }
+        }
+
+        It 'retains a known diagnostic gap while another API has unavailable evidence' {
+            $models = Get-SyntheticGovModelSet
+            $models.diagnosticCoverage = Get-ApimDiagnosticCoverageModel `
+                -ApisPayload ([pscustomobject]@{ value = @(
+                    [pscustomobject]@{ name = 'orders-v1'; properties = @{ isCurrent = $true } }
+                    [pscustomobject]@{ name = 'status-v1'; properties = @{ isCurrent = $true } }
+                ) }) -LoggersPayload ([pscustomobject]@{ value = @() }) `
+                -ServiceDiagnosticsPayload ([pscustomobject]@{ value = @() }) `
+                -DiagnosticsByApi @{ 'orders-v1' = [pscustomobject]@{ value = @() } } `
+                -ServiceResourcePath /synthetic
+            $found = @(Get-SyntheticGovFinding -RuleId APIM-GOV-009 -Models $models)
+            $found.Count | Should -Be 1
+            $found[0].evaluation | Should -Be Evaluated
+            $found[0].scope | Should -Be api:orders-v1
+            $found[0].evidence.incompleteTargets | Should -Be 2
+            $found[0].evidence.missingInputs | Should -Contain criticalIntent
         }
 
         It 'flags APIs with non-current online revisions' {
@@ -217,7 +350,8 @@ Describe 'Evidence-backed GOV catalog' {
                 $found[0].evaluation | Should -Be 'NotEvaluated'
                 $found[0].severity | Should -Be 'Info'
                 $found[0].scope | Should -Be 'missing-input'
-                $found[0].evidence.missingInputs.Count | Should -Be 1
+                $found[0].evidence.missingInputs.Count |
+                    Should -Be $(if ($id -ceq 'APIM-GOV-009') { 2 } else { 1 })
             }
         }
 

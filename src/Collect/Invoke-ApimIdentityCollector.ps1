@@ -202,7 +202,7 @@ function Invoke-ApimAuthEndpointCollection {
     param(
         [Parameter(Mandatory)][string] $RunPath,
         [Parameter(Mandatory)][System.Collections.IDictionary] $Environment,
-        [Parameter(Mandatory)][ValidateSet('Identity', 'Portal')][string] $Name,
+        [Parameter(Mandatory)][ValidateSet('Identity', 'Portal', 'Organization')][string] $Name,
         [Parameter(Mandatory)][object[]] $Endpoints
     )
 
@@ -222,7 +222,15 @@ function Invoke-ApimAuthEndpointCollection {
                 "$root/$($endpoint.Endpoint)?api-version=2024-05-01"
             ) -LogPath $logPath
             Assert-ApimAuthObject -Value $response
-            $payload = if ($Name -eq 'Identity' -or $endpoint.Kind -eq 'revisions') {
+            $payload = if ($Name -ceq 'Organization') {
+                if ($endpoint.Kind -ceq 'users') {
+                    ConvertTo-ApimUserSummary -Payload $response
+                }
+                else {
+                    ConvertTo-ApimOrganizationCollection -Payload $response -Kind $endpoint.Kind
+                }
+            }
+            elseif ($Name -eq 'Identity' -or $endpoint.Kind -eq 'revisions') {
                 ConvertTo-ApimAuthCollection -Payload $response -Kind $endpoint.Kind
             }
             else {
@@ -231,7 +239,10 @@ function Invoke-ApimAuthEndpointCollection {
             $paths.Add((Write-RunFile -RunPath $RunPath `
                 -RelativePath $endpoint.File -InputObject $payload -Depth 30))
             $files.Add($endpoint.File)
-            $items += if ($Name -eq 'Identity' -or $endpoint.Kind -eq 'revisions') {
+            $items += if ($Name -ceq 'Organization' -and $endpoint.Kind -ceq 'users') {
+                $payload.total
+            }
+            elseif ($Name -cin @('Identity', 'Organization') -or $endpoint.Kind -eq 'revisions') {
                 $payload.value.Count
             }
             else { 1 }

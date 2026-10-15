@@ -44,9 +44,17 @@ maintainers perform live runs in a customer-approved environment.
 
 The T-105/T-504 OpenAPI-quality slice adds guarded secret-candidate-free exports,
 optional pinned offline Spectral, source/settings-bound quality evidence and
-POR-004 description fallback. It does not implement telemetry/cost, inventory
-organization, owner-only acceptance or live validation. Definitions and exact
+POR-004 description fallback. It does not implement telemetry/cost,
+owner-only acceptance or live validation. Definitions and exact
 quality metrics remain restricted; the existing closed package condition is reused.
+
+The related T-111/T-305 organization/governance slice adds independent closed
+inventories, always-counts-only users, optional product/diagnostic evidence and
+explicit snapshotted intent for GOV-003/GOV-009. Legacy ten-model runs remain
+usable. Closed package 1.4 exports only two new approved conditions on existing
+Product/Api aliases, never inventory records, counts, sampling or intent.
+T-305 owns the diagnostic-configuration rule despite its duplicate T-409 listing;
+telemetry/performance work and owner live/visual/host gates remain separate.
 
 ### 4.1 Trust model
 

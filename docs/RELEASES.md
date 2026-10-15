@@ -54,6 +54,11 @@ overwritten. This dry run neither creates tags nor contacts the release API.
   metadata. Files in allowlisted directories must still be reviewed for secrets.
   Developer scripts/tests are checkout-only; a release ZIP is for module/runtime
   use, not the development quick start.
+- The source/schema allowlists include Organization collection, optional
+  governance models and package 1.4 contracts automatically. User inventory is
+  always counts-only; identity storage is not an available opt-in. Package
+  contract 1.4 is separate from the module's SemVer and does not itself request
+  a version bump or authorize customer/live/model access.
 - Creates a draft release at the validated SHA with generated notes and assets,
   then publishes it. Serializes releases and never overwrites an existing tag.
 - Uses `contents: read` by default and `contents: write` only for the publication

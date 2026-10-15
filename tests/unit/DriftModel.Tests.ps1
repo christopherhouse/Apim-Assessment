@@ -49,7 +49,7 @@ Describe 'Optional saved environment drift' {
             $path = $script:driftCurrent.Run.Path
             (Invoke-ApimAnalyze -RunFolder $path).ExitCode | Should -Be 0
             $models = Get-ApimModelSet -RunPath $path
-            $models.Count | Should -Be 12
+            $models.Count | Should -Be 14
             $models.Contains('portal') | Should -BeTrue
             $models.Contains('drift') | Should -BeFalse
             $gaps = @(Get-ApimFindingSet -RunPath $path | Where-Object {
@@ -69,7 +69,7 @@ Describe 'Optional saved environment drift' {
             (Invoke-ApimAnalyze -RunFolder $path -CompareRuns $script:driftOther.Run.Path).ExitCode |
                 Should -Be 0
             $models = Get-ApimModelSet -RunPath $path
-            $models.Count | Should -Be 13
+            $models.Count | Should -Be 15
             $models.Contains('portal') | Should -BeTrue
             @($models.drift | Where-Object changeType -CNE All).Count | Should -Be 0
             @(Get-ApimFindingSet -RunPath $path | Where-Object ruleId -CEQ 'APIM-GOV-011').Count |
