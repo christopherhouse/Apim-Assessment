@@ -78,6 +78,30 @@ function New-SyntheticCollectedRun {
     }
     Set-RunCollectorStatus -RunPath $run.Path -Name Portal -Status Completed `
         -Items 5 -Files @((Get-ApimPortalEndpoint).File)
+    $openApiEntries = @()
+    $openApiFiles = @('raw/openapi/index.json')
+    $openApiCount = 0
+    $apis = Read-ApimSmokeOutputJson -RunPath $run.Path -RelativePath raw/apis.json -Collection
+    foreach ($api in @($apis.value | Sort-Object name -CaseSensitive)) {
+        if (-not (Test-ApimOpenApiCurrent -Api $api)) { continue }
+        $type = Get-ApimOpenApiType -Api $api
+        $entry = [ordered]@{ apiId = $api.name; apiType = $type; status = 'Skipped'
+            reasonCode = 'UnsupportedApiType'; file = $null; sha256 = $null }
+        if ($type -ceq 'http') {
+            $json = '{"openapi":"3.0.3","info":{"title":"Synthetic API","version":"1.0"},"paths":{}}'
+            $file = Get-ApimOpenApiFile -ApiId $api.name
+            $path = Write-RunFile -RunPath $run.Path -RelativePath $file -InputObject $json -Format Text
+            $entry.status = 'Exported'; $entry.reasonCode = 'Exported'; $entry.file = $file
+            $entry.sha256 = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
+            $openApiFiles += $file
+            $openApiCount++
+        }
+        $openApiEntries += [pscustomobject] $entry
+    }
+    $null = Write-RunFile -RunPath $run.Path -RelativePath raw/openapi/index.json `
+        -InputObject ([ordered]@{ schemaVersion = '1.0'; entries = $openApiEntries })
+    Set-RunCollectorStatus -RunPath $run.Path -Name OpenApi -Status Completed `
+        -Items $openApiCount -Files $openApiFiles
     Save-ApimRunSetting -RunPath $run.Path -Config $config `
         -Environment $config.Environments[0]
     $null = Write-RunFile -RunPath $run.Path `

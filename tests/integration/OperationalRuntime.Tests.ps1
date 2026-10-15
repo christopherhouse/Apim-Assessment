@@ -21,13 +21,14 @@ Describe 'Offline collected evidence to deterministic workbook' {
             $script:runtimePath = $script:runtimeInput.Run.Path
             Mock Invoke-ApimArm { throw 'Offline analysis attempted Azure access.' }
             Mock Invoke-ApimResourceGraphQuery { throw 'Offline analysis attempted graph access.' }
+            Mock Get-ApimSpectralTool { return $null }
         }
 
-        It 'builds eleven models including portal and repeatable findings from raw evidence and renders Excel' {
+        It 'builds twelve models including portal and quality with repeatable findings and renders Excel' {
             $analysis = Invoke-ApimAnalyze -RunFolder $script:runtimePath
             $analysis.ExitCode | Should -Be 0
             $models = Get-ApimModelSet -RunPath $script:runtimePath
-            $models.Count | Should -Be 11
+            $models.Count | Should -Be 12
             $models.portal.basicAuthEnabled | Should -BeFalse
             $models.portal.basicAuthEvidence | Should -Be Direct
             $models.portal.published | Should -BeTrue

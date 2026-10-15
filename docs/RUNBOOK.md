@@ -32,7 +32,7 @@ presence comparison, and Environment Drift workbook rows are also available.
 Actual clean Copilot-session/tool isolation, approved roots/ACLs, organization
 approval and visual/live G3 acceptance remain owner gates.
 
-Ten required model contracts and optional drift/portal contracts share a private
+Ten required model contracts and optional drift/portal/OpenAPI-quality contracts share a private
 schema gate for pending writes and saved-run loading. Requested drift additionally
 requires unchanged restricted inputs, current evidence, and model bindings.
 Private findings are validated against
@@ -86,7 +86,7 @@ status objects, with Collect/Assessment carrying the run ID. Reports remain
 under that run's `report` directory and never overwrite previous workbooks.
 
 The implemented slice collects Service, Apis, Products, Subscriptions,
-SecurityAssets, Diagnostics, Identity, Portal, Policies, and Network. It accepts only
+SecurityAssets, Diagnostics, Identity, Portal, OpenApi, Policies, and Network. It accepts only
 Cloudflare/AssumedReachable edge settings and six increasing usage thresholds.
 `-SkipCost` and `-SkipLogs` confirm default exclusions of future cost and
 Log Analytics queries; explicit `:$false` on those two switches is rejected.
@@ -152,7 +152,7 @@ an absent basic-auth setting is Unknown, never inferred disabled from Entra-only
 providers. Conflicting delegation evidence remains Unknown. POR-004 uses the
 80-percent operation-description boundary and any available score's 70-point
 boundary. Zero/incomplete operations do not become synthetic 100-percent coverage.
-This is not an OpenAPI export/Spectral implementation. POR-005 detects enabled
+Optional OpenAPI/Spectral evidence is described below. POR-005 detects enabled
 legacy portal status. Known positives survive unrelated Partial evidence.
 
 Older ten-model runs do not require recollection. Rerun ordinary offline Analyze
@@ -171,6 +171,63 @@ two certificates, eight indexed policies, and nine network files. The separate
 .\scripts\Invoke-Checks.ps1 -TestPath .\tests\unit\RuntimeEntryPoint.Tests.ps1
 .\scripts\Invoke-Checks.ps1 -TestPath .\tests\integration\OperationalRuntime.Tests.ps1
 ```
+
+## Optional OpenAPI quality
+
+The OpenApi collector attempts current HTTP APIs only. It records each export,
+explicit unsupported-type skip, or safe failure in a closed restricted index.
+Inline exports use guarded ARM GET; a recognized link fallback uses a separate
+credential-free HTTPS Azure Blob download with bounded size/time and no
+redirects. Downloads pin a validated public IPv4 address; IPv6-only resolution
+is conservatively rejected. Documents are limited to 5 MiB and depth 64.
+Signed URLs never enter saved output. Invalid JSON, secret candidates,
+or incomplete scans prevent document persistence. Valid successful exports from
+a Partial check remain usable; unlisted stale files do not become evidence.
+
+Node and Spectral are optional, not collection prerequisites. Supported setup
+requires Node 22.x or 24+ and npm on PATH. To install the pinned optional
+development tool explicitly, run:
+
+```powershell
+.\scripts\Install-OptionalTools.ps1
+```
+
+This is separate from `Install-DevDependencies.ps1`. Assessment execution never
+installs packages or invokes auto-downloading `npx`. Analyze automatically uses
+supported installed Spectral 6.17.0 from toolkit-relative `.tools\spectral`
+with the shipped `rulesets/apim-style.yaml`. Global/PATH Spectral commands and
+environment overrides are not discovered. The installer pins the package with
+lifecycle scripts disabled; it does not install Node.
+Only same-document references are supported; external URL and local-file
+references are rejected before linting, without network/file resolution.
+
+Optionally add this closed root section to the private configuration before
+collection; both values must be integers from 0 through 100:
+
+```powershell
+OpenApiQuality = @{ ErrorPenalty = 10; WarningPenalty = 2 }
+```
+
+The score is `max(0, 100 - errors * ErrorPenalty - warnings * WarningPenalty)`.
+Exact penalties are saved in restricted run settings. No-tool, unsupported
+reference/API/export and process-failure outcomes retain a null score with a
+fixed status/reason, not zero or 100. Description coverage remains available
+from a complete nonempty operation inventory. POR-004 preserves the exact
+70-score and 80-percent description thresholds and identifies the actual method.
+
+`model/openApiQuality.json` is an optional restricted model bound to exported
+document hashes, trusted ruleset, tool version and scoring settings.
+`restricted/openapi-binding.json` protects replay under operator-owned storage;
+it is an integrity check, not a signature. Report validates saved quality and
+replays findings without invoking Spectral. Run offline Analyze explicitly to
+regenerate quality. Changed/missing listed sources, models, settings or bindings
+fail closed. Legacy runs without OpenApi collection remain usable without
+Node, Spectral or recollection.
+
+Definitions, server URLs, samples, diagnostic paths/messages, digests and exact
+quality metrics never enter the model-safe package. Package 1.3 reuses only the
+approved `ApiDocumentationWeak` condition and existing Api aliases. Live export
+compatibility still requires authorized maintainer validation outside Copilot.
 
 ## Optional Git and cross-environment drift
 
@@ -931,7 +988,8 @@ checks to admit customer data, inspect actual trust settings, or run collection:
 ```
 
 The private `New-ApimAnalysisPackage -RunPath -Config` helper loads the manifest,
-all ten required baseline models, any requested bound drift model, and saved findings,
+all ten required baseline models, present portal/quality models, any requested
+bound drift model, and saved findings,
 then replays all implemented
 rules. Missing/invalid artifacts, changed findings/scoring, unsupported mappings,
 and tainted required identities reject with `ANALYSIS_BUILD_REJECTED`. It writes
@@ -1019,8 +1077,9 @@ multi-file transaction.
 The private saved-run loader requires `service.json`, `apis.json`, `operations.json`,
 `policyMatrix.json`, `subscriptions.json`, `namedValues.json`, `backends.json`,
 `certificates.json`, `network.json`, and `exposure.json` under `model`. It
-returns no models until all ten validate. Missing/invalid files, unavailable
-schemas, and linked paths fail closed; other run artifacts are not loaded.
+returns no models until all ten validate. Present optional portal and
+source/settings-bound quality models and requested bound drift are validated too.
+Missing/invalid files, unavailable schemas, and linked paths fail closed.
 Explicit null/Partial/missing-input metadata remains intact, as do empty and
 singleton arrays. Future model contracts join the gate with their builders.
 
@@ -1031,7 +1090,7 @@ The shared gate can be checked offline with synthetic fixtures:
 ```
 
 This runs repository lint plus focused gate acceptance tests, without Azure
-access. The helpers remain private until public orchestration is implemented.
+access. The helpers remain private and are used by the deterministic stages.
 
 ## Security asset models
 

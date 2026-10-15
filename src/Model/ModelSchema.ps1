@@ -18,6 +18,7 @@ $script:ApimModelSchemaPaths = [ordered]@{
     exposure = Join-Path $modelSchemaRoot 'exposure.schema.json'
     drift = Join-Path $modelSchemaRoot 'drift.schema.json'
     portal = Join-Path $modelSchemaRoot 'portal.schema.json'
+    openApiQuality = Join-Path $modelSchemaRoot 'openApiQuality.schema.json'
 }
 
 function Test-ApimModelJson {
@@ -40,6 +41,20 @@ function Test-ApimModelJson {
         throw "Model schema '$Name' was unavailable."
     }
 
+    if ($Name -ceq 'openApiQuality') {
+        $document = $null
+        try {
+            if ([Text.Encoding]::UTF8.GetByteCount($Json) -gt 16MB) {
+                throw 'OpenAPI quality size limit exceeded.'
+            }
+            $options = [Text.Json.JsonDocumentOptions]::new()
+            $options.MaxDepth = 8
+            $document = [Text.Json.JsonDocument]::Parse($Json, $options)
+            Assert-ApimAnalysisJsonMember -Element $document.RootElement
+        }
+        catch { throw "Model '$Name' failed schema validation." }
+        finally { if ($null -ne $document) { $document.Dispose() } }
+    }
     try {
         $isValid = Test-Json -Json $Json -SchemaFile $schemaPath `
             -ErrorAction Stop
@@ -114,7 +129,7 @@ function Get-ApimModelSet {
         $path = Resolve-RunFilePath -RunPath $RunPath `
             -RelativePath (Join-Path 'model' "$name.json")
         Test-ConfigPathLink -Path $path -Context 'Model file path'
-        if ($name -cin @('drift', 'portal') -and -not (Test-Path -LiteralPath $path)) {
+        if ($name -cin @('drift', 'portal', 'openApiQuality') -and -not (Test-Path -LiteralPath $path)) {
             continue
         }
         if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
@@ -136,5 +151,6 @@ function Get-ApimModelSet {
         }
     }
     Test-ApimSavedDrift -RunPath $RunPath -Models $models
+    Test-ApimSavedOpenApiQuality -RunPath $RunPath -Models $models
     return $models
 }

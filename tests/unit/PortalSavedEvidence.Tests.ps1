@@ -16,6 +16,7 @@ Describe 'Manifest-bound partial portal ingestion' {
             $script:portalSavedPath = $script:portalSavedInput.Run.Path
             Mock Invoke-ApimArm { throw 'Offline portal analysis attempted Azure access.' }
             Mock Invoke-ApimResourceGraphQuery { throw 'Offline portal analysis attempted graph access.' }
+            Mock Get-ApimSpectralTool { return $null }
         }
 
         It 'retains a known positive from Partial files and ignores stale unlisted evidence' {
@@ -72,7 +73,7 @@ Describe 'Manifest-bound partial portal ingestion' {
         It 'keeps the legacy ten-model saved-run path usable without portal recollection' {
             $manifest = Get-RunManifest -RunPath $script:portalSavedPath
             $manifest.collectors = @($manifest.collectors | Where-Object {
-                    $_.name -cnotin @('Identity', 'Portal')
+                    $_.name -cnotin @('Identity', 'Portal', 'OpenApi')
                 })
             $null = Save-RunManifest -RunPath $script:portalSavedPath -Manifest $manifest
             (Invoke-ApimAnalyze -RunFolder $script:portalSavedPath).ExitCode | Should -Be 0

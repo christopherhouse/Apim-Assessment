@@ -1,0 +1,53 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "APIM OpenAPI quality evidence",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "schemaVersion", "apiId", "status", "errorCount", "warningCount", "score",
+      "operationCount", "describedOperationCount", "descriptionCoverage", "sourceSha256",
+      "rulesetSha256", "toolVersion", "errorPenalty", "warningPenalty", "modelStatus", "missingInputs"
+    ],
+    "properties": {
+      "schemaVersion": { "const": "1.0" },
+      "apiId": { "type": "string", "minLength": 1 },
+      "status": { "enum": ["Scored", "ToolUnavailable", "UnsupportedReference", "UnsupportedApi", "ExportUnavailable", "ExecutionFailed"] },
+      "errorCount": { "type": ["integer", "null"], "minimum": 0, "maximum": 2147483647 },
+      "warningCount": { "type": ["integer", "null"], "minimum": 0, "maximum": 2147483647 },
+      "score": { "type": ["integer", "null"], "minimum": 0, "maximum": 100 },
+      "operationCount": { "type": "integer", "minimum": 0 },
+      "describedOperationCount": { "type": "integer", "minimum": 0 },
+      "descriptionCoverage": { "type": ["number", "null"], "minimum": 0, "maximum": 100 },
+      "sourceSha256": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" },
+      "rulesetSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+      "toolVersion": { "enum": ["6.17.0", null] },
+      "errorPenalty": { "type": "integer", "minimum": 0, "maximum": 100 },
+      "warningPenalty": { "type": "integer", "minimum": 0, "maximum": 100 },
+      "modelStatus": { "enum": ["Complete", "Partial"] },
+      "missingInputs": {
+        "type": "array", "uniqueItems": true,
+        "items": { "enum": ["ToolUnavailable", "UnsupportedReference", "UnsupportedApi", "ExportUnavailable", "ExecutionFailed", "OperationsIncomplete", "NoOperations"] }
+      }
+    },
+    "allOf": [
+      {
+        "if": { "properties": { "status": { "const": "Scored" } } },
+        "then": {
+          "properties": {
+            "errorCount": { "type": "integer" }, "warningCount": { "type": "integer" },
+            "score": { "type": "integer" }, "sourceSha256": { "type": "string" },
+            "toolVersion": { "const": "6.17.0" }
+          }
+        },
+        "else": {
+          "properties": {
+            "errorCount": { "type": "null" }, "warningCount": { "type": "null" }, "score": { "type": "null" },
+            "modelStatus": { "const": "Partial" }
+          }
+        }
+      }
+    ]
+  }
+}

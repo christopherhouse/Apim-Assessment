@@ -136,10 +136,27 @@ confidence, and renders the existing paired Excel/HTML views without exporting
 domains, provider/group/product identifiers or exact coverage. Baseline
 ten-model fixtures still omit portal to exercise old-run compatibility.
 The compact raw-to-report helper additionally stages one Identity item and five
-Portal items, producing eleven models with the optional portal included. Its
+Portal items, adding the optional portal model. Its
 integration case preserves raw hashes across Analyze/Report. Saved-evidence tests
 retain known Partial positives, reject malformed manifest-listed Identity/Portal
 files, ignore unlisted stale files, and replay/report the old ten-model path.
+
+OpenAPI acceptance generates disposable JSON definitions and export envelopes,
+never imports a real definition. The compact collected-run helper adds two
+current HTTP exports plus one closed index; Analyze adds the optional quality
+model (twelve models with portal, thirteen when drift is also selected).
+Collector tests exercise non-HTTP skips, inline/link transport, safe failure
+metadata, malformed/duplicate JSON, size limits, secret-candidate rejection,
+and Partial output/resume. Quality tests cover pinned real-tool and mocked
+no-tool/failure paths, same-document references and refused external references,
+score arithmetic/clamping and empty/incomplete operation coverage.
+Saved-evidence tests bind source/settings/ruleset/model evidence, reject changed
+and duplicate-member artifacts, ignore unlisted exports and replay reports
+without a linter or Azure calls. A synthetic score of 58 produces POR-004 with
+the Spectral method and package 1.3 `ApiDocumentationWeak` only; exact quality
+counts/digests and definitions never enter the independently validated package.
+Removing OpenApi collection and explicitly reanalyzing removes obsolete quality
+and its binding; legacy ten-model inputs still work without recollection.
 
 `analysis-contracts/` adds four independent T-317 JSON examples, not a package
 generated or promoted from the raw/model fixture tree. Its package contains

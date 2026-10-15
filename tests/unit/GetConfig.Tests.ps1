@@ -36,6 +36,29 @@ AfterAll {
 }
 
 Describe 'Get-Config' {
+    It 'validates optional integer OpenAPI quality penalties without changing legacy defaults' {
+        $path = Get-SyntheticConfigFile -Transform {
+            param($Content)
+            $Content.Replace('Privacy = @{',
+                "OpenApiQuality = @{ ErrorPenalty = 12; WarningPenalty = 0 }`nPrivacy = @{")
+        }
+        $actual = & $script:module { param($Path) Get-Config -Path $Path } $path
+        $actual.OpenApiQuality.ErrorPenalty | Should -Be 12
+        $actual.OpenApiQuality.WarningPenalty | Should -Be 0
+        foreach ($value in @(
+                @{ ErrorPenalty = -1; WarningPenalty = 2 },
+                @{ ErrorPenalty = 1.5; WarningPenalty = 2 },
+                @{ ErrorPenalty = '10'; WarningPenalty = 2 },
+                @{ ErrorPenalty = 101; WarningPenalty = 2 },
+                @{ ErrorPenalty = 10 },
+                @{ ErrorPenalty = 10; WarningPenalty = 2; Extra = 1 }
+            )) {
+            { & $script:module { param($Value)
+                    Test-ConfigOpenApiQuality -Value $Value
+                } $value } | Should -Throw
+        }
+    }
+
     It 'accepts explicit portal visibility and rejects malformed intent' {
         & $script:module {
             Test-ConfigPortalProductVisibility -Value @(

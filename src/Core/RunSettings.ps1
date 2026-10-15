@@ -38,6 +38,12 @@ function Test-ApimRunSetting {
             throw 'Run subnet CIDR is invalid.'
         }
     }
+    if ($settings.Contains('openApiQuality')) {
+        Test-ConfigOpenApiQuality -Value @{
+            ErrorPenalty = $settings.openApiQuality.errorPenalty
+            WarningPenalty = $settings.openApiQuality.warningPenalty
+        }
+    }
     if ($settings.Contains('portalProductVisibility')) {
         Test-ConfigPortalProductVisibility -Value @(
             foreach ($entry in $settings.portalProductVisibility) {
@@ -87,6 +93,13 @@ function Get-ApimRunSettingSnapshot {
                 $Config.RuleExceptions.ApprovedPlainHttpOperationKeys
             })
         usageBuckets = @($Config.AnalysisPackage.UsageBuckets)
+    }
+    if ($Config.Contains('OpenApiQuality')) {
+        Test-ConfigOpenApiQuality -Value $Config.OpenApiQuality
+        $settings.openApiQuality = [ordered]@{
+            errorPenalty = $Config.OpenApiQuality.ErrorPenalty
+            warningPenalty = $Config.OpenApiQuality.WarningPenalty
+        }
     }
     if ($Config.Contains('Portal')) {
         Test-ConfigPortalProductVisibility -Value $Config.Portal.ProductVisibility
@@ -186,6 +199,12 @@ function Get-ApimRunSetting {
                     @{ Name = $gateway.name; ResourceGroup = $gateway.resourceGroup }
                 }
             )
+        }
+    }
+    if ($settings.Contains('openApiQuality')) {
+        $result.Config.OpenApiQuality = @{
+            ErrorPenalty = $settings.openApiQuality.errorPenalty
+            WarningPenalty = $settings.openApiQuality.warningPenalty
         }
     }
     if ($settings.Contains('portalProductVisibility')) {

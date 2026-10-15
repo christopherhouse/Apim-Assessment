@@ -97,7 +97,7 @@ function Test-ApimSmokeOutput {
             -Collector $collectors[$check.Name]
     }
     foreach ($check in @($Result.Checks | Where-Object {
-                $_.Status -ceq 'Partial' -and $_.Name -cin @('Identity', 'Portal')
+                $_.Status -ceq 'Partial' -and $_.Name -cin @('Identity', 'Portal', 'OpenApi')
             })) {
         Test-ApimCollectorOutput -RunPath $RunPath -Environment $Environment `
             -Collector $collectors[$check.Name]
@@ -173,6 +173,9 @@ function Test-ApimCollectorOutput {
                     -CollectionName 'APIM API')
         }
         $actual = switch ($name) {
+            'OpenApi' {
+                Test-ApimOpenApiSavedOutput -RunPath $RunPath -Collector $Collector
+            }
             'Service' {
                 $null = Read-ApimSmokeOutputJson -RunPath $RunPath `
                     -RelativePath 'raw/service.json'

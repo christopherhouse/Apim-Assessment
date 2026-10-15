@@ -1,0 +1,33 @@
+# Trusted shipped rules only. No document-supplied extensions or custom code.
+extends:
+  - spectral:oas
+rules:
+  apim-operation-naming:
+    description: Operation identifiers use camelCase names.
+    severity: warn
+    given: "$.paths[*][get,put,post,delete,options,head,patch,trace].operationId"
+    then:
+      function: pattern
+      functionOptions:
+        match: "^[a-z][a-zA-Z0-9]*$"
+  apim-api-version:
+    description: API metadata includes a version.
+    severity: error
+    given: "$.info"
+    then:
+      field: version
+      function: truthy
+  apim-operation-description:
+    description: Operations include descriptions.
+    severity: warn
+    given: "$.paths[*][get,put,post,delete,options,head,patch,trace]"
+    then:
+      field: description
+      function: truthy
+  apim-error-response:
+    description: Operations define a default error response.
+    severity: warn
+    given: "$.paths[*][get,put,post,delete,options,head,patch,trace].responses"
+    then:
+      field: default
+      function: truthy
