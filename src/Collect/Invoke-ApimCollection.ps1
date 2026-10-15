@@ -112,7 +112,9 @@ function Invoke-ApimCollection {
         [string] $ResumeRunPath,
 
         [ValidateRange(1, 64)]
-        [int] $ThrottleLimit = 6
+        [int] $ThrottleLimit = 6,
+
+        [switch] $SkipGit
     )
 
     $checks = @(Get-ApimCollectorRegistry)
@@ -125,6 +127,9 @@ function Invoke-ApimCollection {
     $environment = Get-ApimEnvironmentConfig -Config $Config `
         -EnvironmentName $EnvironmentName
     $digest = Get-ApimConfigDigest -Config $Config
+    if ($SkipGit) {
+        $digest = Get-ApimConfigDigest -Config @{ config = $Config; skipGit = $true }
+    }
     if ($ResumeRunPath) {
         Test-ConfigPathLink -Path $ResumeRunPath -Context 'Resume run'
         Test-ConfigPathLink -Path (Join-Path $ResumeRunPath 'manifest.json') `
@@ -154,7 +159,7 @@ function Invoke-ApimCollection {
             @($manifest.collectors.name | Sort-Object -Unique).Count -ne
             @($manifest.collectors).Count -or
             @($manifest.collectors | Where-Object {
-                    $_.name -cnotin $checks.Name
+                    $_.name -cnotin (@($checks.Name) + @('Git'))
                 }).Count -gt 0) {
             throw 'Resume context is incompatible.'
         }
@@ -261,7 +266,10 @@ function Invoke-ApimCollection {
             $statuses[$check.Name] = $status
         }
     }
-    $status = if (@($statuses.Values | Where-Object { $_ -cne 'Completed' }).Count) {
+    $gitStatus = Invoke-ApimOptionalGitCollection -RunPath $run.Path `
+        -Environment $environment -Resume:([bool] $ResumeRunPath) -SkipGit:$SkipGit
+    $status = if (@($statuses.Values | Where-Object { $_ -cne 'Completed' }).Count -or
+        $gitStatus -cnotin @('Completed', 'Skipped')) {
         'Partial'
     }
     else { 'Completed' }
@@ -278,7 +286,64 @@ function Invoke-ApimCollection {
                     Status = $statuses[$check.Name]
                     Reused = -not $changed.Contains($check.Name)
                 }
+
             }
         )
+    }
+}
+
+function Invoke-ApimOptionalGitCollection {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string] $RunPath,
+        [Parameter(Mandatory)][System.Collections.IDictionary] $Environment,
+        [switch] $Resume,
+        [switch] $SkipGit
+    )
+
+    if ($SkipGit -or [string]::IsNullOrWhiteSpace($Environment.GitRepoPath)) {
+        Set-RunCollectorStatus -RunPath $RunPath -Name Git -Status Skipped
+        return 'Skipped'
+    }
+    try {
+        $current = Get-ApimGitPolicySnapshot -Environment $Environment
+        $manifest = Get-RunManifest -RunPath $RunPath
+        $prior = @($manifest.collectors | Where-Object name -CEQ Git)
+        if ($Resume -and $prior.Count -eq 1 -and $prior[0].status -ceq 'Completed') {
+            $saved = Read-ApimSmokeOutputJson -RunPath $RunPath -RelativePath 'git/policyHashes.json'
+            Test-ApimGitPolicySnapshot -Snapshot $saved
+            if ($prior[0].items -eq @($saved.policies).Count -and
+                (Get-ApimLifecycleDigest -Value $current) -ceq (Get-ApimLifecycleDigest -Value $saved)) {
+                return 'Completed'
+            }
+        }
+        foreach ($stage in @('analyze', 'report')) {
+            Set-RunStageStatus -RunPath $RunPath -Stage $stage -Status NotStarted
+        }
+        $manifest = Get-RunManifest -RunPath $RunPath
+        $manifest.modelSafe.build = 'NotStarted'
+        $manifest.modelSafe.validation = 'NotRun'
+        $manifest.modelSafe.promotion = 'NotStarted'
+        $manifest.modelSafe.packageSha256 = $null
+        $null = Save-RunManifest -RunPath $RunPath -Manifest $manifest
+        $null = Invoke-ApimGitCollector -RunPath $RunPath -Environment $Environment
+        $saved = Read-ApimSmokeOutputJson -RunPath $RunPath -RelativePath 'git/policyHashes.json'
+        Test-ApimGitPolicySnapshot -Snapshot $saved
+        if ($saved.commitSha -cne $current.commitSha) { throw 'Git changed during collection.' }
+        return 'Completed'
+    }
+    catch {
+        Set-RunCollectorStatus -RunPath $RunPath -Name Git -Status Failed -Errors 1
+        foreach ($stage in @('analyze', 'report')) {
+            Set-RunStageStatus -RunPath $RunPath -Stage $stage -Status NotStarted
+        }
+        $manifest = Get-RunManifest -RunPath $RunPath
+        $manifest.modelSafe.build = 'NotStarted'
+        $manifest.modelSafe.validation = 'NotRun'
+        $manifest.modelSafe.promotion = 'NotStarted'
+        $manifest.modelSafe.packageSha256 = $null
+        $null = Save-RunManifest -RunPath $RunPath -Manifest $manifest
+        Add-RunWarning -RunPath $RunPath -Message 'Git collection failed; inspect restricted configuration locally.'
+        return 'Failed'
     }
 }

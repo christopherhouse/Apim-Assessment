@@ -197,7 +197,7 @@ Describe 'Private action-plan workbook writer' {
                 $policy.Address.Rows | Should -Be 3
                 $subscriptions.Address.Rows | Should -Be 7
                 $exposure.Address.Rows | Should -Be 3
-                $runInfo.Address.Rows | Should -Be 23
+                $runInfo.Address.Rows | Should -Be 24
                 $rules.Address.Rows | Should -Be (
                     @(Get-ApimRuleCatalog `
                             -CatalogPath $script:ApimReportRuleCatalogPath).Count +
@@ -261,7 +261,7 @@ Describe 'Private action-plan workbook writer' {
                     Should -Match 'NotEvaluated findings: 1'
                 $summary.Cells[4, 1].Text |
                     Should -Match (
-                        'Usage, Cost, and Environment Drift remain deferred'
+                        'Usage and Cost remain deferred; Environment Drift requires explicit comparison evidence'
                     )
                 $summary.Cells[7, 2].Formula |
                     Should -Be (

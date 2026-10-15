@@ -165,6 +165,7 @@ function Get-ApimReportTableMapping {
             'tblRun',
             'tblRules',
             'tblWeights',
+            'tblDrift',
             'tblComparison', 'tblComparisonGaps', 'tblComparisonPillars',
             'tblComparisonKpis', 'tblResolvedTracking', 'tblUnassessedTracking'
         )]
@@ -327,6 +328,14 @@ function Get-ApimReportTableMapping {
                 Change = 'change'; 'Previous Severity' = 'previousSeverity'
                 'Current Severity' = 'currentSeverity'; 'Severity Changed' = 'severityChanged'
                 Reason = 'reason'
+            }
+        }
+        tblDrift {
+            return [ordered]@{
+                Category = 'category'; Key = 'key'; 'Change Type' = 'changeType'
+                'Environment A' = 'environmentA'; 'Environment B' = 'environmentB'
+                'Previous Value' = 'previousValue'; 'Current Value' = 'currentValue'
+                Severity = 'severity'; Notes = 'note'
             }
         }
         tblComparisonPillars {
@@ -844,7 +853,7 @@ function Write-ApimReportSummary {
     $summary.Cells[4, 1].Value = (
         'ASSUMPTIONS AND DATA GAPS - Edge: {0}/{1}; windows: usage {2}d, ' +
         'security {3}d, cost {4}m; NotEvaluated findings: {5}; manifest ' +
-        'warnings: {6}; Usage, Cost, and Environment Drift remain deferred ' +
+        'warnings: {6}; Usage and Cost remain deferred; Environment Drift requires explicit comparison evidence ' +
         'in this report slice.'
     ) -f
         $Manifest.edge.provider,
@@ -990,6 +999,23 @@ function Export-ApimActionPlan {
     [object[]] $ruleRows = @(ConvertTo-ApimReportRuleRowSet -Rules $rules)
     [object[]] $weightRows = @(ConvertTo-ApimReportWeightRowSet `
             -Manifest $manifest)
+    $driftRows = @(
+        if ($models.Contains('drift')) {
+            foreach ($row in $models.drift) {
+                [ordered]@{
+                    category = $row.category; key = $row.key; changeType = $row.changeType
+                    environmentA = $row.environmentA; environmentB = $row.environmentB
+                    previousValue = if ($null -ne $row.hashB) { $row.hashB } else { $row.presentB }
+                    currentValue = if ($null -ne $row.hashA) { $row.hashA } else { $row.presentA }
+                    severity = $row.severity; note = $row.note
+                }
+            }
+        }
+    )
+    $runRows += ConvertTo-ApimReportRunRow -Section Analysis -Name 'Drift coverage' `
+        -Value $(if ($models.Contains('drift')) {
+                'Compared configured saved sources; unknown rows are not matches.'
+            } else { 'Not evaluated: no Git or environment comparison evidence.' })
 
     $resolvedTemplate = [System.IO.Path]::GetFullPath($TemplatePath)
     Test-ConfigPathLink -Path $resolvedTemplate -Context 'Report template path'
@@ -1048,6 +1074,7 @@ function Export-ApimActionPlan {
                     Table = 'tblRun'
                     Records = $runRows
                 }
+                @{ Worksheet = 'Environment Drift'; Table = 'tblDrift'; Records = $driftRows }
                 @{
                     Worksheet = 'Method & Rules'
                     Table = 'tblRules'

@@ -12,7 +12,7 @@ $script:ApimClaimEvidence = @{
     WeakTlsPosture = @{ AssessmentCondition = @('WeakGatewayTls', 'LegacyTlsEnabled', 'BackendTlsNotValidated', 'UnapprovedPlainHttp'); BackendTlsValidationDisabled = @($true) }
     InsufficientDiagnostics = @{}
     ReliabilityGap = @{ AssessmentCondition = @('ZoneRedundancyAbsent', 'CapacityBelowMinimum', 'CriticalBackendResilienceAbsent', 'ProbeMisaligned', 'CertificateNearExpiry') }
-    GovernanceGap = @{ AssessmentCondition = @('ProductMissing', 'OwnerTagMissing', 'NonCurrentRevisionOnline', 'VersioningIncomplete', 'MixedPathVersioning', 'InheritedControlsDropped', 'MinimumApiVersionAbsent', 'LegacyPlatform') }
+    GovernanceGap = @{ AssessmentCondition = @('ProductMissing', 'OwnerTagMissing', 'NonCurrentRevisionOnline', 'VersioningIncomplete', 'MixedPathVersioning', 'InheritedControlsDropped', 'MinimumApiVersionAbsent', 'LegacyPlatform', 'SourcePolicyDrift', 'EnvironmentPolicyDrift') }
 }
 $script:ApimClaimRecommendations = @{
     HostWidePublication = @('ConfirmExposure', 'RestrictPublication')

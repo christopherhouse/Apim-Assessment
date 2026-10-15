@@ -36,6 +36,27 @@ AfterAll {
 }
 
 Describe 'Get-Config' {
+    It 'rejects unsafe Git path or mapping configuration before any repository read (<Kind>)' `
+        -TestCases @(
+            @{ Kind = 'relative repository' }, @{ Kind = 'escaping policy root' },
+            @{ Kind = 'missing mapping capture' }
+        ) {
+        param($Kind)
+        $mutation = $Kind
+        $path = Get-SyntheticConfigFile -Transform {
+            param($Content)
+            switch ($mutation) {
+                'relative repository' { $Content.Replace("GitRepoPath              = ''",
+                        "GitRepoPath              = 'relative-repository'") }
+                'escaping policy root' { $Content.Replace("'apim/policies'", "'../policies'") }
+                'missing mapping capture' { $Content.Replace("GitPolicyRoot            = 'apim/policies'",
+                        "GitPolicyRoot = 'apim/policies'`nGitPolicyMappings = @(@{ ScopeType = 'Fragment'; Pattern = 'fragments/[^/]+\.xml' })") }
+            }
+        }
+        { & $script:module { param($ConfigPath) Get-Config -Path $ConfigPath } $path } |
+            Should -Throw
+    }
+
     It 'loads a complete synthetic configuration and normalizes output roots' {
         $path = Get-SyntheticConfigFile
 

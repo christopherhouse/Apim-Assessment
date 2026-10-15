@@ -63,14 +63,21 @@ Describe 'Bounded operational capabilities and exit mapping' {
             $result = Invoke-ApimAssessment -Config 'synthetic-config' -Environment Prod `
                 -SkipCost -SkipLogs -SkipGit
             $result.ExitCode | Should -Be 0
-            Should -Invoke Invoke-ApimCollection -Times 1 -Exactly
+            Should -Invoke Invoke-ApimCollection -Times 1 -Exactly -ParameterFilter { $SkipGit }
+        }
+
+        It 'requires configured Git for an explicit inclusion before authentication' {
+            $result = Invoke-ApimAssessment -Config 'synthetic-config' -Environment Prod `
+                -SkipGit:$false
+            $result.ExitCode | Should -Be 1
+            Should -Invoke Get-AzContext -Times 0 -Exactly
+            Should -Invoke Invoke-ApimCollection -Times 0 -Exactly
         }
 
         It 'rejects unavailable capability requests before config or auth' `
             -TestCases @(
                 @{ Option = 'SkipCost'; Value = $false }
                 @{ Option = 'SkipLogs'; Value = $false }
-                @{ Option = 'SkipGit'; Value = $false }
             ) {
             param($Option, $Value)
             $arguments = @{ Config = 'synthetic-config'; Environment = 'Prod' }

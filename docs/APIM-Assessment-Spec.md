@@ -377,7 +377,34 @@ Detect schema first: if `ApiManagementGatewayLogs` has rows in the window use **
 `cost/laIngestion.json`: `Usage | where TimeGenerated > ago(90d) | summarize GB=sum(Quantity)/1024 by DataType, bin(TimeGenerated, 1d)` on the APIM workspace.
 
 ### 7.9 Source control (optional)
-If `GitRepoPath` set: enumerate `*.xml` under `GitPolicyRoot`, map to scopes by file-name convention (configurable regex; default supports APIOps extractor layout `apis/<api>/policy.xml`, `apis/<api>/operations/<op>/policy.xml`, `products/<p>/policy.xml`, `policy.xml`). Write `git/policyHashes.json` with normalized hashes and commit SHA.
+If `GitRepoPath` is configured, read an immutable committed HEAD snapshot from
+that absolute local ordinary-clone path unless `-SkipGit` is set. No configured
+repository records Git Skipped without blocking single-run analysis/reporting;
+an explicit `-SkipGit:$false` without configuration fails before authentication.
+Never clone, fetch, pull, check out, execute source scripts, modify Git config,
+or inspect dirty/untracked policy files. Bare repositories, `.git` indirection,
+linked worktrees, links, gitlinks, and escaping roots are unsupported.
+
+`GitPolicyRoot` is a safe non-empty slash-separated relative Git path. Default
+APIOps mappings are `policy.xml` (Global/global), `products/<p>/policy.xml`,
+`apis/<api>/policy.xml`, and `apis/<api>/operations/<op>/policy.xml`.
+An optional `GitPolicyMappings` array replaces all defaults with closed
+`{ScopeType, Pattern}` maps. Patterns are fully anchored, at most 1,024 characters,
+and time out after 100 ms; required named captures are `product`, `api`,
+`operation`, and `fragment` as appropriate. At most 32 mappings are accepted.
+Scope IDs match deployed policy indexes: `global`, product/API IDs,
+`api|operation`, and fragment IDs. Ambiguity, collisions, unmapped XML, malformed
+XML, or missing committed roots fail rather than silently reducing coverage.
+
+Protect secret-bearing XML in memory before normalization/hashing, matching
+deployed saved policy semantics. Persist only closed version 1.0
+`git/policyHashes.json`: `commitSha`, sorted `scopeTypes`, and unique sorted
+`{scopeType,scope,sha256}` policies. Never persist source XML, paths, author
+identities, remotes, or process stderr. UTF-8 including BOM is supported.
+Limits are 15 seconds per process, 8 MiB tree output, 1 MiB/blob, 16 MiB aggregate
+XML, and 4,096 policies. Resume compares the committed snapshot before reuse;
+changes/failure invalidate downstream stages and package state. Optional Git is
+separate from the eight maintainer smoke checks. See D-56 and the runbook.
 
 ---
 
@@ -422,7 +449,7 @@ orchestration remains T-311.
 | `exposure` | enum (§9) | exposure model |
 | `calls90d`, `callsViaAppGw`, `callsInternal`, `lastCall`, `p95Ms`, `backendP95Ms`, `pct5xx` | | logs |
 | `openApiScore` | int 0–100 / null | Spectral (§8.6) |
-| `inGit` | bool/null | git |
+| `inGit` | bool/null | Remains unavailable for policy-only Git inventory; XML absence does not establish API source-catalog absence |
 | `findingIds[]` | string[] | back-filled after rule evaluation |
 
 ### 8.2 `model/operations.json`
@@ -496,9 +523,43 @@ the deterministic `data-scope` and unresolved-fragment status attributes.
 | `usage.json` | API × month | calls; plus top-N table |
 | `cost.json` | resource × month (and day) | `resourceId`, `resourceType`, `meterCategory`, `cost`, `currency`; derived `costPerMillionCalls` (APIM + App GW) |
 | `capacity.json` | day | `capacityAvg`, `capacityMax`, `capacityP95`, `units` |
-| `drift.json` | API (and scope) × env | `presentDev/Test/Prod/Git`, `hashDev/Test/Prod/Git`, `matches` (`All`, `ProdOnly`, `Differs`), `note` (requires prior runs for other envs or a multi-env run) |
+| `drift.json` | optional policy/catalog × environment pair | `category` (Git/Environment), stable `key`, `environmentA/B`, nullable `presentA/B` and `hashA/B`, `changeType` (All/ProdOnly/Differs/SourceOnly/Missing/Unknown), severity, fixed note, completeness metadata; closed restricted source inventories retain every selected environment |
 | `portal.json` | single object | portal status, published revision, sign-in/sign-up settings, identity providers, custom domain, products visible to which groups |
 | `openApiQuality.json` | API | Spectral error/warn counts, score |
+
+Drift is optional (D-56), not an eleventh required baseline model. Analyze accepts
+up to 15 explicit `-CompareRuns` inputs with matching customer/tenant, supported
+saved contracts, distinct case-insensitive environment/resource identities and
+distinct run IDs. Different subscription/resource names are allowed. Operators
+own environment grouping; no naming-based relationship is inferred. Deployed
+policy inventories require complete Apis, Products and Policies collector
+evidence; incomplete sources become Unknown, while malformed requested evidence
+fails. Environment comparisons also include current API catalog presence, not
+full API-definition differences. Git policy XML does not establish API catalog
+presence or absence.
+
+Save closed current/source inventories under `restricted/drift-inputs.json`
+without external paths; `restricted/drift-binding.json` binds canonical input and
+model digests. Reanalysis without CompareRuns reuses validated saved sources;
+valid explicit inputs replace environment sources, while empty requests fail.
+Reporting/package loading
+rebuilds drift and checks input/model digests, current deployed evidence, and
+saved Git policy evidence. External source folders are not reopened.
+Digest bindings are local integrity checks under operator-owned storage, not
+signatures. Tampered/missing requested artifacts fail closed.
+
+Pairwise rows preserve every selected environment's presence/hash values without
+hard-coding Dev/Test/Prod columns. `All` means equal available evidence;
+`ProdOnly`, `Differs`, `Missing`, and `SourceOnly` describe known differences.
+Unmapped Git scope coverage or incomplete inventories yield null values,
+`Unknown`, and fixed gap codes, never a pass. Equal policy hashes compare
+protected normalized XML, not secret literals. GOV-007 (production Git) and
+GOV-011 (environments) each aggregate one service-scoped finding with all known
+differences and incomplete-comparison counts; missing evidence alone emits one
+Info/NotEvaluated. Known differences survive unrelated unknown comparisons.
+Environment Drift uses the existing pairwise table; no-source runs leave it
+unpopulated and label coverage explicitly in Run Info. Workbook row limits,
+literal cells, template styling, tracking and paired HTML replay remain unchanged.
 
 The closed service-security model recognizes gateway TLS 1.0, TLS 1.1, 3DES,
 and backend TLS 1.0/TLS 1.1 custom properties. Any explicit enablement sets
@@ -737,8 +798,9 @@ alias-kind mismatches, and unsupported references. It never writes or promotes
 data and does not replace T-319's independent scanner/attestation gate (D-47).
 
 T-318/T-319 add a private implementation, not public orchestration or an agent
-runtime. Package schema 1.1 is a separate self-contained schema; 1.0 remains
-supported unchanged. The builder loads all ten registered models and saved
+runtime. Package schemas 1.1 and 1.2 are separate self-contained schemas; 1.0
+remains supported unchanged. The builder loads all ten required baseline models,
+any requested bound drift model, and saved
 findings, replays the implemented catalog with the supplied configuration, and
 rejects inconsistent keys, severity, evaluation, score, exposure, or usage.
 Each evaluated finding cites a newly constructed `AssessmentCondition` fact
@@ -746,6 +808,12 @@ whose approved code names that rule's positive deterministic condition
 (for example `InheritedControlsDropped` or `CertificateNearExpiry`). This
 preserves supported reliability/governance evidence without exporting free-text
 evidence or pretending unrelated topology facts explain a finding.
+Package 1.2 adds only `SourcePolicyDrift` and `EnvironmentPolicyDrift` approved
+condition values for evaluated GOV-007/GOV-011 findings, using existing service
+aliases. Contract selection, independent scanner, hash attestation and semantic
+claim validation support it explicitly. No Git paths, commit IDs, policy hashes,
+XML, external run paths, or environment/resource identities enter the package.
+No broker operation, caller-path parameter, or agent permission is added.
 
 Schema 1.1 requires six ascending configured usage thresholds beginning at
 zero. Zero is `Zero`; absent usage is `Unknown`; a positive count uses the
@@ -914,7 +982,7 @@ RBAC, product-classification, telemetry, or authorization evidence (D-32).
 | APIM-GOV-004 | Unused APIs (no calls in window) | Medium | `calls90d == 0` (window capped by retention; evidence states effective window) |
 | APIM-GOV-005 | Non-current revisions still online | Low | `nonCurrentOnlineRevisions > 0` |
 | APIM-GOV-006 | Single-version version sets / unversioned APIs | Low | version set analysis |
-| APIM-GOV-007 | Production policy/API differs from source control | Medium | drift `Differs` or `ProdOnly` |
+| APIM-GOV-007 | Production policies differ from source control | Medium | Known policy presence/hash differences within mapped Git scope coverage; API definition/catalog absence is not inferred from XML |
 | APIM-GOV-008 | Inconsistent path/versioning conventions | Low | path pattern clustering (`/v1/`, `/api/v1`, none) — service-level finding with distribution |
 | APIM-GOV-009 | Diagnostics/logging not configured or sampling < 100% on critical APIs | Medium | diagnostics |
 | APIM-GOV-010 | Policy missing `<base/>` drops inherited controls | Medium | `baseMissing` |
@@ -1081,18 +1149,23 @@ model contracts exist. Six additional template sheets provide comparison,
 assessment gaps, pillar/KPI summaries, and resolved/not-reassessed tracking.
 Restricted comparison bindings reject modified or stale results at report time.
 The baseline is unchanged; Compare writes a new current Excel/HTML pair.
-HTML lifecycle narrative and cross-environment drift are outside this slice.
+HTML lifecycle narrative remains outside this lifecycle slice. Cross-environment
+drift uses Analyze's separate optional model, not historical Compare.
 
 ---
 
 ## 14. CLI
 
 The implemented operational slice (D-50) exposes Collect, Analyze, Excel/HTML Report,
-and Assessment plus offline Compare over the eight current collectors, ten model contracts, and
-installed catalog. Analyze/Report are offline. Cost, Log Analytics, Git,
-custom/filtered catalogs, and cross-environment drift below remain future
-capabilities: unsupported requests fail explicitly. The skip switches confirm
-default exclusions; explicit `:$false` requests an unavailable capability.
+and Assessment plus offline Compare over eight required collectors, optional
+committed Git policies, ten required models, optional bound drift, and the
+installed catalog. Analyze/Report are offline. Cost, Log Analytics, and
+custom/filtered catalogs remain future capabilities: unsupported requests fail
+explicitly. SkipCost/SkipLogs confirm default exclusions; explicit `:$false`
+requests an unavailable capability. Git is configured/optional with explicit
+SkipGit behavior in section 7.9. Cross-environment `Analyze -CompareRuns` is
+available under the section 8 drift contract; same-environment Compare remains
+a separate command.
 Report and full Assessment accept PreviousReport; collection-only Assessment
 rejects it rather than silently ignoring tracking.
 `-SkipLogs` does not exclude diagnostic-configuration collection. Only
@@ -1107,7 +1180,8 @@ The restricted closed `run-settings.json` snapshot persists only allowlisted
 non-secret settings needed for reproducible analysis/package replay; scoring,
 edge settings, and date anchors come from the manifest. Missing models produce
 Info/NotEvaluated findings where possible and block Report/promotion. Report
-requires Completed analysis, all ten valid models, and exact finding replay.
+requires Completed analysis, all ten valid baseline models, valid requested
+drift bindings, and exact finding replay.
 Collection-only failures return 3; attempted downstream failure returns 4 while
 preserving collector status. Console output is bounded status/exit-code text.
 The examples involving future capabilities below describe the eventual v1

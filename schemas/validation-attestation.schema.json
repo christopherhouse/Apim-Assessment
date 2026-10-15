@@ -6,7 +6,7 @@
   "required": ["schemaVersion", "packageSchemaVersion", "packageSha256", "builderVersion", "validatorVersion", "status", "checks"],
   "properties": {
     "schemaVersion": { "const": "1.0" },
-    "packageSchemaVersion": { "enum": ["1.0", "1.1"] },
+    "packageSchemaVersion": { "enum": ["1.0", "1.1", "1.2"] },
     "packageSha256": { "type": "string", "pattern": "^[a-f0-9]{64}(?![\\s\\S])" },
     "builderVersion": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?![\\s\\S])" },
     "validatorVersion": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?![\\s\\S])" },

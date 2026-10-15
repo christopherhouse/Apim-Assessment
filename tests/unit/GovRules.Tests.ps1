@@ -56,14 +56,16 @@ Describe 'Evidence-backed GOV catalog' {
             }
         }
 
-        It 'loads the six currently model-backed GOV rules with empty references' {
-            @($script:govRules.Id) | Should -Be @(
+        It 'loads the eight currently model-backed GOV rules with empty references' {
+            @($script:govRules.Id | Sort-Object) | Should -Be @(
                 'APIM-GOV-001',
                 'APIM-GOV-002',
                 'APIM-GOV-005',
                 'APIM-GOV-006',
+                'APIM-GOV-007',
                 'APIM-GOV-008',
-                'APIM-GOV-010'
+                'APIM-GOV-010',
+                'APIM-GOV-011'
             )
             foreach ($rule in $script:govRules) {
                 $rule.References.Count | Should -Be 0

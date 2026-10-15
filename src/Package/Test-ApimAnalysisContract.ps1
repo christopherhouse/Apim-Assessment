@@ -59,9 +59,9 @@ function ConvertFrom-ApimAnalysisContractJson {
         $document = [System.Text.Json.JsonDocument]::Parse($Json, $options)
         Assert-ApimAnalysisJsonMember -Element $document.RootElement
         $schemaPath = $script:ApimAnalysisSchemaPaths[$Kind]
-        if ($Kind -eq 'AnalysisPackage' -and
-            $document.RootElement.GetProperty('schemaVersion').GetString() -ceq '1.1') {
-            $schemaPath = Join-Path $analysisSchemaRoot 'analysis-package.v1.1.schema.json'
+        $version = $document.RootElement.GetProperty('schemaVersion').GetString()
+        if ($Kind -eq 'AnalysisPackage' -and $version -cin @('1.1', '1.2')) {
+            $schemaPath = Join-Path $analysisSchemaRoot "analysis-package.v$version.schema.json"
         }
         $valid = Test-Json -Json $Json -SchemaFile $schemaPath `
             -ErrorAction Stop

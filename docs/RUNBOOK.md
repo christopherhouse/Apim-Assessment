@@ -16,7 +16,7 @@ builders create schema-validated API, operation, policy-matrix, subscription,
 service, named-value, backend, certificate, network, and pre-telemetry
 exposure records from saved synthetic-equivalent inputs. A private rule engine,
 seven NET catalog entries, fifteen model-backed
-SEC catalog entries, six model-backed GOV catalog entries, all six REL catalog
+SEC catalog entries, eight model-backed GOV catalog entries, all six REL catalog
 entries, a closed findings schema, and private closed action-item aggregation
 plus a customer-neutral generated Excel action-plan template are available for
 offline synthetic testing. A private report writer can populate the current
@@ -27,21 +27,27 @@ four broker-only assessment profiles, semantic output validation and four
 operator skills are implemented. Remaining collectors/models, telemetry-based
 exposure refinement and rule catalogs are not implemented. Offline tracking
 carry-forward and same-APIM/environment saved-run comparison are available.
+Optional committed Git policy collection, offline cross-environment policy/API
+presence comparison, and Environment Drift workbook rows are also available.
 Actual clean Copilot-session/tool isolation, approved roots/ACLs, organization
 approval and visual/live G3 acceptance remain owner gates.
 
-All ten implemented model contracts share a private schema gate for pending
-writes and complete saved-run loading. Private findings are validated against
+Ten required model contracts and one optional drift contract share a private
+schema gate for pending writes and saved-run loading. Requested drift additionally
+requires unchanged restricted inputs, current evidence, and model bindings.
+Private findings are validated against
 `schemas/findings.schema.json` before restricted persistence. This does not add
 authorization for model/findings access to an agent.
 
 Closed schema version 1.0 contracts and a private in-memory reference gate are
 also available for synthetic tests. They validate opaque aliases, approved
 fact/narrative codes, typed usage buckets/cost trends, unique IDs, citations,
-and executive assumption/data-gap carry-forward. Private version 1.1 package
-construction, independent privacy validation, local attestation, and immutable
-atomic promotion are also implemented and synthetic-tested. The broker invokes
-these private helpers; standalone root package/promotion facades remain planned.
+and executive assumption/data-gap carry-forward. Private package construction,
+independent privacy validation, local attestation, and immutable atomic promotion
+are also implemented and synthetic-tested. Packages use version 1.1, or 1.2 for
+evaluated drift findings with only approved additional condition codes, never
+Git/source/environment values. The broker invokes these private helpers;
+standalone root package/promotion facades remain planned.
 No customer data is approved for model access by a schema/reference pass.
 
 Do not run the planned commands in specification section 14 until their tasks
@@ -80,10 +86,10 @@ under that run's `report` directory and never overwrite previous workbooks.
 The implemented slice collects Service, Apis, Products, Subscriptions,
 SecurityAssets, Diagnostics, Policies, and Network. It accepts only
 Cloudflare/AssumedReachable edge settings and six increasing usage thresholds.
-`-SkipCost`, `-SkipLogs`, and `-SkipGit` confirm default exclusions of future
-cost, Log Analytics queries, and Git collection. Diagnostic settings are still
-collected. Explicit `:$false` on those switches is rejected.
-Analyze's `-RulesPath`/`-OnlyRules`/`-CompareRuns` remain unavailable; none silently
+`-SkipCost` and `-SkipLogs` confirm default exclusions of future cost and
+Log Analytics queries; explicit `:$false` on those two switches is rejected.
+Diagnostic settings are still collected. Git is optional as described below.
+Analyze's `-RulesPath`/`-OnlyRules` remain unavailable; neither silently
 falls back to a speculative capability.
 
 Resume verifies exact configuration/settings compatibility and run identity,
@@ -103,7 +109,7 @@ finding, including evidence, before writing a workbook.
 | 0 | Implemented requested stages completed; this is not owner/live approval. |
 | 1 | Invalid config or unavailable requested capability; check settings/options locally. |
 | 2 | Az modules or matching existing context unavailable; maintainers resolve outside Copilot. |
-| 3 | Collection has Failed/Partial/Skipped checks; inspect the restricted manifest/log and resume. |
+| 3 | Required collection has Failed/Partial/Skipped checks or configured Git failed; inspect the restricted manifest/log and resume. Optional Git Skipped alone is not a failure. |
 | 4 | Analysis/report/runtime-state failed; inspect saved input/schema/stage state locally. |
 
 An Assessment run preserves exit 3 if downstream stages succeed, but returns 4
@@ -120,6 +126,81 @@ two certificates, eight indexed policies, and nine network files. The separate
 .\scripts\Invoke-Checks.ps1 -TestPath .\tests\unit\RuntimeEntryPoint.Tests.ps1
 .\scripts\Invoke-Checks.ps1 -TestPath .\tests\integration\OperationalRuntime.Tests.ps1
 ```
+
+## Optional Git and cross-environment drift
+
+In private environment configuration, leave `GitRepoPath = ''` to skip Git.
+Set it to an absolute local ordinary-clone path to collect committed policies.
+`GitPolicyRoot` is a non-empty slash-separated relative Git path, such as
+`apim/policies`; absolute paths, backslashes and dot/parent/empty segments fail.
+Git must be installed only when this capability is used. Source repositories,
+private configuration and generated run data remain outside the coding session.
+
+The default layouts beneath that root are `policy.xml` (Global),
+`products/<product>/policy.xml`, `apis/<api>/policy.xml`, and
+`apis/<api>/operations/<operation>/policy.xml`. Optional `GitPolicyMappings`
+replaces, rather than extends, all defaults. Each closed map has `ScopeType`
+and a timeout-bounded `Pattern`; captures must be named `product`, `api`,
+`operation`, or `fragment` as appropriate. The collector anchors each complete
+pattern. For example, a fragment-only source can use:
+
+```powershell
+GitPolicyMappings = @(
+    @{ ScopeType = 'Fragment'; Pattern = 'fragments/(?<fragment>[^/]+)\.xml' }
+)
+```
+
+Scope identities are `global`, product/API IDs, `api|operation`, and fragment IDs.
+Ambiguous/colliding mappings, unmapped XML, malformed policies, links, gitlinks,
+escaping roots, missing roots and invalid repositories fail closed. Config
+syntax validation never opens a repository. Bare/linked-worktree repositories
+are unsupported. Collection reads only UTF-8 blobs at one pinned HEAD and ignores
+dirty/untracked files; it never fetches, clones, checks out, runs source scripts,
+or modifies Git configuration. Bounds are 15 seconds per Git process, 8 MiB tree
+output, 1 MiB per blob, 16 MiB aggregate XML, and 4,096 policies.
+Restricted `git/policyHashes.json` retains only commit ID, scope coverage and
+unique scope/hash records, never policy bodies, author identities or remotes.
+
+```powershell
+# Authorized ordinary local terminal, never a coding agent.
+.\Invoke-ApimCollect.ps1 -Config <private-config.psd1> -Environment Prod -SkipGit
+.\Invoke-ApimAnalyze.ps1 -RunFolder <prod-run> -CompareRuns <dev-run>,<test-run>
+.\Invoke-ApimReport.ps1 -RunFolder <prod-run>
+# Reanalysis reuses the validated saved source snapshots without external folders.
+.\Invoke-ApimAnalyze.ps1 -RunFolder <prod-run>
+```
+
+No configured repository records Git Skipped without blocking ordinary analysis
+or reports. Explicit `-SkipGit:$false` without configuration fails before auth;
+configured Git failure returns collection exit 3 and is not treated as Skipped.
+Resume checks the current committed snapshot; changed Git invalidates downstream
+stages/package state. `-SkipGit` is part of resume configuration compatibility.
+
+`-CompareRuns` accepts at most 15 additional supported saved runs, explicitly
+grouped by the operator. Customer/tenant must match; environment labels, run IDs
+and APIM resource identities must be distinct. Subscription/resource names may
+differ. No automatic environment relationship is inferred. Valid incomplete
+source inventory creates Unknown evidence, not an empty matching environment;
+invalid or explicitly empty requested inputs fail. Supplying valid CompareRuns
+replaces previous environment sources; omitting it reuses saved snapshots.
+
+Analysis copies only closed inventories to `restricted/drift-inputs.json` and
+binds their digests and `model/drift.json` locally. Report/package replay also
+rechecks current deployed and saved Git evidence; modified/missing bindings or
+requested drift output fail. External run folders are not retained or reopened.
+These hashes are local integrity checks, not signed provenance.
+
+GOV-007 emits one Medium production policy/source difference finding; GOV-011
+emits one Low environment policy/API-presence difference finding. Evidence retains
+all differences and incomplete-comparison qualifications. Missing sources emit
+Info/NotEvaluated, while known differences survive gaps elsewhere. Git coverage
+is limited to mapped scopes: XML absence does not prove API catalog absence.
+Equal hashes compare protected normalized XML, not secret literal equality.
+Full API definitions are not compared. Environment Drift displays pairwise
+presence/hashes, changes and Unknown coverage; Run Info explicitly labels no
+comparison evidence. Exact values remain local. Model-safe package 1.2 exports
+only `SourcePolicyDrift`/`EnvironmentPolicyDrift` condition codes and existing
+service aliases; no new broker arguments or agent tool permissions are added.
 
 ## Offline tracking and saved-run comparison
 
@@ -150,8 +231,8 @@ Compare requires disjoint run directories with completed analysis, supported
 saved settings/models/findings, and matching customer, tenant, APIM resource,
 and environment. It preserves historical findings; the current run must still
 match deterministic replay. The supported settings loader currently requires
-the installed tool version for both runs. Cross-environment drift and arbitrary
-historical schema/version migration remain unavailable.
+the installed tool version for both runs. Cross-environment drift uses Analyze,
+not Compare. Arbitrary historical schema/version migration remains unavailable.
 
 Results stay in current-run `diff.json` and a new non-overwriting report pair.
 Run Comparison lists comparable New/Resolved/Persisting findings, including
@@ -805,7 +886,8 @@ checks to admit customer data, inspect actual trust settings, or run collection:
 ```
 
 The private `New-ApimAnalysisPackage -RunPath -Config` helper loads the manifest,
-all ten registered models, and saved findings, then replays all implemented
+all ten required baseline models, any requested bound drift model, and saved findings,
+then replays all implemented
 rules. Missing/invalid artifacts, changed findings/scoring, unsupported mappings,
 and tainted required identities reject with `ANALYSIS_BUILD_REJECTED`. It writes
 new candidate/package and identifier-only alias-map files beneath
@@ -820,7 +902,8 @@ are approved codes for replay-verified deterministic rule outcomes; source
 evidence text, labels, paths, policy XML, and exact usage/cost/priority are not
 copied. Equivalent reordered inventories produce identical package/map bytes.
 Changed inventories may renumber aliases. Version 1.0 contract input remains
-supported by validation.
+supported by validation. Version 1.2 adds only the two approved drift condition
+codes on existing service aliases; no exact Git/environment evidence is copied.
 
 `Test-ApimAnalysisPackage -CandidatePath` independently reads at most 16 MiB,
 checks strict UTF-8, closed contracts/references/depth, and a separate recursive

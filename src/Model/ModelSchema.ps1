@@ -16,6 +16,7 @@ $script:ApimModelSchemaPaths = [ordered]@{
     certificates = Join-Path $modelSchemaRoot 'certificates.schema.json'
     network = Join-Path $modelSchemaRoot 'network.schema.json'
     exposure = Join-Path $modelSchemaRoot 'exposure.schema.json'
+    drift = Join-Path $modelSchemaRoot 'drift.schema.json'
 }
 
 function Test-ApimModelJson {
@@ -112,6 +113,9 @@ function Get-ApimModelSet {
         $path = Resolve-RunFilePath -RunPath $RunPath `
             -RelativePath (Join-Path 'model' "$name.json")
         Test-ConfigPathLink -Path $path -Context 'Model file path'
+        if ($name -ceq 'drift' -and -not (Test-Path -LiteralPath $path)) {
+            continue
+        }
         if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
             throw "Required model '$name' was unavailable."
         }
@@ -130,5 +134,6 @@ function Get-ApimModelSet {
             throw "Model '$name' could not be parsed."
         }
     }
+    Test-ApimSavedDrift -RunPath $RunPath -Models $models
     return $models
 }
