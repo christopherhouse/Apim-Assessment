@@ -198,11 +198,10 @@ Describe 'Private action-plan workbook writer' {
                 $subscriptions.Address.Rows | Should -Be 7
                 $exposure.Address.Rows | Should -Be 3
                 $runInfo.Address.Rows | Should -Be 24
-                $rules.Address.Rows | Should -Be (
-                    @(Get-ApimRuleCatalog `
-                            -CatalogPath $script:ApimReportRuleCatalogPath).Count +
-                    1
-                )
+                [string[]] $expectedRuleIds = @(Get-ApimRuleCatalog `
+                        -CatalogPath $script:ApimReportRuleCatalogPath | ForEach-Object Id)
+                [array]::Sort($expectedRuleIds, [StringComparer]::Ordinal)
+                $rules.Address.Rows | Should -Be ($expectedRuleIds.Count + 1)
                 $weights.Address.Rows | Should -Be 15
                 (Get-ReportTableCell -Table $actions -DataRow 1 `
                     -Column 1).Text |
@@ -243,8 +242,10 @@ Describe 'Private action-plan workbook writer' {
                     -Column 1).Text | Should -Be 'Run'
                 (Get-ReportTableCell -Table $runInfo -DataRow 1 `
                     -Column 10).Text | Should -Be 'synthetic-report'
-                (Get-ReportTableCell -Table $rules -DataRow 1 `
-                    -Column 1).Text | Should -Be 'APIM-GOV-001'
+                for ($index = 0; $index -lt $expectedRuleIds.Count; $index++) {
+                    (Get-ReportTableCell -Table $rules -DataRow ($index + 1) `
+                        -Column 1).Text | Should -BeExactly $expectedRuleIds[$index]
+                }
                 (Get-ReportTableCell -Table $weights -DataRow 1 `
                     -Column 1).Text | Should -Be 'Severity'
                 (Get-ReportTableCell -Table $weights -DataRow 1 `
@@ -261,7 +262,7 @@ Describe 'Private action-plan workbook writer' {
                     Should -Match 'NotEvaluated findings: 1'
                 $summary.Cells[4, 1].Text |
                     Should -Match (
-                        'Usage and Cost remain deferred; Environment Drift requires explicit comparison evidence'
+                        'Usage and Cost require complete same-period evidence; blanks are unknown, not zero'
                     )
                 $summary.Cells[7, 2].Formula |
                     Should -Be (
