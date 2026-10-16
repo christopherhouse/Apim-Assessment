@@ -4,7 +4,28 @@
   "additionalProperties": false,
   "required": ["schemaVersion", "runId", "toolVersion", "appGateways", "appGwSubnetCidrs", "certExpiryDays", "criticalBackendIds", "approvedPlainHttpBackendIds", "approvedPlainHttpOperationKeys", "usageBuckets"],
   "properties": {
-    "schemaVersion": { "const": "1.0" },
+    "schemaVersion": { "enum": ["1.0", "1.1"] },
+    "telemetry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workspaceIds", "costScopes", "logicAppResourceGroups", "internalCidrs", "skipLogs", "skipCost", "unusedDays"],
+      "properties": {
+        "workspaceIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" }
+        },
+        "costScopes": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^/subscriptions/[0-9a-f-]{36}(?:/resourcegroups/[a-z0-9._()-]+)?$" } },
+        "logicAppResourceGroups": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1, "maxLength": 90 } },
+        "internalCidrs": {
+          "type": "array", "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^([0-9]{1,3}\\.){3}[0-9]{1,3}/[0-9]{1,2}$" }
+        },
+        "skipLogs": { "type": "boolean" },
+        "skipCost": { "type": "boolean" },
+        "unusedDays": { "type": "integer", "minimum": 1, "maximum": 3650 }
+      }
+    },
     "runId": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$" },
     "toolVersion": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
     "appGateways": {
@@ -82,6 +103,13 @@
       "items": { "type": "number", "minimum": 0 }
     }
   },
+  "allOf": [
+    {
+      "if": { "properties": { "schemaVersion": { "const": "1.1" } } },
+      "then": { "required": ["telemetry"] },
+      "else": { "not": { "required": ["telemetry"] } }
+    }
+  ],
   "$defs": {
     "ids": {
       "type": "array",

@@ -1,0 +1,89 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object", "additionalProperties": false,
+  "required": ["schemaVersion", "sourceSha256", "modelStatus", "missingInputs", "daily", "monthly", "normalized", "ingestion", "logicApps"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "sourceSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "modelStatus": { "enum": ["Complete", "Partial"] },
+    "missingInputs": { "type": "array", "uniqueItems": true, "items": { "enum": ["cost", "costCoverage", "usage", "ingestion", "logicApps"] } },
+    "daily": {
+      "type": "array", "maxItems": 1000000,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["day", "resourceId", "resourceType", "meterCategory", "meterSubCategory", "cost", "currency"],
+        "properties": {
+          "day": { "type": "string", "format": "date" },
+          "resourceId": { "type": "string" },
+          "resourceType": { "type": "string" },
+          "meterCategory": { "type": "string", "maxLength": 256 },
+          "meterSubCategory": { "type": ["string", "null"], "maxLength": 256 },
+          "cost": { "type": "number" },
+          "currency": { "type": "string", "pattern": "^[A-Z]{3}$" }
+        }
+      }
+    },
+    "monthly": {
+      "type": "array", "maxItems": 100000,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["month", "resourceId", "resourceType", "meterCategory", "cost", "currency", "completeMonth"],
+        "properties": {
+          "month": { "type": "string", "format": "date" },
+          "resourceId": { "type": "string" },
+          "resourceType": { "type": "string" },
+          "meterCategory": { "type": "string", "maxLength": 256 },
+          "cost": { "type": "number" },
+          "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+          "completeMonth": { "type": "boolean" }
+        }
+      }
+    },
+    "normalized": {
+      "type": "array", "maxItems": 3650,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["month", "cost", "currency", "calls", "costPerMillionCalls", "changePercent", "completeMonth"],
+        "properties": {
+          "month": { "type": "string", "format": "date" },
+          "cost": { "type": "number" },
+          "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+          "calls": { "type": ["integer", "null"], "minimum": 0 },
+          "costPerMillionCalls": { "type": ["number", "null"] },
+          "changePercent": { "type": ["number", "null"] },
+          "completeMonth": { "type": "boolean" }
+        }
+      }
+    },
+    "ingestion": {
+      "type": "array", "maxItems": 100000,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["workspaceId", "month", "dataType", "gb", "completeMonth"],
+        "properties": {
+          "workspaceId": { "type": "string", "format": "uuid" },
+          "month": { "type": "string", "format": "date" },
+          "dataType": { "enum": ["ApiManagementGatewayLogs", "AzureDiagnostics", "AGWAccessLogs"] },
+          "gb": { "type": "number", "minimum": 0 },
+          "completeMonth": { "type": "boolean" }
+        }
+      }
+    },
+    "logicApps": {
+      "type": "array", "maxItems": 10000,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["resourceId", "kind", "planId", "sku", "instances", "metricsComplete", "historicalPlanChanges"],
+        "properties": {
+          "resourceId": { "type": "string" },
+          "kind": { "enum": ["Consumption", "Standard"] },
+          "planId": { "type": ["string", "null"] },
+          "sku": { "type": ["string", "null"] },
+          "instances": { "type": ["integer", "null"], "minimum": 0 },
+          "metricsComplete": { "type": "boolean" },
+          "historicalPlanChanges": { "type": "null" }
+        }
+      }
+    }
+  }
+}

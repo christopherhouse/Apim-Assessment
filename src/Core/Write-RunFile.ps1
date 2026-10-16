@@ -151,6 +151,45 @@ function Test-RunManifest {
     if (-not $isValid) {
         throw 'Run manifest did not satisfy the manifest schema.'
     }
+    if ($Manifest.schemaVersion -ceq '1.2') {
+        $keys = [Collections.Generic.HashSet[string]]::new(
+            [StringComparer]::OrdinalIgnoreCase
+        )
+        $anchor = [datetimeoffset] $Manifest.startedUtc
+        foreach ($entry in $Manifest.evidenceWindows) {
+            if (-not $keys.Add("$($entry.kind)|$($entry.target)")) {
+                throw 'Run evidence windows contain duplicate targets.'
+            }
+            $length = switch ($entry.kind) {
+                Usage { [int] $Manifest.windows.usageDays }
+                Security { [int] $Manifest.windows.securityLogDays }
+                Metric { [int] $Manifest.windows.metricDays }
+                Cost { [int] $Manifest.windows.costMonths }
+                Ingestion { [int] $Manifest.windows.usageDays }
+            }
+            $retention = @{}
+            if ($null -ne $entry.retentionDays) {
+                $retention.RetentionDays = [int] $entry.retentionDays
+            }
+            $expected = Get-ApimEvidenceWindow -EndUtc $anchor -Kind $entry.kind `
+                -Length $length @retention
+            foreach ($field in @('requestedStartUtc', 'startUtc', 'endUtc')) {
+                $actualDate = [datetimeoffset] $entry.$field
+                if ($actualDate -ne [datetimeoffset] $expected.$field) {
+                    throw 'Run evidence window is not bound to the UTC run anchor.'
+                }
+            }
+            if ($entry.isCapped -ne $expected.isCapped -or
+                ($entry.status -ceq 'Completed' -and
+                    ($entry.reason -cne 'None' -or $entry.schema -ceq 'None')) -or
+                ($entry.status -ceq 'Skipped' -and
+                    $entry.reason -cnotin @('Unconfigured', 'OptOut')) -or
+                ($entry.kind -cin @('Metric', 'Cost') -and
+                    $entry.schema -cne 'NotApplicable')) {
+                throw 'Run evidence coverage is inconsistent.'
+            }
+        }
+    }
 }
 
 function Save-RunManifest {
@@ -217,7 +256,9 @@ function New-ApimRun {
 
         [string] $RunId,
 
-        [string] $ToolVersion
+        [string] $ToolVersion,
+
+        [switch] $IncludeTelemetry
     )
 
     $environment = Get-ApimEnvironmentConfig -Config $Config `
@@ -304,6 +345,11 @@ function New-ApimRun {
             packageSha256 = $null
         }
         warnings      = @()
+    }
+    if ($IncludeTelemetry) {
+        $manifest.schemaVersion = '1.2'
+        $manifest.windows.metricDays = [int] $Config.Windows.MetricDays
+        $manifest.evidenceWindows = @()
     }
     Test-RunManifest -Manifest $manifest
 

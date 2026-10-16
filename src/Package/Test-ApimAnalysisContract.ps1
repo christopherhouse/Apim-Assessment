@@ -60,7 +60,7 @@ function ConvertFrom-ApimAnalysisContractJson {
         Assert-ApimAnalysisJsonMember -Element $document.RootElement
         $schemaPath = $script:ApimAnalysisSchemaPaths[$Kind]
         $version = $document.RootElement.GetProperty('schemaVersion').GetString()
-        if ($Kind -eq 'AnalysisPackage' -and $version -cin @('1.1', '1.2', '1.3', '1.4')) {
+        if ($Kind -eq 'AnalysisPackage' -and $version -cin @('1.1', '1.2', '1.3', '1.4', '1.5')) {
             $schemaPath = Join-Path $analysisSchemaRoot "analysis-package.v$version.schema.json"
         }
         $valid = Test-Json -Json $Json -SchemaFile $schemaPath `
@@ -147,8 +147,17 @@ function Get-ApimAnalysisPackageIndex {
             $fact.value -cin @('ProductGovernanceWeak', 'ApiDiagnosticsWeak')) {
             $kind = if ($fact.value -ceq 'ProductGovernanceWeak') { 'Product' } else { 'Api' }
             $entity = @($Package.entities | Where-Object alias -CEQ $fact.subjectAlias)
-            if ($Package.schemaVersion -cne '1.4' -or $entity.Count -ne 1 -or $entity[0].kind -cne $kind) {
+            if ($Package.schemaVersion -cnotin @('1.4', '1.5') -or $entity.Count -ne 1 -or $entity[0].kind -cne $kind) {
                 throw 'Analysis contract has an unsupported governance condition binding.'
+            }
+        }
+        if ($fact.code -ceq 'AssessmentCondition' -and $fact.value -cin @(
+            'PremiumCapacityReview', 'NormalizedCostIncreasing', 'DiagnosticIngestionGrowth',
+            'LogicAppCostIncreasing', 'NonProductionPremium'
+            )) {
+            $entity = @($Package.entities | Where-Object alias -CEQ $fact.subjectAlias)
+            if ($Package.schemaVersion -cne '1.5' -or $entity.Count -ne 1 -or $entity[0].kind -cne 'Service') {
+            throw 'Analysis contract has an unsupported cost condition binding.'
             }
         }
     }
@@ -176,7 +185,7 @@ function Get-ApimAnalysisPackageIndex {
                     $_.code -ceq 'AssessmentCondition' -and
                     $_.value -ceq $conditions[$finding.ruleId]
                 })
-            if ($Package.schemaVersion -cnotin @('1.3', '1.4') -or
+            if ($Package.schemaVersion -cnotin @('1.3', '1.4', '1.5') -or
                 -not $conditions.ContainsKey($finding.ruleId) -or
                 $entity.Count -ne 1 -or $entity[0].kind -cne $kind -or
                 $conditionFacts.Count -ne 1) {
@@ -192,8 +201,26 @@ function Get-ApimAnalysisPackageIndex {
                     $_.subjectAlias -ceq $finding.subjectAlias -and
                     $_.code -ceq 'AssessmentCondition' -and $_.value -ceq $condition
                 })
-            if ($Package.schemaVersion -cne '1.4' -or $conditionFacts.Count -ne 1) {
+            if ($Package.schemaVersion -cnotin @('1.4', '1.5') -or $conditionFacts.Count -ne 1) {
                 throw 'Analysis contract has an unsupported governance condition binding.'
+            }
+        }
+        if ($finding.evaluation -ceq 'Evaluated' -and $finding.ruleId -clike 'APIM-COST-*') {
+            $conditions = @{
+            'APIM-COST-001' = 'PremiumCapacityReview'
+            'APIM-COST-002' = 'NormalizedCostIncreasing'
+            'APIM-COST-003' = 'DiagnosticIngestionGrowth'
+            'APIM-COST-004' = 'LogicAppCostIncreasing'
+            'APIM-COST-005' = 'NonProductionPremium'
+            }
+            $entity = @($Package.entities | Where-Object alias -CEQ $finding.subjectAlias)
+            $conditionFacts = @($Package.facts | Where-Object {
+                $_.factId -cin $finding.factRefs -and $_.subjectAlias -ceq $finding.subjectAlias -and
+                $_.code -ceq 'AssessmentCondition' -and $_.value -ceq $conditions[$finding.ruleId]
+            })
+            if ($Package.schemaVersion -cne '1.5' -or -not $conditions.ContainsKey($finding.ruleId) -or
+            $entity.Count -ne 1 -or $entity[0].kind -cne 'Service' -or $conditionFacts.Count -ne 1) {
+            throw 'Analysis contract has an unsupported cost condition binding.'
             }
         }
         if ($finding.evaluation -ceq 'NotEvaluated' -and

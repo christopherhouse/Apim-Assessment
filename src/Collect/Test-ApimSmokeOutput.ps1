@@ -173,6 +173,10 @@ function Test-ApimCollectorOutput {
                     -CollectionName 'APIM API')
         }
         $actual = switch ($name) {
+            'LogAnalytics' { Test-ApimLogSavedOutput -RunPath $RunPath -Collector $Collector }
+            'Metrics' { Test-ApimMetricSavedOutput -RunPath $RunPath -Collector $Collector }
+            'Cost' { Test-ApimCostSavedOutput -RunPath $RunPath -Collector $Collector }
+            'LogicApps' { Test-ApimLogicAppSavedOutput -RunPath $RunPath -Collector $Collector }
             'Organization' {
                 Test-ApimOrganizationSavedOutput -RunPath $RunPath -Collector $Collector
             }

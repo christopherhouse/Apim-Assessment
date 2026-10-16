@@ -1,0 +1,4 @@
+ApiManagementGatewayLogs
+| where TimeGenerated >= datetime(__START__) and TimeGenerated < datetime(__END__)
+| where _ResourceId =~ __RESOURCE__
+| summarize calls=count() by apiId=ApiId, tlsVersion=ClientTlsVersion

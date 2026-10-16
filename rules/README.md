@@ -1,6 +1,6 @@
 # Assessment rule catalogs
 
-Planned catalogs: `PERF`, `POR`, and `COST.rules.ps1`.
+The `PERF` catalog and remaining telemetry-dependent NET/SEC/GOV entries are planned.
 Use the hashtable contract in specification section 10 and stable catalog IDs in
 section 11. The private rule engine, closed `findings.json` schema, and restricted writer
 are implemented. `NET.rules.ps1` contains NET-001/002/004/006/007/008/009.
@@ -70,6 +70,16 @@ Rule authors must check any relevant per-record `missingInputs` before returning
 a negative result. References are supplied by maintainers, not invented by
 the tool.
 Generate `docs/RULES.md` from the catalog when task T-607 is implemented.
+
+`COST.rules.ps1` implements COST-001 through COST-005 from source-bound optional
+usage/capacity/cost models. Premium utilization is informational and HA-aware;
+normalization compares complete adjacent months with known positive same-period
+calls, ingestion growth uses at least doubling, and Logic Apps cost growth uses
+strictly more than 1.5 times the first complete same-currency month. Standard
+plan costs are shared, current SKU/units are not history, and workflow review is
+out of scope. Missing evidence yields one Info/NotEvaluated row, not a pass.
+Positive/negative/boundary/missing-input cases use synthetic evidence only.
+References remain empty.
 
 `Portal.rules.ps1` implements POR-001 through POR-005. POR-004 keeps its
 70-score/80-percent boundaries and operation-description fallback. When the

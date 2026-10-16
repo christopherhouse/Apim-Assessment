@@ -77,6 +77,36 @@ Describe 'Evidence-compatible specialist and executive proposals' {
                     -PackageJson (ConvertTo-ClaimJson $script:claimPackage) } | Should -Throw 'AGENT_EVIDENCE_REJECTED'
         }
 
+        It 'admits versioned cost-review claims without enabling unrelated executive claims: <Condition>' -ForEach @(
+            @{ Condition = 'PremiumCapacityReview'; Rule = 'APIM-COST-001' }
+            @{ Condition = 'NormalizedCostIncreasing'; Rule = 'APIM-COST-002' }
+            @{ Condition = 'DiagnosticIngestionGrowth'; Rule = 'APIM-COST-003' }
+            @{ Condition = 'LogicAppCostIncreasing'; Rule = 'APIM-COST-004' }
+            @{ Condition = 'NonProductionPremium'; Rule = 'APIM-COST-005' }
+        ) {
+            $script:claimPackage.schemaVersion = '1.5'
+            $script:claimPackage.facts = @(@{
+                    factId = 'fact-000001'; subjectAlias = 'service-001'
+                    code = 'AssessmentCondition'; value = $Condition; confidence = 'Medium'
+                })
+            $script:claimPackage.findings = @(@{
+                    findingId = 'finding-000001'; ruleId = $Rule; subjectAlias = 'service-001'
+                    severity = 'Info'; evaluation = 'Evaluated'; priorityBucket = 'Low'
+                    factRefs = @('fact-000001'); dataGaps = @()
+                })
+            $script:claimSummary.posture = 'ImprovementRecommended'
+            $item = $script:claimSummary.priorities[0]
+            $item.code = 'ReviewCost'; $item.confidence = 'Medium'; $item.observationRefs = @()
+            Test-ApimAgentClaim -Kind ExecutiveSummary -Json (ConvertTo-ClaimJson $script:claimSummary) `
+                -PackageJson (ConvertTo-ClaimJson $script:claimPackage) | Should -BeTrue
+            $item.code = 'ReduceExposure'
+            { Test-ApimAgentClaim -Kind ExecutiveSummary -Json (ConvertTo-ClaimJson $script:claimSummary) `
+                    -PackageJson (ConvertTo-ClaimJson $script:claimPackage) } | Should -Throw 'AGENT_EVIDENCE_REJECTED'
+            $script:claimPackage.schemaVersion = '1.4'
+            { Test-ApimAnalysisContract -Kind AnalysisPackage -Json (ConvertTo-ClaimJson $script:claimPackage) } |
+                Should -Throw
+        }
+
         It 'rejects executive distortion: <Case>' -ForEach @(
             @{ Case = 'downgraded posture'; Change = { $script:claimSummary.posture = 'ImprovementRecommended' } }
             @{ Case = 'confidence escalation'; Change = { $script:claimSummary.confidence = 'High' } }

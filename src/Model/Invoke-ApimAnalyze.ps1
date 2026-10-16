@@ -314,6 +314,9 @@ function Invoke-ApimAnalyze {
         if ($null -ne $portal) { $models.portal = $portal }
         $governance = Get-ApimSavedGovernanceModel -RunPath $RunFolder -Context $context
         foreach ($name in $governance.Keys) { $models[$name] = $governance[$name] }
+        $telemetry = Get-ApimSavedTelemetryModel -RunPath $RunFolder -Context $context `
+            -Service $(if ($models.Contains('service')) { $models.service } else { $null })
+        foreach ($name in $telemetry.Keys) { $models[$name] = $telemetry[$name] }
         if ($models.Contains('apis') -and $models.Contains('operations')) {
             $quality = Get-ApimSavedOpenApiQuality -RunPath $RunFolder -Context $context `
                 -Apis $models.apis -Operations $models.operations
@@ -344,7 +347,8 @@ function Invoke-ApimAnalyze {
         }
         $null = Write-ApimFindingSet -RunPath $RunFolder -Findings $findings
         if (@($script:ApimModelSchemaPaths.Keys | Where-Object {
-                    $_ -cnotin @('drift', 'portal', 'openApiQuality', 'products', 'diagnosticCoverage') -and
+                    $_ -cnotin @('drift', 'portal', 'openApiQuality', 'products', 'diagnosticCoverage',
+                        'usage', 'capacity', 'cost') -and
                     -not $models.Contains($_)
                 }).Count -gt 0) {
             throw 'Required models could not be constructed.'

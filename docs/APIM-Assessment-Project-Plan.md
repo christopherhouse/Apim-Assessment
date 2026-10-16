@@ -56,6 +56,15 @@ Product/Api aliases, never inventory records, counts, sampling or intent.
 T-305 owns the diagnostic-configuration rule despite its duplicate T-409 listing;
 telemetry/performance work and owner live/visual/host gates remain separate.
 
+The approved D-60 usage/cost slice covers T-401/T-402/T-404/T-405/T-406/T-407/
+T-410/T-411, not all of P4. Public versioned LA aggregates, metrics, reconciled
+daily costs and cost-only Logic Apps feed source-bound optional usage/capacity/
+cost models, five COST rules and populated Excel/HTML views. Legacy runs remain
+supported; exclusions persist across resume. Closed package 1.5 exports five
+Service-bound COST conditions, never exact telemetry or billing identifiers.
+T-403/T-408/T-409 observed-route exposure and remaining telemetry/PERF rules,
+and maintainer live/visual/host approval, remain separate acceptance work.
+
 ### 4.1 Trust model
 
 - PowerShell remains authoritative for collection, normalization, findings, scoring, evidence, data safety validation, and report rendering.

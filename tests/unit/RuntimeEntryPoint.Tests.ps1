@@ -59,11 +59,13 @@ Describe 'Bounded operational capabilities and exit mapping' {
             Should -Invoke Invoke-ApimAnalyze -Times 0 -Exactly
         }
 
-        It 'accepts explicit exclusions without adding unavailable collectors' {
+        It 'forwards both telemetry exclusions and Git exclusion through the public workflow' {
             $result = Invoke-ApimAssessment -Config 'synthetic-config' -Environment Prod `
                 -SkipCost -SkipLogs -SkipGit
             $result.ExitCode | Should -Be 0
-            Should -Invoke Invoke-ApimCollection -Times 1 -Exactly -ParameterFilter { $SkipGit }
+            Should -Invoke Invoke-ApimCollection -Times 1 -Exactly -ParameterFilter {
+                $SkipGit -and $SkipCost -and $SkipLogs -and $IncludeTelemetry
+            }
         }
 
         It 'requires configured Git for an explicit inclusion before authentication' {
@@ -74,7 +76,7 @@ Describe 'Bounded operational capabilities and exit mapping' {
             Should -Invoke Invoke-ApimCollection -Times 0 -Exactly
         }
 
-        It 'rejects unavailable capability requests before config or auth' `
+        It 'accepts explicit telemetry inclusion and enables the public telemetry lifecycle' `
             -TestCases @(
                 @{ Option = 'SkipCost'; Value = $false }
                 @{ Option = 'SkipLogs'; Value = $false }
@@ -83,9 +85,10 @@ Describe 'Bounded operational capabilities and exit mapping' {
             $arguments = @{ Config = 'synthetic-config'; Environment = 'Prod' }
             $arguments[$Option] = $Value
             $result = Invoke-ApimAssessment @arguments
-            $result.ExitCode | Should -Be 1
-            Should -Invoke Get-Config -Times 0 -Exactly
-            Should -Invoke Get-AzContext -Times 0 -Exactly
+            $result.ExitCode | Should -Be 0
+            Should -Invoke Invoke-ApimCollection -Times 1 -Exactly -ParameterFilter {
+                $IncludeTelemetry -and -not $SkipLogs -and -not $SkipCost
+            }
         }
 
         It 'maps config rejection to exit 1 and context rejection to exit 2' {

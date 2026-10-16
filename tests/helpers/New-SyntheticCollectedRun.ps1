@@ -3,7 +3,8 @@ function New-SyntheticCollectedRun {
     param(
         [Parameter(Mandatory)][string] $RepoRoot,
         [Parameter(Mandatory)][string] $OutputRoot,
-        [string] $RunId = 'synthetic-operational'
+        [string] $RunId = 'synthetic-operational',
+        [switch] $IncludeTelemetry
     )
 
     if (-not $PSCmdlet.ShouldProcess($OutputRoot, 'Create synthetic collected run')) {
@@ -18,7 +19,7 @@ function New-SyntheticCollectedRun {
     $config.Network.AppGwSubnetCidrs = @('10.20.1.0/24')
     $run = New-ApimRun -Config $config -EnvironmentName Prod `
         -TenantId '00000000-0000-0000-0000-000000000010' -Operator Synthetic `
-        -RunId $RunId -StartedUtc '2026-10-14T12:00:00Z'
+        -RunId $RunId -StartedUtc '2026-10-14T12:00:00Z' -IncludeTelemetry:$IncludeTelemetry
     $fixture = Join-Path $RepoRoot 'tests/fixtures/synthetic-reference'
     foreach ($file in Get-ChildItem -LiteralPath (Join-Path $fixture 'raw') `
             -Recurse -File -Filter '*.json') {

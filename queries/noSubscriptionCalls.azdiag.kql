@@ -1,0 +1,5 @@
+AzureDiagnostics
+| where TimeGenerated >= datetime(__START__) and TimeGenerated < datetime(__END__)
+| where _ResourceId =~ __RESOURCE__ and Category == "GatewayLogs"
+| where isempty(tostring(apimSubscriptionId_s))
+| summarize calls=count() by apiId=tostring(apiId_s)
