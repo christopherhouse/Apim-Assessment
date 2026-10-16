@@ -1,0 +1,4 @@
+Usage
+| where TimeGenerated >= datetime(__START__) and TimeGenerated < datetime(__END__)
+| where IsBillable == true and QuantityUnit == "MBytes"
+| summarize gb=sum(Quantity)/1024.0 by dataType=DataType, day=startofday(TimeGenerated)

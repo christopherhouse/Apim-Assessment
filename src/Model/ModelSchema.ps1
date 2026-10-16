@@ -21,6 +21,9 @@ $script:ApimModelSchemaPaths = [ordered]@{
     openApiQuality = Join-Path $modelSchemaRoot 'openApiQuality.schema.json'
     products = Join-Path $modelSchemaRoot 'products.schema.json'
     diagnosticCoverage = Join-Path $modelSchemaRoot 'diagnosticCoverage.schema.json'
+    usage = Join-Path $modelSchemaRoot 'usage.schema.json'
+    capacity = Join-Path $modelSchemaRoot 'capacity.schema.json'
+    cost = Join-Path $modelSchemaRoot 'cost.schema.json'
 }
 
 function Test-ApimModelJson {
@@ -43,14 +46,14 @@ function Test-ApimModelJson {
         throw "Model schema '$Name' was unavailable."
     }
 
-    if ($Name -cin @('openApiQuality', 'products', 'diagnosticCoverage')) {
+    if ($Name -cin @('openApiQuality', 'products', 'diagnosticCoverage', 'usage', 'capacity', 'cost')) {
         $document = $null
         try {
             if ([Text.Encoding]::UTF8.GetByteCount($Json) -gt 16MB) {
                 throw 'OpenAPI quality size limit exceeded.'
             }
             $options = [Text.Json.JsonDocumentOptions]::new()
-            $options.MaxDepth = 8
+            $options.MaxDepth = 12
             $document = [Text.Json.JsonDocument]::Parse($Json, $options)
             Assert-ApimAnalysisJsonMember -Element $document.RootElement
         }
@@ -142,7 +145,8 @@ function Get-ApimModelSet {
         $path = Resolve-RunFilePath -RunPath $RunPath `
             -RelativePath (Join-Path 'model' "$name.json")
         Test-ConfigPathLink -Path $path -Context 'Model file path'
-        if ($name -cin @('drift', 'portal', 'openApiQuality', 'products', 'diagnosticCoverage') -and
+        if ($name -cin @('drift', 'portal', 'openApiQuality', 'products', 'diagnosticCoverage',
+                'usage', 'capacity', 'cost') -and
             -not (Test-Path -LiteralPath $path)) {
             continue
         }
@@ -167,5 +171,14 @@ function Get-ApimModelSet {
     Test-ApimSavedDrift -RunPath $RunPath -Models $models
     Test-ApimSavedOpenApiQuality -RunPath $RunPath -Models $models
     Test-ApimSavedGovernanceModel -RunPath $RunPath -Models $models
+    $manifestPath = Resolve-RunFilePath -RunPath $RunPath -RelativePath 'manifest.json'
+    Test-ConfigPathLink -Path $manifestPath -Context 'Model manifest path'
+    $telemetryManifest = if (Test-Path -LiteralPath $manifestPath) {
+        Get-RunManifest -RunPath $RunPath
+    }
+    if (($null -ne $telemetryManifest -and $telemetryManifest.schemaVersion -ceq '1.2') -or
+        @('usage', 'capacity', 'cost' | Where-Object { $models.Contains($_) }).Count) {
+        Test-ApimSavedTelemetryModel -RunPath $RunPath -Models $models
+    }
     return $models
 }

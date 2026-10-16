@@ -192,7 +192,25 @@ function Export-ApimExecutiveHtml {
     $gaps = @($models.Values | ForEach-Object {
             foreach ($model in @($_)) { $model.missingInputs }
         } | Sort-Object -Unique)
-    $slots.GAPS = '<p>Edge behavior is assumed, not independently verified. Telemetry and cost collection are unavailable in this slice. Missing usage is Unknown, never zero. Origin authentication and endpoint-owner intent require explicit local attestation.</p><ul>'
+    $slots.GAPS = '<p>Edge behavior is assumed, not independently verified. Telemetry/cost availability depends on validated saved coverage. Missing usage is Unknown, never zero. Origin authentication and endpoint-owner intent require explicit local attestation.</p><ul>'
+    if ($models.Contains('usage')) {
+        $slots.DECISIONS += '<h3>Usage and capacity</h3><p>Monthly observed volume is local evidence, not proof of route exposure. Partial months are excluded from comparable cost trends.</p><div class="table-wrap"><table><caption>Top APIs by observed calls</caption><thead><tr><th scope="col">API</th><th scope="col">Calls</th></tr></thead><tbody>'
+        foreach ($row in $models.usage.topApis) {
+            $slots.DECISIONS += '<tr><td>' + (ConvertTo-ApimHtmlText $row.apiId) +
+                '</td><td>' + (ConvertTo-ApimHtmlText $row.calls) + '</td></tr>'
+        }
+        $slots.DECISIONS += '</tbody></table></div>'
+    }
+    if ($models.Contains('cost')) {
+        $slots.DECISIONS += '<h3>Cost per million APIM calls</h3><p>Configured APIM and App Gateway costs only; currencies are separate. Blank denominators are unknown. Logic Apps workflow review is out of scope.</p><div class="table-wrap"><table><caption>Local normalized monthly costs</caption><thead><tr><th scope="col">Month</th><th scope="col">Currency</th><th scope="col">Cost</th><th scope="col">Cost / million calls</th></tr></thead><tbody>'
+        foreach ($row in $models.cost.normalized) {
+            $slots.DECISIONS += '<tr><td>' + (ConvertTo-ApimHtmlText $row.month) +
+                '</td><td>' + (ConvertTo-ApimHtmlText $row.currency) +
+                '</td><td>' + (ConvertTo-ApimHtmlText $row.cost) +
+                '</td><td>' + (ConvertTo-ApimHtmlText $row.costPerMillionCalls) + '</td></tr>'
+        }
+        $slots.DECISIONS += '</tbody></table></div>'
+    }
     foreach ($gap in $gaps) { $slots.GAPS += '<li>' + (ConvertTo-ApimHtmlText $gap) + '</li>' }
     $slots.GAPS += '</ul><p>NotEvaluated findings: ' + $notEvaluated.Count + '. Review incomplete evidence before accepting posture.</p>'
     $slots.ROADMAP = '<h3>Confirm evidence</h3><p>Resolve missing inputs and validate assumptions before the readout.</p><h3>Assign accountable owners</h3><p>Review the local action workbook and set owners, status and target dates.</p><h3>Validate outcomes</h3><p>Authorized maintainers validate changes separately; rerun the read-only assessment to measure progress.</p>'
@@ -200,7 +218,7 @@ function Export-ApimExecutiveHtml {
         $slots.POSTURE += '<p>Validated synthesis confidence: ' + (ConvertTo-ApimHtmlText $agent.summary.confidence) + '</p>'
         $slots.ACTIONS = (ConvertTo-ApimHtmlProposal -Items $agent.summary.priorities -Agent $agent) + $slots.ACTIONS
         $slots.DECISIONS = (ConvertTo-ApimHtmlProposal -Items $agent.summary.themes -Agent $agent) +
-            (ConvertTo-ApimHtmlProposal -Items $agent.summary.decisions -Agent $agent)
+            (ConvertTo-ApimHtmlProposal -Items $agent.summary.decisions -Agent $agent) + $slots.DECISIONS
         $slots.ROADMAP = (ConvertTo-ApimHtmlProposal -Items $agent.summary.roadmap -Agent $agent) + $slots.ROADMAP
         foreach ($code in @($agent.summary.assumptions) + @($agent.summary.dataGaps)) {
             $slots.GAPS += '<p>' + (ConvertTo-ApimHtmlText $code) + '</p>'

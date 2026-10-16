@@ -128,6 +128,41 @@ Describe 'Validated collection resume and isolation' {
             Mock Invoke-ApimArm { throw 'Unexpected Azure access.' }
         }
 
+        It 'collects and resumes versioned telemetry with durable opt-outs and no legacy upgrade' {
+            $script:resumeConfig.Windows.MetricDays = 1
+            Mock Invoke-ApimMetricSeries {
+                $count = if ($Definition.Interval -ceq 'P1D') { 1 } else { 24 }
+                [pscustomobject]@{
+                    name = $Definition.Name; unit = $Definition.Unit; interval = $Definition.Interval
+                    status = 'Completed'; expectedPoints = $count
+                    points = @(
+                        for ($index = 0; $index -lt $count; $index++) {
+                            $point = [ordered]@{
+                                timestamp = ([datetimeoffset] $Window.startUtc).AddHours($index).ToString('O')
+                                average = $null; maximum = $null; total = $null
+                            }
+                            foreach ($aggregation in $Definition.Aggregations) { $point[$aggregation.ToLowerInvariant()] = 1.0 }
+                            [pscustomobject] $point
+                        }
+                    )
+                }
+            }
+            $initial = Invoke-ApimCollection -Config $script:resumeConfig -EnvironmentName Prod `
+                -TenantId $script:tenant -IncludeTelemetry -SkipLogs -SkipCost
+            $initial.ExitCode | Should -Be 0
+            $path = Join-Path $script:resumeConfig.Output.Root $initial.RunId
+            (Get-RunManifest -RunPath $path).schemaVersion | Should -Be '1.2'
+            $result = Invoke-ApimCollection -Config $script:resumeConfig -EnvironmentName Prod `
+                -TenantId $script:tenant -ResumeRunPath $path -IncludeTelemetry -SkipLogs -SkipCost
+            @($result.Checks | Where-Object Reused).Count | Should -Be 16
+            @($result.Checks | Where-Object Status -CEQ Skipped).Count | Should -Be 3
+            Should -Invoke Invoke-ApimMetricSeries -Exactly -Times 4
+            Should -Invoke Invoke-ApimArm -Exactly -Times 0
+            { Invoke-ApimCollection -Config $script:resumeConfig -EnvironmentName Prod `
+                    -TenantId $script:tenant -ResumeRunPath $path -IncludeTelemetry -SkipCost } |
+                Should -Throw '*incompatible*'
+        }
+
         It 'reuses all validated output without invoking collectors or Azure' {
             $initial = Invoke-ApimCollection -Config $script:resumeConfig `
                 -EnvironmentName Prod -TenantId $script:tenant

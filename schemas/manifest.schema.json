@@ -26,7 +26,7 @@
   ],
   "properties": {
     "schemaVersion": {
-      "const": "1.1"
+      "enum": ["1.1", "1.2"]
     },
     "toolVersion": {
       "type": "string",
@@ -104,6 +104,34 @@
         "costMonths": {
           "type": "integer",
           "minimum": 1
+        },
+        "metricDays": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3650
+        }
+      }
+    },
+    "evidenceWindows": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind", "target", "schema", "requestedStartUtc", "startUtc",
+          "endUtc", "retentionDays", "isCapped", "status", "reason"
+        ],
+        "properties": {
+          "kind": { "enum": ["Usage", "Security", "Metric", "Cost", "Ingestion"] },
+          "target": { "type": "string", "minLength": 1 },
+          "schema": { "enum": ["ResourceSpecific", "Legacy", "Mixed", "None", "NotApplicable"] },
+          "requestedStartUtc": { "type": "string", "format": "date-time" },
+          "startUtc": { "type": "string", "format": "date-time" },
+          "endUtc": { "type": "string", "format": "date-time" },
+          "retentionDays": { "type": ["integer", "null"], "minimum": 1, "maximum": 3650 },
+          "isCapped": { "type": "boolean" },
+          "status": { "enum": ["Completed", "Partial", "Failed", "Skipped"] },
+          "reason": { "enum": ["None", "Unconfigured", "OptOut", "Unavailable", "Conflicting"] }
         }
       }
     },
@@ -322,6 +350,19 @@
       }
     }
   },
+  "allOf": [
+    {
+      "if": { "properties": { "schemaVersion": { "const": "1.2" } } },
+      "then": {
+        "required": ["evidenceWindows"],
+        "properties": { "windows": { "required": ["metricDays"] } }
+      },
+      "else": {
+        "not": { "required": ["evidenceWindows"] },
+        "properties": { "windows": { "not": { "required": ["metricDays"] } } }
+      }
+    }
+  ],
   "definitions": {
     "stageStatus": {
       "enum": [

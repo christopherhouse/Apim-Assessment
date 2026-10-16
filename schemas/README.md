@@ -4,7 +4,7 @@ Versioned manifest, model, findings, action, and model-safe JSON schemas live he
 `manifest.schema.json` is validated before each manifest write with
 `Test-Json -SchemaFile`. Closed schemas cover ten required baseline model files,
 the optional bound drift, portal, OpenAPI-quality, product-governance and
-diagnostic-coverage models,
+diagnostic-coverage and telemetry usage/capacity/cost models,
 instance findings, and aggregated action items. Future model contracts remain
 deferred to their builders. Follow specification sections 6, 8, 9, and 10, use
 camelCase fields and stable keys, and do not turn unavailable collector data
@@ -12,7 +12,7 @@ into an empty successful result.
 
 ## Restricted run settings
 
-`run-settings.schema.json` closes the version 1.0 offline analysis settings
+`run-settings.schema.json` closes the version 1.0 legacy and version 1.1 telemetry offline analysis settings
 snapshot stored at `restricted/run-settings.json`. It contains only the
 run/tool binding, configured gateway identities and subnet CIDRs, certificate
 expiry threshold, exact backend/operation rule exceptions and critical targets,
@@ -26,6 +26,20 @@ The loader validates the schema, identity/version binding, CIDR values, and
 strictly increasing bands, and reconstructs scoring/edge settings from the
 manifest. Collection separately stores a versioned configuration SHA-256 for
 resume compatibility, never the full private configuration.
+
+Manifest 1.2 adds `metricDays` and closed run-anchored evidence windows; settings
+1.1 adds normalized workspace/cost/Logic Apps targets, internal CIDRs, thresholds
+and durable exclusions. Legacy manifests/settings remain supported unchanged.
+`log-workspaces`, `log-aggregate`, `metric-evidence`, `cost-evidence` and
+`logic-app-evidence` close saved aggregate/sample/billing records; runtime gates
+also enforce target/window/definition coverage, keys and status/count consistency.
+
+The optional version 1.0 `usage`, `capacity` and `cost` model objects bind to these
+validated sources/settings by SHA-256 and are rebuilt on every saved-model load.
+Daily costs are deduplicated before monthly aggregation, mixed currencies remain
+separate and incomplete months/unknown or zero denominators cannot produce
+complete-month cost comparisons. Current sizing is not historical evidence.
+Exact values and identifiers remain restricted, never model-safe.
 
 ## Restricted report lifecycle
 
@@ -168,6 +182,13 @@ broker reads and claim entailment explicitly support 1.4. Only governance
 conditions support ownership/governance claims; only diagnostic-coverage
 conditions support insufficient-diagnostics claims. No user counts, inventory,
 intent, descriptions or sampling values are exported.
+
+`analysis-package.v1.5.schema.json` adds five approved COST conditions bound only
+to Service aliases. Runtime reference validation requires a matching cited
+rule/subject/condition for each evaluated COST finding. The independent scanner,
+attestation, publication and cost-review claim evidence admit 1.5 explicitly.
+Exact cost/call/capacity values and resource/workspace/plan IDs are not exported.
+Earlier schemas and broker tool permissions are unchanged.
 
 The builder replays the implemented rules against validated saved models and
 configuration, checks the saved findings, and constructs condition facts from

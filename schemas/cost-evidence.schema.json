@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object", "additionalProperties": false,
+  "required": ["schemaVersion", "scopes"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "scopes": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["scope", "status", "rows"],
+        "properties": {
+          "scope": { "type": "string", "pattern": "^/subscriptions/[0-9a-f-]{36}(?:/resourcegroups/[a-z0-9._()-]+)?$" },
+          "status": { "enum": ["Completed", "Failed"] },
+          "rows": {
+            "type": "array",
+            "items": {
+              "type": "object", "additionalProperties": false,
+              "required": ["day", "resourceId", "meterCategory", "meterSubCategory", "cost", "currency"],
+              "properties": {
+                "day": { "type": "string", "format": "date", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+                "resourceId": { "type": "string", "pattern": "^(?:/subscriptions/[^?#\\u0000-\\u001f]+)?$" },
+                "meterCategory": { "type": "string", "maxLength": 256, "pattern": "^[^\\u0000-\\u001f\\u007f]*$" },
+                "meterSubCategory": { "type": "string", "maxLength": 256, "pattern": "^[^\\u0000-\\u001f\\u007f]*$" },
+                "cost": { "type": "number" },
+                "currency": { "type": "string", "pattern": "^[A-Z]{3}$" }
+              }
+            }
+          }
+        },
+        "allOf": [{
+          "if": { "properties": { "status": { "const": "Failed" } } },
+          "then": { "properties": { "rows": { "maxItems": 0 } } }
+        }]
+      }
+    }
+  }
+}

@@ -46,6 +46,11 @@ $script:ApimAnalysisConditions = [ordered]@{
     'APIM-POR-003' = 'ProductVisibilityMismatch'
     'APIM-POR-004' = 'ApiDocumentationWeak'
     'APIM-POR-005' = 'LegacyPortalEnabled'
+    'APIM-COST-001' = 'PremiumCapacityReview'
+    'APIM-COST-002' = 'NormalizedCostIncreasing'
+    'APIM-COST-003' = 'DiagnosticIngestionGrowth'
+    'APIM-COST-004' = 'LogicAppCostIncreasing'
+    'APIM-COST-005' = 'NonProductionPremium'
 }
 
 function Get-ApimAnalysisUsageBand {
@@ -114,7 +119,8 @@ function New-ApimAnalysisPackage {
         $root = Resolve-ApimAnalysisRoot -Path $RunPath
         foreach ($relative in @('manifest.json', 'findings.json') +
             @($script:ApimModelSchemaPaths.Keys | Where-Object {
-                    $_ -cnotin @('drift', 'portal', 'openApiQuality', 'products', 'diagnosticCoverage')
+                    $_ -cnotin @('drift', 'portal', 'openApiQuality', 'products', 'diagnosticCoverage',
+                        'usage', 'capacity', 'cost')
                 } |
                 ForEach-Object { "model/$_.json" })) {
             $null = Read-ApimAnalysisSnapshot -Path (
@@ -243,9 +249,12 @@ function New-ApimAnalysisPackage {
         $facts = [System.Collections.Generic.List[object]]::new()
         $pending = [System.Collections.Generic.List[object]]::new()
         $allGaps = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
-        $null = $allGaps.Add('CostUnavailable')
         $assumptions = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
-        $null = $assumptions.Add('CostUnavailable')
+        if (-not $models.Contains('cost') -or
+            @($models.cost.missingInputs | Where-Object { $_ -cin @('cost', 'costCoverage') }).Count) {
+            $null = $allGaps.Add('CostUnavailable')
+            $null = $assumptions.Add('CostUnavailable')
+        }
         if ($models.Contains('diagnosticCoverage')) {
             foreach ($row in $models.diagnosticCoverage) {
                 foreach ($gap in @(Get-ApimAnalysisGap -Inputs @($row.missingInputs))) {
@@ -271,6 +280,18 @@ function New-ApimAnalysisPackage {
                     $values.SubscriptionCount = @($models.subscriptions).Count
                     $values.FindingCount = $replayed.Count
                     $values.CostTrend = 'Unknown'
+                    if ($models.Contains('cost')) {
+                        $comparable = @($models.cost.normalized | Where-Object {
+                                $null -ne $_.changePercent
+                            } | Sort-Object month -Descending)
+                        if ($comparable.Count -gt 0) {
+                            $latest = @($comparable | Where-Object month -CEQ $comparable[0].month)
+                            if ($latest.Count -eq 1) {
+                                $values.CostTrend = if ($latest[0].changePercent -gt 0) { 'Increasing' }
+                                    elseif ($latest[0].changePercent -lt 0) { 'Decreasing' } else { 'Stable' }
+                            }
+                        }
+                    }
                 }
                 Network {
                     $values.VnetMode = $row.virtualNetworkType
@@ -344,7 +365,8 @@ function New-ApimAnalysisPackage {
                     })
             }
         }
-        if ($allGaps.Contains('UsageUnavailable')) {
+        if ($allGaps.Contains('UsageUnavailable') -and
+            (-not $models.Contains('usage') -or $models.usage.modelStatus -cne 'Complete')) {
             $null = $assumptions.Add('TelemetryUnavailable')
         }
         $maximum = 1.0
@@ -403,6 +425,9 @@ function New-ApimAnalysisPackage {
         }
         $package = [ordered]@{
             schemaVersion = if (@($replayed | Where-Object {
+                        $_.ruleId -clike 'APIM-COST-*' -and $_.evaluation -ceq 'Evaluated'
+                    }).Count -gt 0) { '1.5' }
+            elseif (@($replayed | Where-Object {
                         $_.ruleId -cin @('APIM-GOV-003', 'APIM-GOV-009') -and $_.evaluation -ceq 'Evaluated'
                     }).Count -gt 0) { '1.4' }
             elseif (@($replayed | Where-Object {

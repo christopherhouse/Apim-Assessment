@@ -1,0 +1,5 @@
+AzureDiagnostics
+| where TimeGenerated >= datetime(__START__) and TimeGenerated < datetime(__END__)
+| where _ResourceId =~ __RESOURCE__ and Category == "GatewayLogs"
+| summarize calls=count()
+    by apiId=tostring(apiId_s), tlsVersion=tostring(clientTlsVersion_s)

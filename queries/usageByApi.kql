@@ -1,0 +1,11 @@
+ApiManagementGatewayLogs
+| where TimeGenerated >= datetime(__START__) and TimeGenerated < datetime(__END__)
+| where _ResourceId =~ __RESOURCE__
+| summarize calls=count(), error4xx=countif(ResponseCode between (400 .. 499)),
+    error5xx=countif(ResponseCode between (500 .. 599)),
+    unauthorized=countif(ResponseCode in (401, 403)),
+    totalTimeP50=percentile(TotalTime, 50), totalTimeP95=percentile(TotalTime, 95),
+    backendTimeP95=percentile(BackendTime, 95),
+    subscriptionCount=dcountif(ApimSubscriptionId, isnotempty(ApimSubscriptionId)),
+    lastCall=max(TimeGenerated)
+    by apiId=ApiId, operationId=OperationId, productId=ProductId

@@ -18,7 +18,10 @@ function ConvertTo-ApimCanonicalValue {
         }
         return $result
     }
-    if ($Value -is [pscustomobject]) {
+    if ($Value -is [datetime] -or $Value -is [datetimeoffset]) {
+        return ([datetimeoffset] $Value).ToUniversalTime().ToString('O')
+    }
+    if ($null -ne $Value -and $Value.PSObject.BaseObject -is [pscustomobject]) {
         $map = @{}
         foreach ($property in $Value.PSObject.Properties) {
             $map[$property.Name] = $property.Value
@@ -60,7 +63,8 @@ function Remove-ApimCollectorOutput {
 
         [Parameter(Mandatory)]
         [ValidateSet('Service', 'Apis', 'Products', 'Subscriptions',
-            'SecurityAssets', 'Diagnostics', 'Policies', 'Network', 'Identity', 'Portal', 'OpenApi', 'Organization')]
+            'SecurityAssets', 'Diagnostics', 'Policies', 'Network', 'Identity', 'Portal', 'OpenApi', 'Organization',
+            'LogAnalytics', 'Metrics', 'Cost', 'LogicApps')]
         [string] $Name
     )
 
@@ -78,6 +82,11 @@ function Remove-ApimCollectorOutput {
         Portal = @('raw/portal')
         OpenApi = @('raw/openapi')
         Organization = @((Get-ApimOrganizationEndpoint).File)
+        LogAnalytics = @('logs/workspaces.json', 'logs/usageByApi.json', 'logs/usageByRoute.json',
+            'logs/usageMonthly.json', 'logs/tls.json', 'logs/noSubscriptionCalls.json', 'cost/laIngestion.json')
+        Metrics = @('metrics/apim.json', 'metrics/appgw.json')
+        Cost = @('cost/daily.json')
+        LogicApps = @('cost/logicApps.json')
     }
     $paths = @(
         foreach ($relative in $owned[$Name]) {
@@ -102,6 +111,18 @@ function Remove-ApimCollectorOutput {
     }
 }
 
+function Get-ApimTelemetryCollectorRegistry {
+    [CmdletBinding()]
+    param()
+
+    @(
+        [pscustomobject]@{ Name = 'LogAnalytics'; Function = 'Invoke-ApimLogCollector'; Requires = @(); Throttled = $false }
+        [pscustomobject]@{ Name = 'Metrics'; Function = 'Invoke-ApimMetricsCollector'; Requires = @(); Throttled = $false }
+        [pscustomobject]@{ Name = 'Cost'; Function = 'Invoke-ApimCostCollector'; Requires = @(); Throttled = $false }
+        [pscustomobject]@{ Name = 'LogicApps'; Function = 'Invoke-ApimLogicAppCollector'; Requires = @(); Throttled = $false }
+    )
+}
+
 function Invoke-ApimCollection {
     [CmdletBinding()]
     param(
@@ -119,11 +140,26 @@ function Invoke-ApimCollection {
         [ValidateRange(1, 64)]
         [int] $ThrottleLimit = 6,
 
-        [switch] $SkipGit
+        [switch] $SkipGit,
+
+        [switch] $IncludeTelemetry,
+
+        [switch] $SkipLogs,
+
+        [switch] $SkipCost
     )
 
     Test-ApimCountOnlyPrivacy -Config $Config
+    if ($ResumeRunPath) {
+        Test-ConfigPathLink -Path $ResumeRunPath -Context 'Resume run'
+        Test-ConfigPathLink -Path (Join-Path $ResumeRunPath 'manifest.json') -Context 'Resume manifest'
+        $IncludeTelemetry = (Get-RunManifest -RunPath $ResumeRunPath).schemaVersion -ceq '1.2'
+    }
+    if (-not $IncludeTelemetry -and ($SkipLogs -or $SkipCost)) {
+        throw 'Telemetry opt-outs cannot change legacy run settings.'
+    }
     $checks = @(Get-ApimCollectorRegistry)
+    if ($IncludeTelemetry) { $checks += @(Get-ApimTelemetryCollectorRegistry) }
     foreach ($check in $checks) {
         if ($null -eq (Get-Command -Name $check.Function `
                     -CommandType Function -ErrorAction SilentlyContinue)) {
@@ -136,6 +172,12 @@ function Invoke-ApimCollection {
     if ($SkipGit) {
         $digest = Get-ApimConfigDigest -Config @{ config = $Config; skipGit = $true }
     }
+    if ($IncludeTelemetry) {
+        $digest = Get-ApimConfigDigest -Config @{
+            config = $Config; skipGit = [bool] $SkipGit
+            skipLogs = [bool] $SkipLogs; skipCost = [bool] $SkipCost
+        }
+    }
     if ($ResumeRunPath) {
         Test-ConfigPathLink -Path $ResumeRunPath -Context 'Resume run'
         Test-ConfigPathLink -Path (Join-Path $ResumeRunPath 'manifest.json') `
@@ -144,7 +186,7 @@ function Invoke-ApimCollection {
         $expectedPath = Join-Path $Config.Output.Root $manifest.runId
         if ([IO.Path]::GetFullPath($ResumeRunPath) -ne
             [IO.Path]::GetFullPath($expectedPath) -or
-            $manifest.schemaVersion -cne '1.1' -or
+            $manifest.schemaVersion -cnotin @('1.1', '1.2') -or
             $manifest.customer -cne $Config.Customer -or
             $manifest.environment -cne $environment.Name -or
             $manifest.subscriptionId -cne $environment.SubscriptionId -or
@@ -156,7 +198,7 @@ function Invoke-ApimCollection {
             -RelativePath 'restricted/collection-context.json'
         $savedSettings = Get-ApimRunSetting -RunPath $ResumeRunPath
         $expectedSettings = Get-ApimRunSettingSnapshot -RunPath $ResumeRunPath `
-            -Config $Config -Environment $environment
+            -Config $Config -Environment $environment -SkipLogs:$SkipLogs -SkipCost:$SkipCost
         if (@($context.PSObject.Properties.Name).Count -ne 2 -or
             $context.schemaVersion -cne '1.0' -or
             $context.configSha256 -cne $digest -or
@@ -176,7 +218,7 @@ function Invoke-ApimCollection {
     }
     else {
         $run = New-ApimRun -Config $Config -EnvironmentName $EnvironmentName `
-            -TenantId $TenantId -Operator LocalOperator -RunId (
+            -TenantId $TenantId -Operator LocalOperator -IncludeTelemetry:$IncludeTelemetry -RunId (
                 '{0}_{1}' -f [datetimeoffset]::UtcNow.ToString('yyyy-MM-dd_HHmmss'),
                 [guid]::NewGuid().ToString('N').Substring(0, 8)
             )
@@ -185,7 +227,7 @@ function Invoke-ApimCollection {
                 [ordered]@{ schemaVersion = '1.0'; configSha256 = $digest }
             )
         Save-ApimRunSetting -RunPath $run.Path -Config $Config `
-            -Environment $environment
+            -Environment $environment -SkipLogs:$SkipLogs -SkipCost:$SkipCost
     }
 
     $statuses = @{}
@@ -196,8 +238,10 @@ function Invoke-ApimCollection {
     foreach ($check in $checks) {
         $records = @((Get-RunManifest -RunPath $run.Path).collectors |
                 Where-Object name -CEQ $check.Name)
+        $telemetryCheck = $check.Name -cin @('LogAnalytics', 'Metrics', 'Cost', 'LogicApps')
         $reuse = $ResumeRunPath -and $records.Count -eq 1 -and
-            $records[0].status -ceq 'Completed' -and
+            ($records[0].status -ceq 'Completed' -or
+                ($telemetryCheck -and $records[0].status -ceq 'Skipped')) -and
             @($check.Requires | Where-Object { $changed.Contains($_) }).Count -eq 0
         if ($reuse) {
             try {
@@ -213,7 +257,7 @@ function Invoke-ApimCollection {
             }
         }
         if ($reuse) {
-            $statuses[$check.Name] = 'Completed'
+            $statuses[$check.Name] = $records[0].status
             continue
         }
         $null = $changed.Add($check.Name)
@@ -246,13 +290,15 @@ function Invoke-ApimCollection {
             $null = & $check.Function @arguments
             $records = @((Get-RunManifest -RunPath $run.Path).collectors |
                     Where-Object name -CEQ $check.Name)
-            if ($records.Count -ne 1 -or $records[0].status -cne 'Completed') {
+            if ($records.Count -ne 1 -or
+                ($records[0].status -cne 'Completed' -and
+                    -not ($telemetryCheck -and $records[0].status -cin @('Partial', 'Skipped')))) {
                 throw 'Collector did not report completion.'
             }
             Test-ApimCollectorOutput -RunPath $run.Path `
                 -Environment $environment -Collector $records[0] `
                 -CompletePolicyInventory
-            $statuses[$check.Name] = 'Completed'
+            $statuses[$check.Name] = $records[0].status
         }
         catch {
             $records = @((Get-RunManifest -RunPath $run.Path).collectors |
@@ -274,7 +320,10 @@ function Invoke-ApimCollection {
     }
     $gitStatus = Invoke-ApimOptionalGitCollection -RunPath $run.Path `
         -Environment $environment -Resume:([bool] $ResumeRunPath) -SkipGit:$SkipGit
-    $status = if (@($statuses.Values | Where-Object { $_ -cne 'Completed' }).Count -or
+    $status = if (@($checks | Where-Object {
+                $statuses[$_.Name] -cne 'Completed' -and
+                -not ($_.Name -cin @('LogAnalytics', 'Cost', 'LogicApps') -and $statuses[$_.Name] -ceq 'Skipped')
+            }).Count -or
         $gitStatus -cnotin @('Completed', 'Skipped')) {
         'Partial'
     }
@@ -292,7 +341,6 @@ function Invoke-ApimCollection {
                     Status = $statuses[$check.Name]
                     Reused = -not $changed.Contains($check.Name)
                 }
-
             }
         )
     }

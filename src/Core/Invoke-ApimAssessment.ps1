@@ -2,20 +2,6 @@
 
 Set-StrictMode -Version Latest
 
-function Test-ApimRuntimeCapability {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory)]
-        [System.Collections.IDictionary] $Options
-    )
-
-    foreach ($name in @('SkipCost', 'SkipLogs')) {
-        if (@($Options.Keys) -ccontains $name -and -not $Options[$name]) {
-            throw 'CAPABILITY_UNAVAILABLE'
-        }
-    }
-}
-
 function Set-ApimStageFailure {
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'Low')]
     param(
@@ -64,7 +50,6 @@ function Invoke-ApimCollect {
     )
 
     try {
-        Test-ApimRuntimeCapability -Options $PSBoundParameters
         $settings = Get-Config -Path $Config
         Test-ApimCountOnlyPrivacy -Config $settings
         $target = Get-ApimEnvironmentConfig -Config $settings `
@@ -100,7 +85,8 @@ function Invoke-ApimCollect {
     try {
         return Invoke-ApimCollection -Config $settings `
             -EnvironmentName $Environment -TenantId $tenantId `
-            -ResumeRunPath $Resume -ThrottleLimit $ThrottleLimit -SkipGit:$SkipGit
+            -ResumeRunPath $Resume -ThrottleLimit $ThrottleLimit -SkipGit:$SkipGit `
+            -IncludeTelemetry -SkipLogs:$SkipLogs -SkipCost:$SkipCost
     }
     catch {
         return [pscustomobject]@{
@@ -134,7 +120,6 @@ function Invoke-ApimAssessment {
     )
 
     try {
-        Test-ApimRuntimeCapability -Options $PSBoundParameters
         if ($Stage -ceq 'Collect' -and $PSBoundParameters.ContainsKey('PreviousReport')) {
             throw 'CAPABILITY_UNAVAILABLE'
         }
@@ -147,6 +132,8 @@ function Invoke-ApimAssessment {
     $collectArguments = @{ Config = $Config; Environment = $Environment
         Resume = $Resume; ThrottleLimit = $ThrottleLimit }
     if ($PSBoundParameters.ContainsKey('SkipGit')) { $collectArguments.SkipGit = $SkipGit }
+    $collectArguments.SkipLogs = $SkipLogs
+    $collectArguments.SkipCost = $SkipCost
     $collection = Invoke-ApimCollect @collectArguments
     if ($collection.ExitCode -notin @(0, 3) -or $Stage -eq 'Collect') {
         return $collection

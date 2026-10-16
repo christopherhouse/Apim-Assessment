@@ -20,7 +20,8 @@ function New-AnalysisTestRun {
     if ($null -eq $Models) {
         $Models = [ordered]@{}
         foreach ($name in @($script:ApimModelSchemaPaths.Keys | Where-Object {
-                    $_ -cnotin @('drift', 'portal', 'openApiQuality', 'products', 'diagnosticCoverage')
+                    $_ -cnotin @('drift', 'portal', 'openApiQuality', 'products', 'diagnosticCoverage',
+                        'usage', 'capacity', 'cost')
                 })) {
             $file = if ($name -ceq 'apis') { 'apis.exposure.json' } else { "$name.json" }
             $Models[$name] = Get-Content -LiteralPath (

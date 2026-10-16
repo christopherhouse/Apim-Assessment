@@ -372,7 +372,7 @@ Partial and no complete policy index is written.
 - `security/roleAssignments.json`: planned `authorizationresources` role assignments at RG and resource scope (principalId, principalType, roleDefinitionId → resolved role name). Principal display names are not collected; identity-storage opt-in is unsupported under D-59.
 
 ### 7.6 Logs (Log Analytics)
-Detect schema first: if `ApiManagementGatewayLogs` has rows in the window use **resource-specific** queries, else fall back to `AzureDiagnostics` variants (`queries/*.azdiag.kql`). Record which in manifest. Also record workspace retention (`Get-AzOperationalInsightsWorkspace`), and cap windows to retention.
+Detect schema first: if `ApiManagementGatewayLogs` has rows in the window use **resource-specific** queries, else fall back to `AzureDiagnostics` variants (`queries/*.azdiag.kql`). Record which in manifest. Resolve configured workspace GUIDs through scoped Resource Graph queries, then obtain workspace/table retention through guarded ARM GETs. Cap each log family to its table retention (workspace retention when inherited). Mixed-schema observations and absent APIM observations cannot establish complete usage or zero calls. Manifest 1.2 and settings 1.1 record run-anchored requested/effective windows and explicit targets/opt-outs; legacy 1.1/1.0 shapes remain unchanged.
 
 | Raw file | Query (resource-specific form) |
 |---|---|
@@ -390,7 +390,7 @@ Detect schema first: if `ApiManagementGatewayLogs` has rows in the window use **
 `metrics/apim.json`: `Capacity` (avg, max; PT1H), `Requests` (total; P1D), `Duration`, `BackendDuration` (avg; PT1H) for `MetricDays`. `metrics/appgw.json`: `CapacityUnits`, `Throughput`, `UnhealthyHostCount`.
 
 ### 7.8 Cost (Cost Management Query API)
-`cost/daily.json`: `type=ActualCost`, `timeframe=Custom` (last `CostMonths` full months + MTD), `granularity=Daily`, aggregation `PreTaxCost` (sum), grouping `ResourceId`, `MeterCategory`, `MeterSubCategory`. One query per `CostScopes` entry. Handle 429 with `x-ms-ratelimit-microsoft.costmanagement-*-retry-after`.
+`cost/daily.json`: `type=ActualCost`, `timeframe=Custom` (last `CostMonths` full months + MTD), `granularity=Daily`, aggregation `PreTaxCost` (sum), with resource/category/subcategory detail. Under D-61 the API's two-group limit requires a ResourceId/MeterCategory query per scope followed by ResourceId/MeterSubCategory queries filtered per observed category; reconcile daily resource/category/currency totals before accepting detail. Bound category expansion. Handle 429 with `x-ms-ratelimit-microsoft.costmanagement-*-retry-after`. Required token-bearing continuation URLs remain prohibited: record incomplete evidence rather than bypassing the guard or interpreting a truncated page as full cost.
 
 `cost/logicApps.json` (cost-only): inventory of `Microsoft.Logic/workflows` and `Microsoft.Web/sites` (kind contains `workflowapp`) + App Service plan SKU/instance count; metrics `BillableActionExecutions`/`BillableTriggerExecutions` (Consumption) and plan `CpuPercentage`/instance count (Standard). **No workflow definitions are read.**
 
@@ -540,9 +540,9 @@ the deterministic `data-scope` and unresolved-fragment status attributes.
 | `certificates.json` | certificate | `certificateId`, normalized nullable `expirationDate`, nullable `keyVaultBacked`, completeness metadata |
 | `exposure.json` | route × API | stable `routeKey`, `gateway`, `listener`, `listenerHost`, `backendHost`, `frontendType` (Public/Private), `ruleType`, `pattern`, `wafState`, `wafMode`, `edge` (`Cloudflare-Assumed`), `apiId`, `reachability`, `restriction`, `exposure`, `callsViaAppGw`, `callsInternal`, `confidence`, `baseMissingBypass`, `restrictedOperations[]`, completeness metadata |
 | `network.json` | single object | APIM VNet mode, public access, NSG evaluation result, other front doors, App GW TLS policy, APIM-targeted probe alignment/paths, WAF state, optional operator-attested edge/origin and auxiliary endpoint facts |
-| `usage.json` | API × month | calls; plus top-N table |
-| `cost.json` | resource × month (and day) | `resourceId`, `resourceType`, `meterCategory`, `cost`, `currency`; derived `costPerMillionCalls` (APIM + App GW) |
-| `capacity.json` | day | `capacityAvg`, `capacityMax`, `capacityP95`, `units` |
+| `usage.json` | optional closed object, API × month rows | same-window `calls`, partial boundary-month status; top-ten APIs |
+| `cost.json` | optional closed object, resource × day/month | deduplicated daily and monthly `resourceId`, `resourceType`, meter categories, signed `cost`, separate `currency`; normalized APIM + App GW costs/calls, ingestion and cost-only Logic Apps |
+| `capacity.json` | optional closed object, day rows + summary | nullable `capacityAvg`, `capacityMax`, nearest-rank hourly-average `capacityP95`, current `units`, actual/expected sample counts |
 | `drift.json` | optional policy/catalog × environment pair | `category` (Git/Environment), stable `key`, `environmentA/B`, nullable `presentA/B` and `hashA/B`, `changeType` (All/ProdOnly/Differs/SourceOnly/Missing/Unknown), severity, fixed note, completeness metadata; closed restricted source inventories retain every selected environment |
 | `portal.json` | optional single object | nullable modern/legacy status, current-completed publication, direct basic-auth attribution, nullable sign-in/sign-up/delegation settings, provider types, nullable custom-domain inventory, explicit product/group intent and mismatch facts, completeness metadata |
 | `products.json` | optional product | `productId`, `productFound`, nullable `hasDescription`, `hasOwner`, `isExternal`, `approvalRequired`, completeness metadata |
@@ -556,6 +556,31 @@ Organization success. Missing collector evidence never becomes a safe empty
 inventory. Present governance models are closed-schema validated and rebuilt
 from saved sources/settings before loading; modified model/source/intent fails
 closed. Product text is reduced to description presence, never owner identity.
+
+Under D-60/D-62, manifest 1.2 runs add all three telemetry model objects with
+`schemaVersion`, `sourceSha256`, `modelStatus` and fixed `missingInputs`.
+Every saved-model load rebuilds them from validated closed evidence and saved
+settings and compares the projection; malformed or changed sources/models fail
+closed. Legacy ten-model runs retain manifest/settings versions and do not gain
+telemetry defaults. Date instants are canonicalized in UTC for stable bindings.
+
+Usage is API-month aggregate evidence, not per-subscription usage or observed-route
+exposure. Identical workspace copies/windows count once; differing copies leave
+denominators unknown. Complete empty intervals may establish zero; partial,
+skipped or failed inputs cannot. Cost deduplicates identical overlapping daily
+resource/category/subcategory/currency keys and rejects conflicting amounts.
+Currencies never combine. Same-period scoped costs per million APIM calls stay
+null for unknown/zero denominators or incomplete cost coverage. Adjacent complete
+calendar months alone yield normalization changes; MTD never becomes a full
+month. Daily costs remain available in the closed model.
+
+Ingestion uses relevant billable workspace-table totals, not individual-resource
+attribution. Logic Apps inventory retains only ARG-projected identities, current
+linked Standard-plan SKU/instances and guarded metric evidence. It never requests
+workflow definitions; Standard plan cost is shared-plan cost, and historical
+plan changes remain null. Capacity P95 is nearest-rank over hourly average
+samples, not a native Azure percentile. Units/SKU/zones are current snapshots,
+not historical sizing or proof of safe downsizing/savings.
 
 Optional closed `Governance.Products` contains unique exact `ProductId`,
 Boolean `HasOwner` and Boolean `IsExternal`; `CriticalApiIds` contains unique
@@ -804,8 +829,8 @@ Edge layer: with `Edge.Mode = AssumedReachable`, every public listener is treate
 The private engine evaluates Service, Api, Operation, Subscription, NamedValue,
 Backend, Certificate, Route, Network, and Portal targets backed by registered model
 contracts. Portal uses neutral platform/not-applicable usage weighting and the
-optional closed portal model. Cost remains deferred until its model contract
-exists (D-29/D-36/D-57). Rules must declare their target model and any additional
+optional closed portal model. COST rules use Service scope and the source-bound
+telemetry contracts under D-62. Rules must declare their target model and any additional
 model they use in `Requires`. Additive fallback evidence may instead be
 declared in `OptionalRequires`: absent/unavailable optional models do not block
 evaluation, but present models must validate and are included in finding source
@@ -1191,6 +1216,27 @@ the method and unavailable-quality reasons without claiming a linter ran.
 | APIM-COST-004 | Logic Apps cost increase (cost-only) | Medium | month cost > 1.5× first month; evidence: change start date, plan SKU/instance changes; states "workflow review out of scope" |
 | APIM-COST-005 | Non-prod on Premium / over-provisioned non-prod | Low | env != Prod and sku Premium |
 
+Implemented D-62 semantics: COST-001 is informational for Premium with complete
+capacity; it preserves zone/HA caveats rather than asserting excess capacity.
+COST-002 flags positive normalization change across complete adjacent UTC months.
+COST-003 requires at least doubled comparable ingestion, or proven body logging
+with billable APIM-table ingestion, not unrelated App Gateway access logs;
+missing coverage yields NotEvaluated unless
+another positive is established. COST-004 uses strictly greater than 1.5 times
+the first complete month in the same currency for a workflow/linked shared plan.
+It records the first qualifying month and current SKU/instances only, explicitly
+leaving historical changes unknown and workflow review out of scope. COST-005
+uses the configured environment, never resource-name heuristics. Missing required
+models/facts emit one Info/NotEvaluated result per rule.
+
+Evaluated COST findings select closed model-safe package 1.5 with only
+`PremiumCapacityReview`, `NormalizedCostIncreasing`, `DiagnosticIngestionGrowth`,
+`LogicAppCostIncreasing` and `NonProductionPremium`, all bound to Service aliases
+and matching rule/condition citations. Exact costs, usage, capacity, dates and
+resource/workspace/plan identifiers have no export field. Earlier schemas stay
+unchanged; independent scanning, attestation and semantic claims admit 1.5
+explicitly without new broker permissions.
+
 > Maintainers add Microsoft Learn references to `References` manually. The tool must never generate URLs.
 
 ---
@@ -1213,8 +1259,8 @@ model contract, `findings.json`, and the installed rule catalog before selecting
 an output filename or copying the template. It populates the currently
 implemented Actions, Finding Details, API Inventory, Effective Policy Matrix,
 Subscriptions, Exposure Map, network summary, Summary assumptions, Run Info,
-implemented rules, and the manifest's exact scoring snapshot. Usage, Cost, and
-Environment Drift remain empty until their model contracts exist. Output is
+implemented rules, and the manifest's exact scoring snapshot. Telemetry runs
+populate Usage/Cost; requested comparison evidence populates Environment Drift. Output is
 written under the run's restricted `report` folder, uses `manifest.startedUtc`
 for the filename date, never overwrites an existing file, and fails before final
 output on unsafe names, template drift, invalid inputs, or more than 9,997 rows
@@ -1252,6 +1298,13 @@ local registries retain relative artifact paths without returning them to a mode
 | Environment Drift | `tblDrift` | model/drift.json |
 | Run Info | `tblRun` | manifest (collectors, statuses, windows, versions) |
 | Method & Rules | `tblRules`, `tblWeights` | rule catalog + scoring weights (editable cells drive a recalculated `Priority` column formula in Action Plan) |
+
+Usage/Cost population under T-411 retains the fixed template table headers.
+Unavailable route/latency columns remain blank. Additional local Excel tables
+bind monthly line and separate-currency stacked cost charts; chart amounts use
+resource rows only. Combined normalization rows repeat APIM/App Gateway costs
+and are explicitly labeled not additional cost. Partial months and capacity
+sample/current-sizing qualifications remain visible in Excel and local HTML.
 
 ### 12.3 Carry-forward (`Merge-PriorTracking`)
 With `-PreviousReport <path>`: read `Action Plan` and `Finding Details` tracking columns, join on `ruleId` (actions) / `findingKey` (details), copy `Owner/Status/Target Date/Notes`. Unmatched prior rows are listed in a `Resolved Since Last Run` section with their tracking values.
@@ -1302,13 +1355,15 @@ drift uses Analyze's separate optional model, not historical Compare.
 
 ## 14. CLI
 
-The implemented operational slice (D-50) exposes Collect, Analyze, Excel/HTML Report,
-and Assessment plus offline Compare over ten required collectors, optional
-committed Git policies, ten required models, optional portal/bound drift, and the
-installed catalog. Analyze/Report are offline. Cost, Log Analytics, and
-custom/filtered catalogs remain future capabilities: unsupported requests fail
-explicitly. SkipCost/SkipLogs confirm default exclusions; explicit `:$false`
-requests an unavailable capability. Git is configured/optional with explicit
+The implemented operational slice (D-50/D-60) exposes Collect, Analyze, Excel/HTML Report,
+and Assessment plus offline Compare over sixteen collectors, optional
+committed Git policies, ten required models, optional portal/bound drift and
+telemetry models, and the installed catalog. Analyze/Report are offline.
+Configured cost and Log Analytics default on; SkipCost excludes cost/auxiliary
+evidence, while SkipLogs excludes all LA queries including ingestion but not
+metrics or diagnostic configuration. Explicit `:$false` enables configured
+evidence; exclusions persist across resume. Custom/filtered catalogs remain
+unavailable and unsupported requests fail explicitly. Git is configured/optional with explicit
 SkipGit behavior in section 7.9. Cross-environment `Analyze -CompareRuns` is
 available under the section 8 drift contract; same-environment Compare remains
 a separate command.
