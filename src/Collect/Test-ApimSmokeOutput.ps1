@@ -59,6 +59,15 @@ function Test-ApimSmokeOutput {
         -Context 'Smoke manifest'
     $manifest = Get-RunManifest -RunPath $RunPath
     $expectedNames = @((Get-ApimCollectorRegistry).Name)
+    $telemetryNames = @()
+    if ($manifest.schemaVersion -ceq '1.2') {
+        $telemetryNames = @((Get-ApimTelemetryCollectorRegistry).Name)
+        $expectedNames += $telemetryNames
+        $saved = Get-ApimRunSetting -RunPath $RunPath
+        if ($saved.Settings.schemaVersion -cne '1.2') {
+            throw 'Smoke telemetry settings do not include observed-route collection.'
+        }
+    }
     if ($manifest.runId -ne $Result.RunId -or
         $manifest.environment -ne $Environment.Name -or
         $null -eq $manifest.completedUtc -or
@@ -87,8 +96,13 @@ function Test-ApimSmokeOutput {
     }
 
     $completed = @($Result.Checks | Where-Object Status -EQ Completed)
+    $incomplete = @($Result.Checks | Where-Object {
+            $_.Status -cne 'Completed' -and
+            -not ($_.Name -cin @('LogAnalytics', 'Cost', 'LogicApps') -and
+                $_.Status -ceq 'Skipped')
+        })
     if (($Result.Status -eq 'Completed') -ne
-        ($completed.Count -eq $expectedNames.Count)) {
+        ($incomplete.Count -eq 0)) {
         throw 'Smoke run status does not match its collectors.'
     }
 
@@ -97,10 +111,38 @@ function Test-ApimSmokeOutput {
             -Collector $collectors[$check.Name]
     }
     foreach ($check in @($Result.Checks | Where-Object {
-                $_.Status -ceq 'Partial' -and $_.Name -cin @('Identity', 'Portal', 'OpenApi', 'Organization')
+                ($_.Status -ceq 'Partial' -and
+                    $_.Name -cin @('Identity', 'Portal', 'OpenApi', 'Organization')) -or
+                ($_.Name -cin $telemetryNames -and $_.Status -cin @('Partial', 'Skipped'))
             })) {
         Test-ApimCollectorOutput -RunPath $RunPath -Environment $Environment `
             -Collector $collectors[$check.Name]
+    }
+}
+
+function Get-ApimSmokeQueryCheck {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string] $RunPath,
+        [Parameter(Mandatory)][object] $Result
+    )
+
+    $logCheck = @($Result.Checks | Where-Object Name -CEQ LogAnalytics)
+    if ($logCheck.Count -eq 0) { return }
+    foreach ($kind in @('appgwByListener', 'appgwNonEdge', 'directNonAppGw', 'headersLogged')) {
+        $status = if ($logCheck[0].Status -cin @('Failed', 'Skipped')) {
+            $logCheck[0].Status
+        }
+        else {
+            $payload = Read-ApimSmokeOutputJson -RunPath $RunPath -RelativePath "logs/$kind.json"
+            $statuses = @($payload.workspaces.status | Sort-Object -Unique)
+            if ($statuses.Count -eq 1 -and
+                $statuses[0] -cin @('Completed', 'Partial', 'Failed', 'Skipped')) {
+                $statuses[0]
+            }
+            else { 'Partial' }
+        }
+        [pscustomobject]@{ Name = $kind; Status = $status }
     }
 }
 

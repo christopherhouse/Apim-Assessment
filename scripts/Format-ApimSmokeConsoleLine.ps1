@@ -24,7 +24,7 @@ function Format-ApimSmokeConsoleLine {
     param(
         [Parameter(Mandatory)]
         [ValidateSet('Header', 'Preparing', 'Ready', 'Running',
-            'Completed', 'Partial', 'Failed', 'Skipped', 'Summary')]
+            'Completed', 'Partial', 'Failed', 'Skipped', 'Summary', 'Query')]
         [string] $State,
 
         [ValidatePattern('^[A-Za-z][A-Za-z0-9 ]{0,39}$')]
@@ -45,12 +45,24 @@ function Format-ApimSmokeConsoleLine {
         [ValidateRange(0, 1000)]
         [int] $CompletedCount = 0,
 
+        [ValidateSet('Completed', 'Partial', 'Failed', 'Skipped')]
+        [string] $QueryStatus,
+
+        [switch] $Unconfigured,
+
         [switch] $Color
     )
 
     if ($State -in @('Running', 'Completed', 'Partial', 'Failed', 'Skipped') -and
         ($Total -lt 1 -or $Index -lt 1 -or $Index -gt $Total)) {
         throw 'Smoke check position was invalid.'
+    }
+    if ($State -eq 'Query') {
+        if ([string]::IsNullOrEmpty($QueryStatus) -or
+            $Name -cnotin @('appgwByListener', 'appgwNonEdge', 'directNonAppGw', 'headersLogged')) {
+            throw 'Smoke query check was invalid.'
+        }
+        return "[QUERY] $Name - $QueryStatus"
     }
 
     $symbols = if ($Color) {
@@ -115,7 +127,8 @@ function Format-ApimSmokeConsoleLine {
                 "  $number  $($symbols.Running)  $($Name.PadRight(15))  WORKING"
             }
             'Skipped' {
-                "  $number  $($symbols.Skipped)  $($Name.PadRight(15))  SKIPPED"
+                $detail = if ($Unconfigured) { '  (unconfigured)' } else { '' }
+                "  $number  $($symbols.Skipped)  $($Name.PadRight(15))  SKIPPED$detail"
             }
             'Summary' {
                 "  $rule`n  $($symbols.Summary)  $CompletedCount/$Total checks complete  -  $($SummaryStatus.ToUpperInvariant())"
@@ -142,7 +155,8 @@ function Format-ApimSmokeConsoleLine {
             'Ready' { "$Name ready."; break }
             'Running' { "$position $Name - collecting..."; break }
             'Skipped' {
-                "$position $Name - Skipped (prerequisite not complete)."; break
+                $reason = if ($Unconfigured) { 'unconfigured' } else { 'prerequisite not complete' }
+                "$position $Name - Skipped ($reason)."; break
             }
             'Summary' { "Collection smoke: $SummaryStatus"; break }
             default {

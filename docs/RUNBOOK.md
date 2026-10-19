@@ -758,10 +758,10 @@ output and must never be sent to Copilot or another model.
 
 ## Reusable collection smoke (Microsoft-owned test APIM only)
 
-The preparatory `scripts/Invoke-ApimSmoke.ps1` entry point exercises the twelve
+The preparatory `scripts/Invoke-ApimSmoke.ps1` entry point exercises the sixteen
 implemented collectors in fixed dependency order: Service, Apis, Products,
 Subscriptions, SecurityAssets, Diagnostics, Policies, Network, Identity, Portal,
-OpenApi, Organization. SecurityAssets
+OpenApi, Organization, LogAnalytics, Metrics, Cost, and LogicApps. SecurityAssets
 writes only allowlisted metadata: named-value values are dropped after in-memory
 pattern detection, backend credential values are reduced to structural facts,
 and certificate data/private material is never stored. Diagnostics writes only
@@ -770,7 +770,8 @@ settings; it drops credentials, descriptions, samples, data-masking details,
 header values, and unknown fields. The same command will run newly registered
 checks after their synthetic acceptance. A failure is recorded in the manifest,
 independent checks continue, and dependent checks are Skipped; no false success
-is reported. Exit status is 0 when all registered collection checks complete, 1
+is reported. Exit status is 0 when all required collection checks complete and
+optional skips validate against unconfigured targets, 1
 for configuration/preflight failure, 2 for Az module/context failure, 3 when
 collection is Partial, and 4 for an unexpected run, output-validation failure,
 secret candidate, or incomplete secret scan.
@@ -834,18 +835,31 @@ repaired automatically: the authorized maintainer should inspect the affected
 policy locally in the Microsoft-owned test instance. Do not paste `$Error`,
 policy XML, or returned Resource Graph diagnostics into Copilot.
 After collection, the same script validates the exact new run locally: its
-schema-valid completed manifest must agree with all eight check statuses,
+schema-valid completed manifest must agree with all registered check statuses,
 the collection stage and untouched Analyze/Report stages. Every completed
 check must have its required files and matching item counts; API/product
 child collections, per-API diagnostics, network JSON files, and the policy
 index and XML hashes are checked. Empty valid collections pass; missing
 or malformed JSON, missing children, count mismatches, and changed policy
-XML fail with `SMOKE_OUTPUT_INVALID` and exit 4. Only completed checks are
+XML fail with `SMOKE_OUTPUT_INVALID` and exit 4. Completed checks, supported
+Partial configuration checks, and Partial/Skipped telemetry are
 validated on a Partial run, which remains exit 3 rather than becoming a
 success. The terminal prints `SMOKE_OUTPUT_VALID` only after structural
 validation; it never prints saved content, paths, identifiers, or private
 validation exceptions. This is not independent content-safety certification,
 rule evaluation, model creation, or workbook rendering.
+Fresh smoke runs use manifest/settings 1.2 and the same implemented telemetry
+collectors as public collection. Configured logs and costs run automatically;
+metrics always run. Unconfigured LogAnalytics, Cost, and LogicApps are explicitly
+Skipped without being relabeled as failures or successful execution. Baseline
+prerequisite skips and incomplete/failed collectors still make the run Partial.
+After saved-output validation, four `[QUERY]` lines show Completed, Partial,
+Failed, or Skipped coverage for `appgwByListener`, `appgwNonEdge`,
+`directNonAppGw`, and `headersLogged`. Differing workspace statuses aggregate to
+Partial; no workspace IDs, counts, header values or raw diagnostics are printed.
+A query may be Skipped even when LogAnalytics completes, for example when
+trusted edge ranges or gateway targets are unconfigured. A skipped query has not
+been live-validated. Legacy twelve-check saved smoke output remains valid.
 The command then scans the whole newly saved run, including artifacts from
 failed/Partial collectors. `SECRET_SCAN_PASS` is required before the final
 PASS; `SECRET_SCAN_FAIL` (candidate found) or `SECRET_SCAN_ERROR` (scan incomplete)
@@ -860,7 +874,7 @@ Restricted raw output, manifest, and logs stay under `Output.Root`. This is
 customer assessment: Analyze, rules, reports, and model-data promotion are not
 run. Do not pass live output, identifiers, errors, or logs to Copilot.
 The maintainer's previously reported live smoke covered the original six checks;
-the newly registered SecurityAssets and Diagnostics checks still require a
+the later configuration and telemetry checks still require a
 maintainer-only live run on the Microsoft-owned test environment.
 
 In Copilot CLI, these `!` commands are safe because they run only synthetic
@@ -877,7 +891,8 @@ Microsoft-owned test APIM (T-114), use Reader-level APIM/network permissions
 and an existing Az login, and verify that the private configuration, restricted
 `Output.Root`, and separate unused `Output.ModelSafeRoot` are external paths
 outside the repository and **all** Copilot trusted/allowed directories. Install
-`Az.Accounts` and `Az.ResourceGraph` in the maintainer's PowerShell environment
+`Az.Accounts`, `Az.ResourceGraph`, and (when workspaces are configured)
+`Az.OperationalInsights` in the maintainer's PowerShell environment
 using the organization's approved process; the smoke command never installs
 modules or initiates a login.
 
@@ -897,6 +912,12 @@ only the relevant network groups/gateways (empty arrays if none), and absolute
 non-overlapping external Output roots. Leave other required sample settings
 valid. Never paste this file or its values into a prompt. Use a separately
 approved storage location and retention policy for the restricted run.
+To exercise the new query paths, configure the test workspace IDs, App Gateway
+name/resource group, App Gateway subnet CIDRs, and trusted edge IPv4 ranges.
+The workspace needs APIM and gateway diagnostic tables with usable retained
+traffic. Configure test cost scopes and Logic Apps groups only when relevant.
+The existing identity also needs authorized log-query and Cost Management read
+access for configured targets; the script does not grant access or change Azure.
 
 Sign in if needed (`Connect-AzAccount`) and select the intended subscription
 using your normal Azure PowerShell workflow in that same terminal. Then run:
@@ -913,7 +934,8 @@ available to automation.
 The single script defaults to
 `$HOME\apim-smoke-private\smoke.psd1`; if you use another private directory,
 pass `-Config (Join-Path $private 'smoke.psd1')`. `Test` must match the
-environment name in that config. Exit 0 requires all twelve checks,
+environment name in that config. Exit 0 requires all required checks and
+validated unconfigured optional skips,
 saved-output validation, and the secret scan to pass;
 `SMOKE_OUTPUT_VALID` and `SECRET_SCAN_PASS` with exit 3 mean only
 the completed checks' files validated and collection is still Partial.
