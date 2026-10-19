@@ -81,6 +81,26 @@ Describe 'Versioned telemetry evidence contracts' {
             { Test-RunManifest -Manifest $manifest } | Should -Throw '*duplicate targets*'
         }
 
+        It 'snapshots trusted edge ranges from local files and rejects invalid ranges without internal CIDRs' {
+            $config = $script:telemetryContractConfig
+            $config.Network.InternalCidrs = @()
+            $config.Edge.TrustedEdgeRanges = @('192.0.2.0/24')
+            $config.Edge.TrustedEdgeRangesFile = Join-Path $TestDrive edge-ranges.txt
+            Set-Content -LiteralPath $config.Edge.TrustedEdgeRangesFile -Value @(
+                '# Synthetic ranges only', '198.51.100.0/24 # test range', '', '192.0.2.0/24'
+            )
+            Save-ApimRunSetting -RunPath $script:telemetryContractRun.Path -Config $config `
+                -Environment $config.Environments[0] -IncludeObservedRoutes
+            Remove-Item -LiteralPath $config.Edge.TrustedEdgeRangesFile
+            $saved = Get-ApimRunSetting -RunPath $script:telemetryContractRun.Path
+            $saved.Settings.schemaVersion | Should -BeExactly '1.2'
+            $saved.Settings.telemetry.trustedEdgeRanges | Should -Be @('192.0.2.0/24', '198.51.100.0/24')
+            $saved.Config.Edge.TrustedEdgeRanges | Should -Be $saved.Settings.telemetry.trustedEdgeRanges
+            $saved.Settings.telemetry.trustedEdgeRanges = @('999.0.2.0/24')
+            { Test-ApimRunSetting -Json (ConvertTo-Json $saved.Settings -Depth 20) -Manifest $saved.Manifest } |
+                Should -Throw '*trusted edge CIDR*'
+        }
+
         It 'rejects unknown fields and version-shape mismatches without replacing saved evidence' {
             $manifest = Get-RunManifest -RunPath $script:telemetryContractRun.Path
             $manifest.schemaVersion = '1.1'

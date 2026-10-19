@@ -12,7 +12,8 @@ into an empty successful result.
 
 ## Restricted run settings
 
-`run-settings.schema.json` closes the version 1.0 legacy and version 1.1 telemetry offline analysis settings
+`run-settings.schema.json` closes the version 1.0 legacy, version 1.1 telemetry
+and version 1.2 observed-route offline analysis settings
 snapshot stored at `restricted/run-settings.json`. It contains only the
 run/tool binding, configured gateway identities and subnet CIDRs, certificate
 expiry threshold, exact backend/operation rule exceptions and critical targets,
@@ -30,9 +31,18 @@ resume compatibility, never the full private configuration.
 Manifest 1.2 adds `metricDays` and closed run-anchored evidence windows; settings
 1.1 adds normalized workspace/cost/Logic Apps targets, internal CIDRs, thresholds
 and durable exclusions. Legacy manifests/settings remain supported unchanged.
+Settings 1.2 additionally requires snapshotted trusted edge IPv4 CIDRs and opts
+into observed-route evidence/replay; 1.0/1.1 resumes are not silently upgraded.
 `log-workspaces`, `log-aggregate`, `metric-evidence`, `cost-evidence` and
 `logic-app-evidence` close saved aggregate/sample/billing records; runtime gates
 also enforce target/window/definition coverage, keys and status/count consistency.
+`observed-route-evidence.schema.json` closes the four route-query envelopes at
+1.0: per-workspace schema/status/reason/window/retention plus kind-specific
+aggregate rows. Runtime gates also check count relationships, duplicate keys,
+resource scope and exact collector inventories. AppGateway coverage is separate
+from APIM usage coverage. No client IP or header value fields are admitted.
+Observed exposure and API backfill are rebuilt against restricted sources and
+settings on load before reports or model-safe packaging.
 
 The optional version 1.0 `usage`, `capacity` and `cost` model objects bind to these
 validated sources/settings by SHA-256 and are rebuilt on every saved-model load.

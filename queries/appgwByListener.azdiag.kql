@@ -1,0 +1,9 @@
+AzureDiagnostics
+| where Category == "ApplicationGatewayAccessLog"
+| where TimeGenerated >= datetime(__START__) and TimeGenerated < datetime(__END__)
+| where _ResourceId in~ (dynamic(__GATEWAYS__))
+| summarize calls=count(), clientCount=dcount(clientIP_s)
+    by gatewayId=tolower(_ResourceId),
+    listener=tostring(column_ifexists("listenerName_s", "")),
+    rule=tostring(column_ifexists("ruleName_s", "")),
+    host=tostring(column_ifexists("host_s", ""))

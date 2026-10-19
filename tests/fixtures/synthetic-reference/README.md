@@ -134,7 +134,19 @@ COST-001/002/003/004, not COST-005; changing only explicit environment to Test
 adds COST-005. Focused mutations cover strict thresholds, currencies, MTD,
 overlap deduplication/conflicts, missing/zero denominators, source/settings
 tampering, opt-out/resume, closed package 1.5 and table-bound Excel/local HTML.
-Individual-subscription usage, observed-route exposure and PERF remain deferred.
+Individual-subscription usage and remaining telemetry/PERF rules stay deferred.
+
+The helper's optional `-IncludeObservedRoutes` adds four closed route files and
+settings 1.2: three route rows across two APIs (25 gateway/10 internal calls for
+orders, 12 internal-only calls for status), one public listener aggregate, an
+explicitly skipped unconfigured non-edge query, no direct calls and one
+header-presence aggregate with unobserved header bags. Complete
+evidence yields ExternalInUse/ExternalUnintended, respectively. Disposable
+mutations exercise partial/Unknown routes, mixed public/private listeners,
+shorter listener retention, duplicate/conflicting workspace copies, model/source/
+network tampering, closed-field rejection and byte-identical offline replay.
+Local Excel/HTML labels/counts and independent model-safe validation reuse the
+existing allowlist without exporting gateway/listener/client/header evidence.
 
 Portal model/rule tests construct disposable synthetic evidence: one modern and
 one legacy status, five portal-setting/revision payloads, one Entra provider,

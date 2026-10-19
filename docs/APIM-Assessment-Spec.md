@@ -372,7 +372,7 @@ Partial and no complete policy index is written.
 - `security/roleAssignments.json`: planned `authorizationresources` role assignments at RG and resource scope (principalId, principalType, roleDefinitionId → resolved role name). Principal display names are not collected; identity-storage opt-in is unsupported under D-59.
 
 ### 7.6 Logs (Log Analytics)
-Detect schema first: if `ApiManagementGatewayLogs` has rows in the window use **resource-specific** queries, else fall back to `AzureDiagnostics` variants (`queries/*.azdiag.kql`). Record which in manifest. Resolve configured workspace GUIDs through scoped Resource Graph queries, then obtain workspace/table retention through guarded ARM GETs. Cap each log family to its table retention (workspace retention when inherited). Mixed-schema observations and absent APIM observations cannot establish complete usage or zero calls. Manifest 1.2 and settings 1.1 record run-anchored requested/effective windows and explicit targets/opt-outs; legacy 1.1/1.0 shapes remain unchanged.
+Detect schema first: if `ApiManagementGatewayLogs` has rows in the window use **resource-specific** queries, else fall back to `AzureDiagnostics` variants (`queries/*.azdiag.kql`). Record which in manifest. Resolve configured workspace GUIDs through scoped Resource Graph queries, then obtain workspace/table retention through guarded ARM GETs. Cap each log family to its table retention (workspace retention when inherited). Mixed-schema observations and absent APIM observations cannot establish complete usage or zero calls. Manifest 1.2 and settings 1.1 record run-anchored requested/effective windows and explicit targets/opt-outs. New collections use settings 1.2 for the D-63 route capability; legacy settings 1.0/1.1 and resumes retain their prior contracts. Detect `AGWAccessLogs` versus `AzureDiagnostics` independently for configured gateway resource IDs, with separate AppGateway coverage capped to its selected table retention.
 
 | Raw file | Query (resource-specific form) |
 |---|---|
@@ -381,10 +381,21 @@ Detect schema first: if `ApiManagementGatewayLogs` has rows in the window use **
 | `logs/usageMonthly.json` | Calls by `ApiId`, month |
 | `logs/tls.json` | Calls by `ClientTlsVersion`, `ApiId` over `SecurityLogDays` |
 | `logs/noSubscriptionCalls.json` | Calls with empty `ApimSubscriptionId` by `ApiId` |
-| `logs/appgwByListener.json` | `AGWAccessLogs`: requests by `ListenerName, RuleName, Host`, `dcount(ClientIp)` |
-| `logs/appgwNonEdge.json` | `AGWAccessLogs` where `ClientIp` not in `TrustedEdgeRanges` → by `ClientIp, Host` (only if edge ranges configured) |
-| `logs/directNonAppGw.json` | APIM calls whose `CallerIpAddress` is outside App GW subnets **and** outside `InternalCidrs` (should be empty for Internal VNet) |
-| `logs/headersLogged.json` | Detection of whether `X-Forwarded-For` / `CF-Connecting-IP` appear in logged headers (informational) |
+| `logs/appgwByListener.json` | Selected gateway schema: requests and distinct-client counts by configured gateway ID, listener, rule and host; no individual client IPs |
+| `logs/appgwNonEdge.json` | Same aggregate grain plus fixed NonEdge/Unknown client class outside configured trusted ranges; no per-IP rows (D-63) |
+| `logs/directNonAppGw.json` | Per-API counts outside App GW subnets **and** `InternalCidrs`; unknown/unparseable callers are not asserted direct |
+| `logs/headersLogged.json` | Calls, observed-header-bag count, and presence counts for `X-Forwarded-For` / `CF-Connecting-IP`; never header values |
+
+The four route files use closed `observed-route-evidence` 1.0 envelopes with
+per-workspace schema/status/reason and matching effective-window/retention
+bindings. Gateway queries are resource-scoped; direct/header queries are
+APIM-scoped. Failed/Skipped records have no rows; absent header bags remain
+distinguishable from observed absence. Non-edge queries without trusted edge
+ranges, and direct-call queries without gateway subnet CIDRs, are explicitly
+Skipped/Unconfigured. `SkipLogs` excludes all four; `SkipCost` does not.
+Settings 1.2 snapshots trusted IPv4 CIDRs, including nonblank/comment-stripped
+lines from `TrustedEdgeRangesFile`; unsupported CIDRs reject. Saved replay does
+not reopen that file.
 
 ### 7.7 Metrics (Azure Monitor)
 `metrics/apim.json`: `Capacity` (avg, max; PT1H), `Requests` (total; P1D), `Duration`, `BackendDuration` (avg; PT1H) for `MetricDays`. `metrics/appgw.json`: `CapacityUnits`, `Throughput`, `UnhealthyHostCount`.
@@ -770,7 +781,21 @@ For each App GW **public** listener → routing rule → backend pool targeting 
 - If the restriction exists only at a scope that a `baseMissing` drops for some operation → `restriction=None` for that operation and add `GOV-010` evidence.
 
 ### 9.5 Step 5 — Observed route
-From `usageByRoute`: `callsViaAppGw`, `callsInternal`. If App GW also has **private** listeners targeting APIM, `ViaAppGw` is ambiguous → use `appgwByListener` to apportion by `ListenerName` frontend type; else record `confidence=Medium`.
+From complete source-bound `usageByRoute`: `callsViaAppGw`, `callsInternal`.
+Use only Completed single-schema evidence across all configured workspaces.
+Identical sorted rows and effective UTC windows count once; conflicting or
+different overlapping windows withhold counts, never add traffic. Unknown
+caller-route calls withhold public attribution while preserving known internal
+counts. Retention-capped evidence retains a window gap and Medium confidence.
+
+If matching public and **private** listeners target APIM, `ViaAppGw` alone is
+ambiguous. Same-window complete listener evidence may rule out active private
+paths when mapped public traffic is positive and matching private traffic is
+zero, retaining Medium confidence. Otherwise public counts remain null and
+exposure Unknown with `privateListener`. Listener totals cannot identify an API,
+so D-63 prohibits proportional per-API allocation. Multiple indistinguishable
+public routes similarly withhold attribution. Complete zero ViaAppGw usage can
+still establish ExternalUnintended; unresolved rewrites retain Unknown/Low.
 
 Before route usage is available, reachable unrestricted routes retain
 `callsViaAppGw=null`, `callsInternal=null`, `exposure=Unknown`,
@@ -780,11 +805,16 @@ be treated as zero calls. The classifier back-fills each API's aggregate
 records and the updated API array must both pass their closed schemas before
 either model file is written.
 
-The pre-telemetry hook consumes complete normalized rows with `apiId`, `route`
+The existing private hook consumes complete normalized rows with `apiId`, `route`
 (`ViaAppGw` or `Internal`), and non-negative `calls`; operation/product rows are
 summed by API and route. The caller must separately attest that the telemetry
 query completed before absent rows can be interpreted as zero. Partial query
 results remain unavailable and cannot produce `ExternalUnintended`.
+Settings 1.2 analysis connects validated saved evidence to this classifier and
+back-fills API counts. Saved-model loading rebuilds network/exposure from
+validated restricted collection/settings and rejects changed source/model
+bindings before reports or allowlist package construction. Older settings do
+not silently opt in. No new package condition or broker operation is needed.
 
 ### 9.6 Final label
 | Condition | `exposure` |

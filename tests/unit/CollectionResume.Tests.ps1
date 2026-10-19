@@ -152,6 +152,7 @@ Describe 'Validated collection resume and isolation' {
             $initial.ExitCode | Should -Be 0
             $path = Join-Path $script:resumeConfig.Output.Root $initial.RunId
             (Get-RunManifest -RunPath $path).schemaVersion | Should -Be '1.2'
+            (Get-ApimRunSetting -RunPath $path).Settings.schemaVersion | Should -BeExactly '1.2'
             $result = Invoke-ApimCollection -Config $script:resumeConfig -EnvironmentName Prod `
                 -TenantId $script:tenant -ResumeRunPath $path -IncludeTelemetry -SkipLogs -SkipCost
             @($result.Checks | Where-Object Reused).Count | Should -Be 16
@@ -161,6 +162,12 @@ Describe 'Validated collection resume and isolation' {
             { Invoke-ApimCollection -Config $script:resumeConfig -EnvironmentName Prod `
                     -TenantId $script:tenant -ResumeRunPath $path -IncludeTelemetry -SkipCost } |
                 Should -Throw '*incompatible*'
+            Save-ApimRunSetting -RunPath $path -Config $script:resumeConfig `
+                -Environment $script:resumeConfig.Environments[0] -SkipLogs -SkipCost
+            $resumedLegacy = Invoke-ApimCollection -Config $script:resumeConfig -EnvironmentName Prod `
+                -TenantId $script:tenant -ResumeRunPath $path -IncludeTelemetry -SkipLogs -SkipCost
+            $resumedLegacy.ExitCode | Should -Be 0
+            (Get-ApimRunSetting -RunPath $path).Settings.schemaVersion | Should -BeExactly '1.1'
         }
 
         It 'reuses all validated output without invoking collectors or Azure' {

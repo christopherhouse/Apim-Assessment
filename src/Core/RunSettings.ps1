@@ -22,9 +22,9 @@ function Test-ApimRunSetting {
     }
     $settings = ConvertFrom-Json -InputObject $Json -Depth 100 -AsHashtable `
         -ErrorAction Stop
-    $expectedVersion = if ($Manifest.schemaVersion -ceq '1.2') { '1.1' } else { '1.0' }
+    $expectedVersions = if ($Manifest.schemaVersion -ceq '1.2') { @('1.1', '1.2') } else { @('1.0') }
     if ($settings.runId -cne $Manifest.runId -or
-        $settings.schemaVersion -cne $expectedVersion -or
+        $settings.schemaVersion -cnotin $expectedVersions -or
         $settings.toolVersion -cne $Manifest.toolVersion -or
         $settings.toolVersion -cne (Get-ApimAssessmentToolVersion) -or
         $settings.usageBuckets[0] -ne 0) {
@@ -44,6 +44,13 @@ function Test-ApimRunSetting {
         foreach ($cidr in $settings.telemetry.internalCidrs) {
             if ($null -eq (Get-ApimIpv4Range -Value $cidr)) {
                 throw 'Run internal subnet CIDR is invalid.'
+            }
+        }
+        if ($settings.schemaVersion -ceq '1.2') {
+            foreach ($cidr in $settings.telemetry.trustedEdgeRanges) {
+                if ($null -eq (Get-ApimIpv4Range -Value $cidr)) {
+                    throw 'Run trusted edge CIDR is invalid or unsupported.'
+                }
             }
         }
     }
@@ -95,7 +102,9 @@ function Get-ApimRunSettingSnapshot {
 
         [switch] $SkipLogs,
 
-        [switch] $SkipCost
+        [switch] $SkipCost,
+
+        [switch] $IncludeObservedRoutes
     )
 
     $manifest = Get-RunManifest -RunPath $RunPath
@@ -135,8 +144,20 @@ function Get-ApimRunSettingSnapshot {
             skipCost = [bool] $SkipCost
             unusedDays = [int] $Config.Thresholds.UnusedDays
         }
+        if ($IncludeObservedRoutes) {
+            $settings.schemaVersion = '1.2'
+            $ranges = @($Config.Edge.TrustedEdgeRanges)
+            if (-not [string]::IsNullOrWhiteSpace($Config.Edge.TrustedEdgeRangesFile)) {
+                $file = $Config.Edge.TrustedEdgeRangesFile
+                Test-ConfigPathLink -Path $file -Context 'Trusted edge ranges file'
+                $ranges += @(Get-Content -LiteralPath $file -ErrorAction Stop |
+                        ForEach-Object { ($_ -split '#', 2)[0].Trim() } |
+                        Where-Object { $_.Length -gt 0 })
+            }
+            $settings.telemetry.trustedEdgeRanges = @($ranges | Sort-Object -Unique -CaseSensitive)
+        }
     }
-    elseif ($SkipLogs -or $SkipCost) {
+    elseif ($SkipLogs -or $SkipCost -or $IncludeObservedRoutes) {
         throw 'Telemetry opt-outs cannot change legacy run settings.'
     }
     if ($Config.Contains('Governance')) {
@@ -191,11 +212,14 @@ function Save-ApimRunSetting {
 
         [switch] $SkipLogs,
 
-        [switch] $SkipCost
+        [switch] $SkipCost,
+
+        [switch] $IncludeObservedRoutes
     )
 
     $settings = Get-ApimRunSettingSnapshot -RunPath $RunPath -Config $Config `
-        -Environment $Environment -SkipLogs:$SkipLogs -SkipCost:$SkipCost
+        -Environment $Environment -SkipLogs:$SkipLogs -SkipCost:$SkipCost `
+        -IncludeObservedRoutes:$IncludeObservedRoutes
     $json = ConvertTo-Json -InputObject $settings -Depth 100 -WarningAction Stop
     $null = Write-RunFile -RunPath $RunPath `
         -RelativePath 'restricted/run-settings.json' -InputObject $json -Format Text
@@ -304,6 +328,9 @@ function Get-ApimRunSetting {
         $result.Environment.LogAnalyticsWorkspaceIds = @($settings.telemetry.workspaceIds)
         $result.Environment.CostScopes = @($settings.telemetry.costScopes)
         $result.Environment.LogicAppResourceGroups = @($settings.telemetry.logicAppResourceGroups)
+        if ($settings.schemaVersion -ceq '1.2') {
+            $result.Config.Edge.TrustedEdgeRanges = @($settings.telemetry.trustedEdgeRanges)
+        }
     }
     return $result
 }

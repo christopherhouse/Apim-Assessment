@@ -48,7 +48,7 @@ function Get-ApimWorkspaceSetting {
         -Name value -Context 'Workspace tables'
     foreach ($table in @($tableValues)) {
         $name = Get-ApimDiagnosticProperty -InputObject $table -Name name -Context 'Workspace table'
-        if ($name -cnotin @('ApiManagementGatewayLogs', 'AzureDiagnostics', 'Usage')) { continue }
+        if ($name -cnotin @('ApiManagementGatewayLogs', 'AzureDiagnostics', 'Usage', 'AGWAccessLogs')) { continue }
         if ($tableRetentions.ContainsKey($name)) { throw 'Duplicate workspace table metadata.' }
         $settings = Get-ApimDiagnosticProperty -InputObject $table `
             -Name properties -Context 'Workspace table'
@@ -85,18 +85,27 @@ function Invoke-ApimLogCollector {
     }
     $manifest = $saved.Manifest
     $settings = $saved.Settings
+    $observedRoutes = $settings.schemaVersion -ceq '1.2'
     $targets = @($settings.telemetry.workspaceIds)
     $kinds = @('usageByApi', 'usageByRoute', 'usageMonthly', 'tls', 'noSubscriptionCalls')
     if (-not $settings.telemetry.skipCost) { $kinds += 'laIngestion' }
     $outputs = @{}
     foreach ($kind in $kinds) { $outputs[$kind] = [Collections.Generic.List[object]]::new() }
+    $routeOutputs = [ordered]@{}
+    if ($observedRoutes) {
+        foreach ($kind in @('appgwByListener', 'appgwNonEdge', 'directNonAppGw', 'headersLogged')) {
+            $routeOutputs[$kind] = [Collections.Generic.List[object]]::new()
+        }
+    }
     $metadataRows = [Collections.Generic.List[object]]::new()
     $errorCount = 0
     $itemCount = 0
     if ($settings.telemetry.skipLogs -or $targets.Count -eq 0) {
         $reason = if ($settings.telemetry.skipLogs) { 'OptOut' } else { 'Unconfigured' }
         foreach ($target in @(if ($targets.Count) { $targets } else { 'unconfigured' })) {
-            foreach ($kind in @('Usage', 'Security', 'Ingestion')) {
+            foreach ($kind in @('Usage', 'Security', 'Ingestion') + @(
+                    if ($observedRoutes) { 'AppGateway' }
+                )) {
                 $length = if ($kind -ceq 'Security') {
                     $manifest.windows.securityLogDays
                 }
@@ -233,6 +242,16 @@ function Invoke-ApimLogCollector {
                 -Reason $reasons[$family]
             if ($statuses[$family] -cnotin @('Completed', 'Skipped')) { $errorCount++ }
         }
+        if ($observedRoutes) {
+            $observations = Invoke-ApimObservedRouteWorkspace -RunPath $RunPath -Context $saved `
+                -WorkspaceId $workspaceId -Metadata $metadata -ApimSchema $selected -ApimMixed $mixed `
+                -UsageWindow $windows.Usage
+            foreach ($kind in $routeOutputs.Keys) {
+                $routeOutputs[$kind].Add($observations[$kind])
+                $itemCount += $observations[$kind].rows.Count
+                if ($observations[$kind].status -cnotin @('Completed', 'Skipped')) { $errorCount++ }
+            }
+        }
     }
     $files = [Collections.Generic.List[string]]::new()
     $files.Add('logs/workspaces.json')
@@ -242,6 +261,15 @@ function Invoke-ApimLogCollector {
         $relative = if ($kind -ceq 'laIngestion') { 'cost/laIngestion.json' } else { "logs/$kind.json" }
         $null = Write-RunFile -RunPath $RunPath -RelativePath $relative `
             -InputObject ([ordered]@{ schemaVersion = '1.0'; kind = $kind; workspaces = @($outputs[$kind]) })
+        $files.Add($relative)
+    }
+    foreach ($kind in $routeOutputs.Keys) {
+        $payload = [pscustomobject][ordered]@{
+            schemaVersion = '1.0'; kind = $kind; workspaces = @($routeOutputs[$kind])
+        }
+        Test-ApimObservedRoutePayload -Payload $payload
+        $relative = "logs/$kind.json"
+        $null = Write-RunFile -RunPath $RunPath -RelativePath $relative -InputObject $payload
         $files.Add($relative)
     }
     $status = if ($errorCount -gt 0) { 'Partial' } else { 'Completed' }

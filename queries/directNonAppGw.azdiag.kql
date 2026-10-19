@@ -1,0 +1,8 @@
+AzureDiagnostics
+| where Category == "GatewayLogs"
+| where TimeGenerated >= datetime(__START__) and TimeGenerated < datetime(__END__)
+| where _ResourceId =~ __RESOURCE__
+| where isnotnull(parse_ipv4(callerIpAddress_s))
+    and not(ipv4_is_in_any_range(callerIpAddress_s, dynamic(__APPGW__)))
+    and not(ipv4_is_in_any_range(callerIpAddress_s, dynamic(__INTERNAL__)))
+| summarize calls=count() by apiId=apiId_s

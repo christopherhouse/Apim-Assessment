@@ -1,0 +1,7 @@
+ApiManagementGatewayLogs
+| where TimeGenerated >= datetime(__START__) and TimeGenerated < datetime(__END__)
+| where _ResourceId =~ __RESOURCE__
+| where isnotnull(parse_ipv4(CallerIpAddress))
+    and not(ipv4_is_in_any_range(CallerIpAddress, dynamic(__APPGW__)))
+    and not(ipv4_is_in_any_range(CallerIpAddress, dynamic(__INTERNAL__)))
+| summarize calls=count() by apiId=ApiId

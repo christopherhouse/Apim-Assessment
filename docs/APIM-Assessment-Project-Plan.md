@@ -62,8 +62,11 @@ daily costs and cost-only Logic Apps feed source-bound optional usage/capacity/
 cost models, five COST rules and populated Excel/HTML views. Legacy runs remain
 supported; exclusions persist across resume. Closed package 1.5 exports five
 Service-bound COST conditions, never exact telemetry or billing identifiers.
-T-403/T-408/T-409 observed-route exposure and remaining telemetry/PERF rules,
-and maintainer live/visual/host approval, remain separate acceptance work.
+The subsequent D-63 T-403/T-408 slice adds scoped aggregate-only route evidence
+and source-bound observed exposure without per-client/header values or estimated
+per-API public/private splits. Partial/absent/ambiguous evidence stays Unknown;
+legacy resumes retain their original capability. T-409 remaining telemetry/PERF
+rules and maintainer live/visual/host approval remain separate acceptance work.
 
 ### 4.1 Trust model
 

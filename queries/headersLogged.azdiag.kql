@@ -1,0 +1,9 @@
+AzureDiagnostics
+| where Category == "GatewayLogs"
+| where TimeGenerated >= datetime(__START__) and TimeGenerated < datetime(__END__)
+| where _ResourceId =~ __RESOURCE__
+| extend headers=parse_json(tostring(column_ifexists("requestHeaders_s", "")))
+| extend headerNames=tolower(tostring(bag_keys(headers)))
+| summarize calls=count(), headersObserved=countif(isnotnull(bag_keys(headers))),
+    xForwardedForCalls=countif(headerNames contains '"x-forwarded-for"'),
+    cfConnectingIpCalls=countif(headerNames contains '"cf-connecting-ip"')

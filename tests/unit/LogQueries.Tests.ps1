@@ -22,7 +22,9 @@ Describe 'Bound telemetry KQL syntax' {
     It 'parses both schema variants of <Name>' -ForEach @(
         @{ Name = 'usageByApi' }, @{ Name = 'usageByRoute' }, @{ Name = 'usageMonthly' },
         @{ Name = 'tls' }, @{ Name = 'noSubscriptionCalls' }, @{ Name = 'schema' },
-        @{ Name = 'laIngestion' }
+        @{ Name = 'laIngestion' }, @{ Name = 'appgwSchema' },
+        @{ Name = 'appgwByListener' }, @{ Name = 'appgwNonEdge' },
+        @{ Name = 'directNonAppGw' }, @{ Name = 'headersLogged' }
     ) {
         foreach ($schema in @('ResourceSpecific', 'Legacy')) {
             $query = & $script:queryModule {
@@ -31,7 +33,9 @@ Describe 'Bound telemetry KQL syntax' {
                     -Kind Usage -Length 90 -RetentionDays 30
                 Get-ApimLogQuery -Name $Name -Schema $Schema -Window $window `
                     -ResourceId '/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-synthetic/providers/Microsoft.ApiManagement/service/apim-synthetic' `
-                    -AppGwCidrs @('10.0.0.0/24') -InternalCidrs @('10.0.0.0/8')
+                    -AppGwCidrs @('10.0.0.0/24') -InternalCidrs @('10.0.0.0/8') `
+                    -GatewayResourceIds @('/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-synthetic/providers/Microsoft.Network/applicationGateways/agw-synthetic') `
+                    -TrustedEdgeRanges @('192.0.2.0/24')
             } $Name $schema
             $code = [Kusto.Language.KustoCode]::Parse($query)
             @($code.GetSyntaxDiagnostics()).Message | Should -BeNullOrEmpty
@@ -50,5 +54,21 @@ Describe 'Bound telemetry KQL syntax' {
         @([Kusto.Language.KustoCode]::Parse($query).GetSyntaxDiagnostics()).Count | Should -Be 0
         $query | Should -Match 'dynamic\(\[\]\)'
         $query | Should -Match 'synthetic\\"value\\\\suffix'
+    }
+
+    It 'keeps identifiers and header values out of observed-route result projections' {
+        foreach ($schema in @('ResourceSpecific', 'Legacy')) {
+            foreach ($name in @('appgwByListener', 'appgwNonEdge', 'directNonAppGw', 'headersLogged')) {
+                $query = & $script:queryModule {
+                    param($Name, $Schema)
+                    $window = Get-ApimEvidenceWindow -EndUtc '2026-10-15T00:00:00Z' -Kind Usage -Length 30
+                    Get-ApimLogQuery -Name $Name -Schema $Schema -Window $window -ResourceId 'synthetic'
+                } $name $schema
+                $projection = ($query -split '\| summarize', 2)[1]
+                $projection | Should -Not -Match 'by\s+(?:ClientIp|clientIP_s|RequestHeaders|CallerIpAddress)|(?:make_set|make_list|take_any|arg_max)\('
+                $query | Should -Not -Match '\|\s*(?:take|limit|render)\b|ago\('
+                if ($name -like 'appgw*') { $query | Should -Match '_ResourceId in~' }
+            }
+        }
     }
 }
