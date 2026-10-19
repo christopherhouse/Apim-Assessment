@@ -758,11 +758,39 @@ output and must never be sent to Copilot or another model.
 
 ## Reusable collection smoke (Microsoft-owned test APIM only)
 
-The proposed repeatable Bicep target is documented in
-`.azure\deployment-plan.md` and tasks T-701-T-711. It includes Log Analytics and
+The repeatable Bicep target is documented in
+`.azure\deployment-plan.md` and tasks T-701-T-712. It includes Log Analytics and
 workspace-based Application Insights, not just APIM/App Gateway.
-This is a plan awaiting approval, not a runnable deployment/bootstrap feature.
-No new lab commands are available yet; owner-only T-114 provisioning and live
+Offline implementation is approved, but no runnable deployment/bootstrap
+feature is available. Five OpenAPI 3.0.3 contracts and a stable inventory are
+available under `infra\live-validation-lab\scenarios`: Supply Chain (3 operations),
+E-commerce (4), PLM (3), Manufacturing (3) and Service Management (3).
+Examples include shipment lines, order amounts, part revision/BOM, quality
+inspection and service work orders. They contain no real data or credentials.
+The `backend.invalid` servers are non-routable placeholders; T-706 will bind
+the private backend, import APIs and enforce caller/product policies.
+
+The inventory declares intended tests, not observed deployment results:
+PLM has no public route, Manufacturing receives no initial traffic, and two
+product contexts share Supply Chain/E-commerce. Service Management's
+controlled-failure profile must be private-worker-only and disabled by default;
+there is no public fault-toggle endpoint.
+The planned T-703 foundation creates a new VNet and four subnets; no existing
+VNet is required. `.azure\deployment-plan.md` records parameterized sizing and
+the selected Azure DNS ACME challenge delegation, with private overlap checks
+and staging issuance required before actual use.
+
+Validate the API contracts offline with the existing development gate:
+
+```powershell
+.\scripts\Invoke-Checks.ps1 -TestPath .\tests\unit\LabOpenApi.Tests.ps1
+```
+
+The optional pinned local Spectral toolchain performs OpenAPI/APIM-rule
+validation when installed as documented under developer tooling; otherwise its
+cases are explicitly skipped. JSON/reference/example/security assertions still
+run without it. No command here deploys APIs, accesses Azure or obtains keys.
+Owner-only T-114 provisioning and live
 acceptance remain separate from the existing smoke command below.
 
 The preparatory `scripts/Invoke-ApimSmoke.ps1` entry point exercises the sixteen

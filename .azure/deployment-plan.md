@@ -1,9 +1,10 @@
 # Azure Deployment Plan: Synthetic APIM Validation Lab
 
-> **Status:** Planning - proposed design, awaiting owner approval
+> **Status:** Offline implementation approved - API contracts in review
 >
-> Not deployment-ready. No infrastructure implementation or live changes have
-> been performed. Plan approval permits offline implementation, not deployment.
+> Not deployment-ready. Five business API contracts are available for review.
+> Infrastructure/bootstrap tooling and all live changes remain outstanding.
+> Plan approval permits offline implementation, not deployment.
 
 Generated: 2026-10-19
 
@@ -11,7 +12,7 @@ Generated: 2026-10-19
 
 Build a repeatable, customer-neutral Bicep lab with known positive, negative and
 missing-evidence scenarios for the assessment toolkit. Temporarily prioritize
-this work before T-409 after the owner agrees the plan.
+this work before T-409. D-66 records owner agreement and the five-API refinement.
 
 Required: classic Developer APIM in internal VNet mode; generated OpenAPI APIs;
 global, product, API, operation and fragment policies; HTTPS Application Gateway
@@ -24,9 +25,9 @@ No write exception, credential access or provisioning code enters the module,
 collectors, guarded ARM wrapper, broker or model-safe tool surface. Live
 assessment collection remains maintainer-operated outside Copilot and CI.
 
-## 2. Requirements and proposed decisions
+## 2. Requirements and design decisions
 
-| Attribute | Proposed value / gate |
+| Attribute | Design / gate |
 |---|---|
 | Mode | Add isolated lab assets to this repository; no changes to assessment behavior |
 | Classification | Disposable development/test lab; synthetic data only |
@@ -38,11 +39,11 @@ assessment collection remains maintainer-operated outside Copilot and CI.
 | Private execution | One small Linux VM, no public IP/inbound SSH, for bounded jobs and a synthetic backend |
 | Subscription / region | Owner-selected in private configuration; not requested or discovered by this planning session |
 | Budget / lifetime | Owner-approved regional estimate and cap before creation; proposed initial lifetime 72 hours |
-| Approval | Architecture choices are provisional; the owner could not answer design questions during planning |
+| Approval | Owner approved offline implementation on 2026-10-19, refining the API count to five, requiring lab-owned networking and selecting ACME delegation; live changes remain separately gated |
 
 The zone stays with Cloudflare. Delegating only ACME challenge responses does
-not require moving the zone or proxying application traffic. If direct
-Cloudflare automation is preferred, the alternative is an owner-created
+not require moving the zone or proxying application traffic. Direct
+Cloudflare automation would require a new owner decision and an owner-created
 zone-scoped DNS token in Key Vault; that is not managed-identity authentication
 to Cloudflare. Never use a global API key or claim token scope is per-record.
 
@@ -52,11 +53,11 @@ to Cloudflare. Never use a global API key or claim token scope is per-record.
 Approved caller / private worker through explicit NAT egress
   -> Cloudflare DNS-only application record
   -> public HTTPS Application Gateway listener
-       /catalog, /orders, /product-context, /faults -> internal APIM gateway
-       /dormant -> internal APIM gateway (no deliberate traffic initially)
+       /supply-chain, /e-commerce, /service-management -> internal APIM gateway
+       /manufacturing -> internal APIM gateway (no deliberate traffic initially)
        unmatched paths -> dedicated private deny backend, never APIM
 
-Private worker -> internal APIM directly for internal-only scenario/probes
+Private worker -> internal APIM /plm directly for private-only scenario/probes
 Internal APIM -> private synthetic backend with managed-identity authentication
 APIM + App Gateway diagnostics -> Log Analytics
 APIM managed-identity logger -> workspace-based Application Insights
@@ -71,8 +72,24 @@ GitHub protected environment -> OIDC -> lab deployment managed identity
 
 ### Networking and routing
 
-- Separate APIM, App Gateway, worker and private-endpoint subnets. Parameterize
-  non-overlapping addresses, using service-recommended subnet sizing.
+- T-703 provisions a new VNet and all APIM, App Gateway, worker and
+  private-endpoint subnets; an existing VNet is not a prerequisite. Parameterize
+  private addresses and reject overlaps, subnet addresses outside the VNet and
+  insufficient capacity before deployment. The synthetic default layout is:
+
+  | Component | Synthetic address range | Rationale |
+  |---|---|---|
+  | VNet | `10.240.0.0/22` | Covers the four subnets plus unallocated headroom; owner checks collisions before use |
+  | App Gateway | `10.240.0.0/24` | Dedicated gateway subnet; recommended v2 sizing leaves maintenance/scaling room without enabling unbounded instance counts |
+  | APIM | `10.240.1.0/26` | Separate classic internal-mode subnet with deliberate maintenance/growth headroom, not a claimed Developer minimum |
+  | Worker | `10.240.1.64/27` | Separate worker/backend and explicit NAT egress boundary |
+  | Private endpoints | `10.240.1.96/27` | Separate Key Vault/private-endpoint boundary with spare addresses |
+
+  These are template defaults, not discovered infrastructure identifiers.
+  No VPN gateway, peering, Bastion or on-premises connectivity is assumed.
+  APIM has no subnet delegation. Preserve the gateway's documented management,
+  load-balancer and outbound requirements rather than applying a blanket
+  outbound-deny policy that would break a standard WAF_v2 deployment.
 - Internal APIM has no public data-plane route. Preserve documented classic
   APIM management/platform dependencies rather than confusing them with public
   API access. Do not publish its portal or management endpoint through App Gateway.
@@ -98,19 +115,31 @@ GitHub protected environment -> OIDC -> lab deployment managed identity
   before binding; never open the vault to all networks as a fallback or rely on
   obsolete gateway trusted-service bypass behavior.
 
-### Six synthetic API scenarios
+### Five representative business APIs
 
-| API | Route / behavior | Validation intent |
+| API | Base path / representative operations | Validation intent |
 |---|---|---|
-| Catalog | Published read-only endpoints with bounded example responses | Positive route, OpenAPI and JWT/managed-identity caller baseline |
-| Orders | Published operations, product membership, backend policy and operation override | Scope inheritance, source attribution and managed-identity backend calls |
-| Internal admin | Private worker access only; no public path route | Prove private API is not published by hostname or unmatched fallback |
-| Dormant | Published route, no initial data-plane calls | Zero-use control only after a complete supported observation window |
-| Product context | Two products with distinct safe policy markers | Exercise each product subscription context separately, not just API membership |
-| Faults | Bounded latency/5xx endpoints, disabled fault behavior by default | Timings, failures, error/usage evidence and future PERF rule validation |
+| Supply Chain | `/supply-chain`: inventory availability; create/get shipments | Positive routing, product contexts, inheritance and backend managed identity |
+| E-commerce | `/e-commerce`: list/get products; create/get orders | Positive caller baseline, product membership and operation-scope override |
+| PLM | `/plm`: part revisions/BOM; create/review engineering changes | Private worker access only; no public path route, including unmatched fallback |
+| Manufacturing | `/manufacturing`: create/get production orders; record quality inspection | Published but no initial calls; zero-use control only after complete supported observation |
+| Service Management | `/service-management`: create/get tickets; create service work orders | Routed baseline and controlled backend latency/5xx through private worker configuration only |
 
-Generate small OpenAPI 3.0 documents with stable API/operation IDs, examples and
-descriptions. Use API revisions/version-set metadata where it adds a specific
+T-712 supplies five standalone OpenAPI 3.0.3 JSON documents, sixteen operations,
+and `inventory.json` in `infra/live-validation-lab/scenarios/`. Schemas include
+bounded line arrays, enums, dates, quantities and currency-qualified integer
+minor-unit amounts, without personal, payment, address or credential examples.
+Local references keep each file self-contained. Non-routable `backend.invalid`
+servers are placeholders, not deployed backends. T-706 binds private backend
+URLs and imports the contracts; security declarations alone do not enforce
+APIM policies. The inventory records stable API paths, intended publication,
+traffic controls, product membership and future assertions, not live results.
+
+The previous six validation characteristics remain covered across five
+business APIs rather than becoming six additional APIs. Do not add a public
+fault-toggle operation/query/header: only separately approved private worker
+jobs may enable bounded failures, and fault behavior is off by default.
+Use API revisions/version-set metadata where it adds a specific
 assertion. Do not deploy the 60-API fixture or artificial hard-coded secrets by
 default. APIM mock policies may cover a subset, but a real private synthetic
 backend is required for backend timing and authentication assertions.
@@ -184,6 +213,11 @@ VM are not a security isolation boundary.
 
 1. Owner establishes only approved lab DNS/delegation records in Cloudflare.
    Do not replace, enumerate into model context or delete unrelated records.
+   Selected approach: delegate an isolated challenge subzone to Azure DNS,
+   then use DNS-only `_acme-challenge` CNAME aliases for each approved hostname
+   to unique records in that zone. The app records stay with Cloudflare.
+   The ACME client must explicitly target the delegated alias records; do not
+   assume that an arbitrary DNS plugin automatically follows CNAMEs for writes.
 2. Deploy the dedicated public Azure DNS challenge zone and worker identity/RBAC.
    Verify delegation before attempting issuance.
 3. Use a pinned ACME client supporting Azure managed identity and challenge
@@ -275,7 +309,7 @@ These are planned quantities, not discovered resources or verified capacity.
 | Log Analytics / Application Insights | 1 each | Not queried; retention, ingestion, auth and cost approval required |
 | User-assigned identities / federated credential | 2 / 1 baseline | Not queried; deployment and gateway identities; other runtime identities are system-assigned |
 | Synthetic API resource applications | 2 | Not queried; explicit owner directory/application-role approval |
-| APIM APIs / products / test subscriptions | 6 / 2 / 2 product-scoped | Generated synthetic definitions; actual keys remain private |
+| APIM APIs / products / test subscriptions | 5 / 2 / 2 product-scoped | Five business contracts; actual keys remain private |
 
 **Capacity status: unverified; deployment blocked.** This planning session does
 not inspect Azure subscriptions or fetch quotas. Before any deployment, the
@@ -291,26 +325,28 @@ stop billing; approved cleanup is still required.
 
 ## 7. Implementation tasks and order
 
-The authoritative acceptance/status records are T-701 through T-711 in
+The authoritative acceptance/status records are T-701 through T-712 in
 `docs/APIM-Assessment-Task-Register.md`. Existing T-114 owns actual provisioning;
 T-403/T-604 live acceptance remains separate.
 
 | Order | Task | Delivery |
 |---|---|---|
-| 1 | T-701 | Agree design, scope/safety boundary, cost/owner gates and redirect |
+| 1 | T-701 | Owner agreed offline design/redirect with D-66 refinements; live gates remain |
+| 2a | T-712 | Independent requested five business API contracts/inventory, after T-701 only |
 | 2 | T-702 | Offline-tested identity/federation/GitHub environment bootstrap and staged RBAC tooling |
 | 3 | T-703 | Bicep network, internal APIM, observability, vault and identity foundation |
 | 4 | T-704 | Private worker, TLS deny/synthetic backend and bounded job contracts |
 | 5 | T-705 | Delegated ACME issuance, protected state, Key Vault import, renewal and rotation |
-| 6 | T-706 | Generated OpenAPI, products/subscriptions and multi-scope policies |
+| 6 | T-706 | Import T-712 OpenAPI, products/subscriptions and multi-scope policies after worker readiness |
 | 7 | T-707 | App Gateway TLS, explicit API path routes, fail-closed fallback and probes |
 | 8 | T-708 | Protected deployment/what-if/job workflows, no live PR CI |
 | 9 | T-711 then T-709 | Lifecycle/cleanup tooling, offline acceptance harness and maintainer runbook |
 | 10 | T-114 then T-710 | Owner-approved provision, live assertions and restricted acceptance evidence |
 
 Use small reviewed implementation PRs; do not land eleven tasks as one
-unvalidated deployment. First implementation slice after approval is T-702,
-with mocked Azure/GitHub calls and no actual bootstrap execution.
+unvalidated deployment. The requested independent API assets are T-712;
+T-702 remains the first infrastructure/bootstrap slice, with mocked
+Azure/GitHub calls and no actual bootstrap execution.
 
 ## 8. Acceptance gates
 
@@ -357,12 +393,12 @@ records, cleans only the lab, and never purges Key Vault or touches unrelated
 zone records/resources. Retained resources, access revocation, certificate
 expiry, DNS cleanup and continued charges must be explicit.
 
-## 9. Planned files; none implemented by this planning change
+## 9. Files and implementation boundary
 
 | Location | Intended content |
 |---|---|
 | `infra/live-validation-lab/` | Bicep entry points, pinned modules and synthetic parameter examples |
-| `infra/live-validation-lab/scenarios/` | OpenAPI, multi-scope policies and explicit expected scenarios |
+| `infra/live-validation-lab/scenarios/` | Five OpenAPI contracts/inventory implemented in T-712; multi-scope policies and deployment bindings remain T-706 |
 | `scripts/lab/` | Separate owner bootstrap, bounded jobs, readiness/validation and cleanup tooling |
 | `.github/workflows/lab-*.yml` | Offline lab validation and separately protected manual delivery |
 | `tests/unit/` and `tests/integration/` | Offline lab contracts, mocks and synthetic assertion tests |
@@ -380,6 +416,11 @@ these are planning references, not assessment rule `References`.
 
 - Internal APIM with Application Gateway:
   `https://learn.microsoft.com/en-us/azure/api-management/api-management-howto-integrate-internal-vnet-appgateway`
+- Classic APIM subnet requirements and recommended gateway sizing:
+  `https://learn.microsoft.com/en-us/azure/api-management/virtual-network-injection-resources`
+  `https://learn.microsoft.com/en-us/azure/application-gateway/configuration-infrastructure`
+- OpenAPI 3.0.3:
+  `https://spec.openapis.org/oas/v3.0.3`
 - URL routing and its default backend:
   `https://learn.microsoft.com/en-us/azure/application-gateway/url-route-overview`
 - Gateway Key Vault identity/certificate integration:
@@ -413,11 +454,13 @@ these are planning references, not assessment rule `References`.
 
 ## 11. Current readiness
 
-Workspace analysis, public technical research, proposed architecture, task
-dependencies and safety boundaries are documented. Owner design approval,
-implementation, all offline lab checks, actual quota/context/cost confirmation,
+Owner approved offline implementation with D-66 refinements: five business
+APIs, new lab-owned networking and Azure DNS ACME delegation. T-712 contracts
+pass focused offline validation; the full gate/review is pending.
+Bootstrap/infrastructure/policies/traffic implementation,
+their offline checks, actual quota/context/cost confirmation, live
 bootstrap/deployment authorization and live validation are outstanding.
 
-Next: owner review of the proposed defaults and T-701 approval; then implement
-T-702. Do not advance this plan to Ready for Validation, Validated or Deployed
+Next infrastructure slice: T-702. Do not advance this plan to Ready for
+Validation, Validated or Deployed
 until the corresponding implementation and evidence exist.
