@@ -79,6 +79,28 @@ coverage. Unconfigured skips are exclusions, not live acceptance.
 - Specialist agents may explain and correlate deterministic facts but cannot invent evidence, change severity, or resolve findings.
 - Customer-facing names and exact metrics are reintroduced only by the local renderer after model work is complete.
 
+### 4.2 Proposed live-validation lab pivot
+
+Before the next T-409 rule slice, the owner requested a brief pivot to a
+repeatable synthetic deployment target. D-65/T-701-T-711 and
+`.azure\deployment-plan.md` record the proposed design and dependencies.
+Internal Developer APIM, generated API/policy scenarios, HTTPS path-based
+Application Gateway, Key Vault/ACME, managed identities, GitHub OIDC bootstrap,
+Log Analytics and workspace-based Application Insights form the baseline.
+
+This is a separate development-infrastructure workstream, not permission for
+the assessment to write to Azure or consume secrets. Coding agents implement
+against synthetic/mocked inputs only. Owner-approved bootstrap/deployment and
+live assessment stay outside Copilot; ordinary PR CI remains offline.
+No infrastructure or identity change has been implemented by this plan.
+
+First obtain T-701 design approval, then implement T-702 bootstrap tooling and
+the dependent lab slices. Actual provisioning remains T-114 and live acceptance
+T-710. Owner-selected subscription/region, quotas, budget/lifetime, permissions,
+DNS/certificate delegation and private output boundaries must be confirmed before
+any live change. T-409 remains queued, not completed or functionally dependent
+on the lab; resume it after the agreed initial lab delivery or an owner reprioritization.
+
 ## 5. Phases, milestones and timeline
 
 Target start Tue 2026-10-13. Durations assume a dedicated coding agent with daily product-owner review.
@@ -117,7 +139,9 @@ Engagement alignment:
 ## 7. Working agreements for the coding agent
 - Follow the spec; raise deviations as entries in the register's **Decisions/Issues** log before implementing.
 - Never use or request real customer data; use `tests/fixtures` only.
-- Never add write operations to Azure; never call secret-listing endpoints.
+- Never add write operations to the assessment runtime; never call secret-listing
+  endpoints from assessment code. The proposed separately approved lab tooling
+  in section 4.2 is not a collector, remediation feature or new ARM exception.
 - Never expose raw/model/restricted data to a model. Build packages from an allowlist, validate locally, and promote only after a fail-closed gate passes.
 - Never grant assessment agents generic shell/filesystem tools or access to collection stdout/stderr, credentials, alias maps, or restricted output roots.
 - Keep AI observations traceable to model-safe fact/finding IDs and subordinate to deterministic findings.
@@ -132,7 +156,8 @@ Engagement alignment:
 | Log Analytics Reader on APIM/App GW workspace(s) | M4 | Confirm |
 | Cost data access | M4 | Customer stated cost access granted — confirm scope |
 | GitHub repo access (APIM/IaC) | M5 | In progress (customer) |
-| Microsoft-owned test APIM (Developer tier) + App GW for smoke tests | M1 | To provision |
+| Microsoft-owned test APIM (Developer tier) + App GW for smoke tests | M1 | D-65 lab plan in review; T-702-T-711 implementation and owner T-114 provision pending |
+| Lab Log Analytics, workspace-based App Insights, Key Vault/ACME and protected GitHub OIDC delivery | Lab / T-114 | Proposed baseline; owner scope, quota, cost, permission and deployment approvals pending |
 | Workspace IDs, App GW names, subnet CIDRs for config | M3 | Discover on first run / fill config |
 | GitHub Copilot CLI entitlement and organization policy approval for model-safe derived facts | M3 | Confirm before enabling specialist analysis; deterministic path remains available |
 | Separate approved local collection and analysis-zone paths | M3 | Configure and validate non-overlap before agent-assisted runs |

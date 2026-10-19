@@ -199,6 +199,7 @@ data. The coding-agent checks use synthetic data only.
 | Guarded ARM transport with paging/retry; offline tracking, saved-run comparison, and cross-environment policy/API-presence drift | Full API-definition comparison |
 | Versioned run manifest lifecycle, exact scoring snapshot, APIM configuration collectors, scoped LA/App Gateway route aggregates, resource metrics, daily costs, cost-only Logic Apps and optional committed Git policy hashes | Maintainer live query acceptance |
 | Maintainer-only cumulative collection smoke script with local output validation (sixteen registered checks) and bounded observed-query coverage | Full live assessment acceptance |
+| Proposed synthetic lab plan and T-701-T-711 task breakdown | Owner-approved Bicep lab, identity/bootstrap automation, generated API/policy scenarios and live acceptance |
 | Local saved-run secret-scan script for supported text and Excel artifacts, also required by smoke | Host-enforced model-safe admission acceptance |
 | Effective policy merge/flags, ten required models including source-bound observed exposure, and optional drift/portal/quality/governance/usage/capacity/cost with schema-gated loading | Remaining telemetry/PERF rules |
 | Optional pinned offline Spectral, trusted APIM style rules and source/settings-bound quality scores with description fallback | Full API-definition drift and maintainer live export validation |
@@ -216,6 +217,13 @@ The authoritative scope and progress are in
 [the task register](docs/APIM-Assessment-Task-Register.md).
 
 ## Deterministic operator commands
+
+**Proposed lab pivot:** `.azure\deployment-plan.md` describes an internal
+Developer APIM plus path-routed Application Gateway target, Key Vault/ACME,
+managed identities, protected GitHub OIDC delivery, Log Analytics and
+workspace-based Application Insights. The plan is awaiting owner agreement;
+no lab deployment or bootstrap command is implemented or authorized yet.
+Provisioning will be separate from this read-only assessment runtime.
 
 Run collection only in an authorized ordinary PowerShell terminal with an
 existing matching Azure context, never through Copilot or CI. Analyze and Report

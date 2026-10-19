@@ -758,6 +758,13 @@ output and must never be sent to Copilot or another model.
 
 ## Reusable collection smoke (Microsoft-owned test APIM only)
 
+The proposed repeatable Bicep target is documented in
+`.azure\deployment-plan.md` and tasks T-701-T-711. It includes Log Analytics and
+workspace-based Application Insights, not just APIM/App Gateway.
+This is a plan awaiting approval, not a runnable deployment/bootstrap feature.
+No new lab commands are available yet; owner-only T-114 provisioning and live
+acceptance remain separate from the existing smoke command below.
+
 The preparatory `scripts/Invoke-ApimSmoke.ps1` entry point exercises the sixteen
 implemented collectors in fixed dependency order: Service, Apis, Products,
 Subscriptions, SecurityAssets, Diagnostics, Policies, Network, Identity, Portal,
