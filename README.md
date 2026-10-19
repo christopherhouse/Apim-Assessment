@@ -98,11 +98,11 @@ Legacy settings 1.0/1.1 resume without silently enabling this capability.
 Individual-subscription usage and remaining telemetry/PERF rules stay deferred.
 
 An independent, **maintainer-only collection smoke command** now exercises all
-twelve implemented collector checks in dependency order against a Microsoft-owned test
+sixteen implemented collector checks in dependency order against a Microsoft-owned test
 APIM. It is not an assessment entry point or a customer-run command: it cannot
 analyze or report, and its live execution is owned by authorized maintainers
 outside Copilot CLI. The maintainer reports the prior six checks completed on a
-test APIM; SecurityAssets, Diagnostics, Identity, Portal, OpenApi, and Organization checks have
+test APIM; the later configuration and telemetry checks have
 synthetic acceptance but still need maintainer-only live validation. No agent
 used live Azure resources or inspected restricted output.
 The same smoke script now validates the newly saved manifest, completed
@@ -110,6 +110,13 @@ collector file inventories, JSON collection shapes and item counts, and policy
 index/XML hashes before reporting a completed smoke. Validation failures return
 a fixed safe code and do not print restricted content. This is structural
 collection validation, not a full analysis, privacy audit, or report check.
+The same command now includes configured Log Analytics, metrics, cost, and
+cost-only Logic Apps collection with fresh observed-route settings. It validates
+telemetry Partial/Skipped evidence too and prints bounded coverage statuses for
+`appgwByListener`, `appgwNonEdge`, `directNonAppGw`, and `headersLogged`.
+Unconfigured optional collectors/queries stay explicitly Skipped, not tested;
+configured failures or incomplete required evidence retain Partial status.
+These statuses do not certify full live query acceptance or assessment results.
 The smoke command also runs the local saved-run secret scanner before its final
 PASS. A separate maintainer-only script can scan an existing run, including
 compressed XML parts in its Excel reports. Both print safe statuses and, on
@@ -191,7 +198,7 @@ data. The coding-agent checks use synthetic data only.
 | Structured JSON-lines logging; validated resume and prerequisite-aware collector isolation | Full live workflow acceptance |
 | Guarded ARM transport with paging/retry; offline tracking, saved-run comparison, and cross-environment policy/API-presence drift | Full API-definition comparison |
 | Versioned run manifest lifecycle, exact scoring snapshot, APIM configuration collectors, scoped LA/App Gateway route aggregates, resource metrics, daily costs, cost-only Logic Apps and optional committed Git policy hashes | Maintainer live query acceptance |
-| Maintainer-only cumulative collection smoke script with local output validation (twelve registered checks) | Full live assessment acceptance |
+| Maintainer-only cumulative collection smoke script with local output validation (sixteen registered checks) and bounded observed-query coverage | Full live assessment acceptance |
 | Local saved-run secret-scan script for supported text and Excel artifacts, also required by smoke | Host-enforced model-safe admission acceptance |
 | Effective policy merge/flags, ten required models including source-bound observed exposure, and optional drift/portal/quality/governance/usage/capacity/cost with schema-gated loading | Remaining telemetry/PERF rules |
 | Optional pinned offline Spectral, trusted APIM style rules and source/settings-bound quality scores with description fallback | Full API-definition drift and maintainer live export validation |

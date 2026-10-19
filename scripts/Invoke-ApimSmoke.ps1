@@ -116,6 +116,10 @@ try {
         -InformationAction SilentlyContinue
     Import-Module Az.ResourceGraph -ErrorAction Stop `
         -WarningAction SilentlyContinue -InformationAction SilentlyContinue
+    if (@($prepared.Target.LogAnalyticsWorkspaceIds).Count -gt 0) {
+        Import-Module Az.OperationalInsights -ErrorAction Stop `
+            -WarningAction SilentlyContinue -InformationAction SilentlyContinue
+    }
     $context = Get-AzContext -ErrorAction Stop 2>$null 3>$null 4>$null 5>$null 6>$null
     $tenantId = & $module {
         param($activeContext, $targetSubscriptionId)
@@ -151,6 +155,8 @@ $onProgress = {
         Index = $update.Index
         Total = $update.Total
         Color = $useColor
+        Unconfigured = $update.Status -eq 'Skipped' -and
+            $update.Name -cin @('LogAnalytics', 'Cost', 'LogicApps')
     }
     if ($update.FailureCode) {
         $parameters.FailureCode = $update.FailureCode
@@ -158,7 +164,8 @@ $onProgress = {
     $running = $update.Phase -eq 'Running'
     $replace = $useColor -and (
         ($running -and $update.Index -eq 1) -or
-        (-not $running -and $update.Status -ne 'Skipped')
+        (-not $running -and
+            ($update.Status -ne 'Skipped' -or $parameters.Unconfigured))
     )
     & $writeSmokeLine -Line (& $formatSmokeLine @parameters) `
         -Color:$useColor -Transient:($running -and $useColor) `
@@ -182,18 +189,24 @@ catch {
 }
 
 try {
-    & $module {
+    $queryChecks = @(& $module {
         param($runPath, $smokeResult, $targetEnvironment)
         Test-ApimSmokeOutput -RunPath $runPath -Result $smokeResult `
             -Environment $targetEnvironment
+        Get-ApimSmokeQueryCheck -RunPath $runPath -Result $smokeResult
     } (Join-Path $prepared.Config.Output.Root $result.RunId) `
-        $result $prepared.Target 2>$null 3>$null 4>$null 5>$null 6>$null
+        $result $prepared.Target 2>$null 3>$null 4>$null 5>$null 6>$null)
 }
 catch {
     [Console]::Error.WriteLine('SMOKE_OUTPUT_INVALID: inspect the restricted run locally.')
     Complete-ApimSmokeCommand -ExitCode 4
 }
 [Console]::Out.WriteLine('SMOKE_OUTPUT_VALID: manifest and completed collector files verified.')
+foreach ($check in $queryChecks) {
+    Write-ApimSmokeConsoleLine -Line (Format-ApimSmokeConsoleLine `
+        -State Query -Name $check.Name -QueryStatus $check.Status `
+        -Color:$useColor) -Color:$useColor
+}
 try {
     . (Join-Path $PSScriptRoot 'Write-ApimSecretScanTable.ps1')
     $secretSummary = [System.Collections.Generic.List[object]]::new()

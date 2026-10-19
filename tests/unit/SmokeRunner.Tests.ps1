@@ -130,6 +130,23 @@ Describe 'Cumulative collection smoke runner' {
                 $script:smokeOrder.Add('Organization')
                 Set-RunCollectorStatus -RunPath $RunPath -Name Organization -Status Completed
             }
+            Mock Invoke-ApimLogCollector {
+                $script:smokeOrder.Add('LogAnalytics')
+                Set-RunCollectorStatus -RunPath $RunPath -Name LogAnalytics -Status Completed
+                'synthetic-private-log-output'
+            }
+            Mock Invoke-ApimMetricsCollector {
+                $script:smokeOrder.Add('Metrics')
+                Set-RunCollectorStatus -RunPath $RunPath -Name Metrics -Status Completed
+            }
+            Mock Invoke-ApimCostCollector {
+                $script:smokeOrder.Add('Cost')
+                Set-RunCollectorStatus -RunPath $RunPath -Name Cost -Status Completed
+            }
+            Mock Invoke-ApimLogicAppCollector {
+                $script:smokeOrder.Add('LogicApps')
+                Set-RunCollectorStatus -RunPath $RunPath -Name LogicApps -Status Completed
+            }
         }
 
         It 'runs all existing checks in dependency order and completes the manifest' {
@@ -140,7 +157,8 @@ Describe 'Cumulative collection smoke runner' {
 
             $names = @(
                 'Service', 'Apis', 'Products', 'Subscriptions',
-                'SecurityAssets', 'Diagnostics', 'Policies', 'Network', 'Identity', 'Portal', 'OpenApi', 'Organization'
+                'SecurityAssets', 'Diagnostics', 'Policies', 'Network', 'Identity', 'Portal', 'OpenApi', 'Organization',
+                'LogAnalytics', 'Metrics', 'Cost', 'LogicApps'
             )
             @($script:smokeOrder) | Should -Be $names
             @($result.Checks.Name) | Should -Be $names
@@ -167,6 +185,11 @@ Describe 'Cumulative collection smoke runner' {
                 ) -Directory)
             $runFolder.Count | Should -Be 1
             $manifest = Get-RunManifest -RunPath $runFolder[0].FullName
+            $manifest.schemaVersion | Should -Be '1.2'
+            $settings = (Get-ApimRunSetting -RunPath $runFolder[0].FullName).Settings
+            $settings.schemaVersion | Should -Be '1.2'
+            $settings.telemetry.skipLogs | Should -BeFalse
+            $settings.telemetry.skipCost | Should -BeFalse
             $manifest.stages.collect | Should -Be 'Completed'
             $manifest.stages.analyze | Should -Be 'NotStarted'
             $manifest.stages.report | Should -Be 'NotStarted'
@@ -195,16 +218,18 @@ Describe 'Cumulative collection smoke runner' {
                 'Running', 'Finished', 'Running', 'Finished',
                 'Running', 'Finished', 'Running', 'Finished',
                 'Running', 'Finished', 'Finished', 'Finished',
-                'Running', 'Finished', 'Running', 'Finished', 'Running', 'Finished', 'Finished', 'Running', 'Finished'
+                'Running', 'Finished', 'Running', 'Finished', 'Running', 'Finished', 'Finished', 'Running', 'Finished',
+                'Running', 'Finished', 'Running', 'Finished', 'Running', 'Finished', 'Running', 'Finished'
             )
             @($script:smokeEvents.Name) | Should -Be @(
                 'Service', 'Service', 'Apis', 'Apis', 'Products', 'Products',
                 'Subscriptions', 'Subscriptions', 'SecurityAssets',
                 'SecurityAssets', 'Diagnostics', 'Policies', 'Network',
-                'Network', 'Identity', 'Identity', 'Portal', 'Portal', 'OpenApi', 'Organization', 'Organization'
+                'Network', 'Identity', 'Identity', 'Portal', 'Portal', 'OpenApi', 'Organization', 'Organization',
+                'LogAnalytics', 'LogAnalytics', 'Metrics', 'Metrics', 'Cost', 'Cost', 'LogicApps', 'LogicApps'
             )
             $script:smokeEvents[2].Index | Should -Be 2
-            $script:smokeEvents[2].Total | Should -Be 12
+            $script:smokeEvents[2].Total | Should -Be 16
             $script:smokeEvents[3].Status | Should -Be 'Failed'
             $script:smokeEvents[3].FailureCode | Should -Be 'UNKNOWN_FAILURE'
             $script:smokeEvents[10].Status | Should -Be 'Skipped'
@@ -247,7 +272,7 @@ Describe 'Cumulative collection smoke runner' {
                     '00000000-0000-0000-0000-000000000010'
                 ) -OnProgress $callback | Out-Null
 
-            $lines.Count | Should -Be 21
+            $lines.Count | Should -Be 29
             $lines[3] | Should -Match 'Apis - Failed \(UNKNOWN_FAILURE\)'
             $lines[10] | Should -Match 'Diagnostics - Skipped'
             $lines[11] | Should -Match 'Policies - Skipped'
@@ -267,7 +292,8 @@ Describe 'Cumulative collection smoke runner' {
 
             @($script:smokeOrder) | Should -Be @(
                 'Service', 'Apis', 'Products', 'Subscriptions',
-                'SecurityAssets', 'Network', 'Identity', 'Portal', 'Organization'
+                'SecurityAssets', 'Network', 'Identity', 'Portal', 'Organization',
+                'LogAnalytics', 'Metrics', 'Cost', 'LogicApps'
             )
             $result.Status | Should -Be 'Partial'
             ($result.Checks | Where-Object Name -EQ Apis).Status |
@@ -309,7 +335,7 @@ Describe 'Cumulative collection smoke runner' {
                     '00000000-0000-0000-0000-000000000010'
                 )
 
-            @($script:smokeOrder) | Should -Be @('Service')
+            @($script:smokeOrder) | Should -Be @('Service', 'LogAnalytics', 'Metrics', 'Cost', 'LogicApps')
             $result.Status | Should -Be 'Partial'
             @($result.Checks.Status | Where-Object { $_ -eq 'Skipped' }).Count |
                 Should -Be 11
@@ -506,6 +532,43 @@ Describe 'Cumulative collection smoke runner' {
             $result.Status | Should -Be 'Partial'
             ($result.Checks | Where-Object Name -EQ Subscriptions).Status |
                 Should -Be 'Failed'
+        }
+
+        It 'preserves telemetry Partial and optional Skipped without manufacturing failures' {
+            Mock Invoke-ApimLogCollector {
+                Set-RunCollectorStatus -RunPath $RunPath -Name LogAnalytics -Status Partial -Errors 1
+            }
+            Mock Invoke-ApimCostCollector {
+                Set-RunCollectorStatus -RunPath $RunPath -Name Cost -Status Skipped
+            }
+            $result = Invoke-ApimSmoke -Config $script:smokeConfig -EnvironmentName Prod `
+                -TenantId '00000000-0000-0000-0000-000000000010'
+            $result.Status | Should -Be 'Partial'
+            ($result.Checks | Where-Object Name -EQ LogAnalytics).Status | Should -Be 'Partial'
+            ($result.Checks | Where-Object Name -EQ Cost).Status | Should -Be 'Skipped'
+            ($result.Checks | Where-Object Name -EQ LogAnalytics).FailureCode | Should -BeNullOrEmpty
+            ($result.Checks | Where-Object Name -EQ Cost).FailureCode | Should -BeNullOrEmpty
+        }
+
+        It 'allows optional unconfigured telemetry but never a skipped metrics check' {
+            Mock Invoke-ApimLogCollector {
+                Set-RunCollectorStatus -RunPath $RunPath -Name LogAnalytics -Status Skipped
+            }
+            Mock Invoke-ApimCostCollector {
+                Set-RunCollectorStatus -RunPath $RunPath -Name Cost -Status Skipped
+            }
+            Mock Invoke-ApimLogicAppCollector {
+                Set-RunCollectorStatus -RunPath $RunPath -Name LogicApps -Status Skipped
+            }
+            $result = Invoke-ApimSmoke -Config $script:smokeConfig -EnvironmentName Prod `
+                -TenantId '00000000-0000-0000-0000-000000000010'
+            $result.Status | Should -Be 'Completed'
+            @($result.Checks | Where-Object Status -EQ Skipped).Count | Should -Be 3
+            Mock Invoke-ApimMetricsCollector {
+                Set-RunCollectorStatus -RunPath $RunPath -Name Metrics -Status Skipped
+            }
+            (Invoke-ApimSmoke -Config $script:smokeConfig -EnvironmentName Prod `
+                -TenantId '00000000-0000-0000-0000-000000000010').Status | Should -Be 'Partial'
         }
     }
 }
@@ -745,6 +808,110 @@ Describe 'Saved collection smoke output validation' {
     }
 }
 
+Describe 'Telemetry collection smoke output and bounded query coverage' {
+    InModuleScope ApimAssessment -Parameters @{ RepoRoot = $repoRoot } {
+        param($RepoRoot)
+
+        $script:telemetrySmokeRepoRoot = $RepoRoot
+        BeforeAll {
+            . (Join-Path $script:telemetrySmokeRepoRoot 'tests/helpers/New-SyntheticTelemetryRun.ps1')
+        }
+        BeforeEach {
+            $script:telemetrySmoke = New-SyntheticTelemetryRun -RepoRoot $script:telemetrySmokeRepoRoot `
+                -OutputRoot (Join-Path $TestDrive ([guid]::NewGuid().ToString('N'))) -IncludeObservedRoutes
+            $path = $script:telemetrySmoke.Run.Path
+            Set-RunStageStatus -RunPath $path -Stage collect -Status Completed
+            Complete-ApimRun -RunPath $path
+            $manifest = Get-RunManifest -RunPath $path
+            $script:telemetryResult = [pscustomobject]@{
+                RunId = $manifest.runId; Status = 'Completed'
+                Checks = @(
+                    foreach ($check in @(Get-ApimCollectorRegistry) + @(Get-ApimTelemetryCollectorRegistry)) {
+                        $record = @($manifest.collectors | Where-Object name -CEQ $check.Name)[0]
+                        [pscustomobject]@{ Name = $check.Name; Status = $record.status }
+                    }
+                )
+            }
+        }
+
+        It 'validates all sixteen saved collectors and reports skipped queries honestly' {
+            $path = $script:telemetrySmoke.Run.Path
+            Test-ApimSmokeOutput -RunPath $path -Result $script:telemetryResult `
+                -Environment $script:telemetrySmoke.Config.Environments[0]
+            $checks = @(Get-ApimSmokeQueryCheck -RunPath $path -Result $script:telemetryResult)
+            $checks.Name | Should -Be @('appgwByListener', 'appgwNonEdge', 'directNonAppGw', 'headersLogged')
+            $checks.Status | Should -Be @('Completed', 'Skipped', 'Completed', 'Completed')
+            (ConvertTo-Json -InputObject $checks) | Should -Not -Match 'workspaceId|rows|calls|00000000|synthetic'
+        }
+
+        It 'rejects a completed log collector with missing or invalid observed-route output' -ForEach @(
+            @{ Mode = 'missing' }; @{ Mode = 'invalid' }
+        ) {
+            $path = $script:telemetrySmoke.Run.Path
+            $file = Join-Path $path 'logs/headersLogged.json'
+            if ($Mode -eq 'missing') { Remove-Item -LiteralPath $file }
+            else { Set-Content -LiteralPath $file -Value '{"schemaVersion":"1.0","private":"synthetic-canary"}' }
+            {
+                Test-ApimSmokeOutput -RunPath $path -Result $script:telemetryResult `
+                    -Environment $script:telemetrySmoke.Config.Environments[0]
+            } | Should -Throw
+        }
+
+        It 'validates telemetry Partial evidence instead of treating it as a thrown collector failure' {
+            $path = $script:telemetrySmoke.Run.Path
+            $payload = Read-ApimSmokeOutputJson -RunPath $path -RelativePath logs/headersLogged.json
+            $payload.workspaces[0].status = 'Partial'
+            $payload.workspaces[0].reason = 'Unavailable'
+            $null = Write-RunFile -RunPath $path -RelativePath logs/headersLogged.json -InputObject $payload
+            $manifest = Get-RunManifest -RunPath $path
+            $log = @($manifest.collectors | Where-Object name -CEQ LogAnalytics)[0]
+            Set-RunCollectorStatus -RunPath $path -Name LogAnalytics -Status Partial -Errors 1 `
+                -Items $log.items -Files $log.files
+            Set-RunStageStatus -RunPath $path -Stage collect -Status Partial
+            $script:telemetryResult.Status = 'Partial'
+            ($script:telemetryResult.Checks | Where-Object Name -CEQ LogAnalytics).Status = 'Partial'
+            Test-ApimSmokeOutput -RunPath $path -Result $script:telemetryResult `
+                -Environment $script:telemetrySmoke.Config.Environments[0]
+            (@(Get-ApimSmokeQueryCheck -RunPath $path -Result $script:telemetryResult) |
+                Where-Object Name -CEQ headersLogged).Status | Should -Be 'Partial'
+            Remove-Item -LiteralPath (Join-Path $path 'logs/headersLogged.json')
+            {
+                Test-ApimSmokeOutput -RunPath $path -Result $script:telemetryResult `
+                    -Environment $script:telemetrySmoke.Config.Environments[0]
+            } | Should -Throw
+        }
+
+        It 'rejects a fabricated optional skip when configured evidence was required' {
+            $path = $script:telemetrySmoke.Run.Path
+            Set-RunCollectorStatus -RunPath $path -Name LogAnalytics -Status Skipped
+            ($script:telemetryResult.Checks | Where-Object Name -CEQ LogAnalytics).Status = 'Skipped'
+            {
+                Test-ApimSmokeOutput -RunPath $path -Result $script:telemetryResult `
+                    -Environment $script:telemetrySmoke.Config.Environments[0]
+            } | Should -Throw
+        }
+
+        It 'accepts genuinely unconfigured logs without claiming the four queries executed' {
+            $path = $script:telemetrySmoke.Run.Path
+            $config = $script:telemetrySmoke.Config
+            $config.Environments[0].LogAnalyticsWorkspaceIds = @()
+            $manifest = Get-RunManifest -RunPath $path
+            $manifest.evidenceWindows = @($manifest.evidenceWindows | Where-Object {
+                    $_.kind -cnotin @('Usage', 'Security', 'Ingestion', 'AppGateway')
+                })
+            $null = Save-RunManifest -RunPath $path -Manifest $manifest
+            Save-ApimRunSetting -RunPath $path -Config $config `
+                -Environment $config.Environments[0] -IncludeObservedRoutes
+            Invoke-ApimLogCollector -RunPath $path -Environment $config.Environments[0]
+            ($script:telemetryResult.Checks | Where-Object Name -CEQ LogAnalytics).Status = 'Skipped'
+            Test-ApimSmokeOutput -RunPath $path -Result $script:telemetryResult `
+                -Environment $config.Environments[0]
+            @(Get-ApimSmokeQueryCheck -RunPath $path -Result $script:telemetryResult).Status |
+                Should -Be @('Skipped', 'Skipped', 'Skipped', 'Skipped')
+        }
+    }
+}
+
 Describe 'Maintainer-only smoke command preflight' {
     BeforeAll {
         $repoRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
@@ -956,6 +1123,13 @@ Describe 'Smoke progress presentation' {
         Format-ApimSmokeConsoleLine -State Summary `
             -SummaryStatus Partial |
             Should -Be '[SMOKE] Collection smoke: Partial'
+        Format-ApimSmokeConsoleLine -State Skipped -Name LogAnalytics `
+            -Index 13 -Total 16 -Unconfigured |
+            Should -Be '[SKIP] [########--] 13/16 LogAnalytics - Skipped (unconfigured).'
+        Format-ApimSmokeConsoleLine -State Query -Name appgwNonEdge -QueryStatus Skipped |
+            Should -Be '[QUERY] appgwNonEdge - Skipped'
+        { Format-ApimSmokeConsoleLine -State Query -Name 'synthetic-private' -QueryStatus Completed } |
+            Should -Throw
     }
 
     It 'uses terminal color only when requested and rejects unsafe error codes' {

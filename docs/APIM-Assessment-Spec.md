@@ -435,7 +435,7 @@ identities, remotes, or process stderr. UTF-8 including BOM is supported.
 Limits are 15 seconds per process, 8 MiB tree output, 1 MiB/blob, 16 MiB aggregate
 XML, and 4,096 policies. Resume compares the committed snapshot before reuse;
 changes/failure invalidate downstream stages and package state. Optional Git is
-separate from the eight maintainer smoke checks. See D-56 and the runbook.
+separate from the maintainer smoke checks. See D-56 and the runbook.
 
 ---
 
@@ -1569,11 +1569,19 @@ Private-configuration preflight may emit only fixed missing-file, invalid-config
 unsafe-location, or unmatched-environment categories; it must never render
 config values, identifiers, paths, or underlying exception messages.
 The same smoke entry point validates its newly saved manifest against the
-ten check outcomes and verifies required completed-collector files, JSON
+registered check outcomes and verifies required completed-collector files, JSON
 collection shapes/counts, and policy index/XML hashes locally before exit 0.
 Only bounded validation status is printed; a mismatched or missing output
 returns exit 4. A Partial run can validate completed files but remains exit 3.
 This does not perform Analyze, Render, or a model-data airlock validation.
+The cumulative smoke includes all sixteen implemented configuration/telemetry
+collectors and fresh observed-route settings 1.2 (D-64). Validate Partial/Skipped
+telemetry with the same saved-evidence gates as collection. Only validated
+unconfigured LogAnalytics/Cost/LogicApps exclusions may accompany exit 0;
+baseline prerequisite skips and incomplete required evidence remain Partial.
+Print fixed aggregate statuses for the four observed-route queries without
+workspace identities, row counts or metrics. Skipped coverage never establishes
+query execution, full live acceptance or a successful assessment.
 Every handled smoke outcome prints a fixed final PASS/FAIL/PARTIAL result and
 its numeric exit code before exiting; the displayed code must match the actual
 process exit code. Operators do not need a second command to inspect it.

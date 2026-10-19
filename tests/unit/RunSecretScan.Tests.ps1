@@ -504,6 +504,11 @@ $global:syntheticModule = Import-Module (Join-Path $Repository 'ApimAssessment.p
         }
     }
     function script:Test-ApimSmokeOutput {}
+    function script:Get-ApimSmokeQueryCheck {
+        foreach ($kind in @('appgwByListener', 'appgwNonEdge', 'directNonAppGw', 'headersLogged')) {
+            [pscustomobject]@{ Name = $kind; Status = 'Skipped' }
+        }
+    }
 } $Status
 function Import-Module {
     [CmdletBinding()]
@@ -527,6 +532,10 @@ exit $LASTEXITCODE
             $LASTEXITCODE | Should -Be $ExitCode
             $joined = $output -join "`n"
             $joined | Should -Match $ScanStatus
+            $joined | Should -Match '\[QUERY\] appgwByListener - Skipped'
+            $joined | Should -Match '\[QUERY\] appgwNonEdge - Skipped'
+            $joined | Should -Match '\[QUERY\] directNonAppGw - Skipped'
+            $joined | Should -Match '\[QUERY\] headersLogged - Skipped'
             $joined | Should -Not -Match 'synthetic-planted-value|unsupported\.bin'
             $joined | Should -Not -Match [regex]::Escape($script:scanRun.Path)
             $output[-1] | Should -Match "exit code $ExitCode"

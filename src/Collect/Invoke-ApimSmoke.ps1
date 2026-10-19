@@ -104,7 +104,8 @@ function Invoke-ApimSmoke {
     )
 
     Test-ApimCountOnlyPrivacy -Config $Config
-    $checks = @(Get-ApimCollectorRegistry)
+    $telemetryNames = @((Get-ApimTelemetryCollectorRegistry).Name)
+    $checks = @(Get-ApimCollectorRegistry) + @(Get-ApimTelemetryCollectorRegistry)
 
     foreach ($check in $checks) {
         if ($null -eq (Get-Command -Name $check.Function `
@@ -117,9 +118,11 @@ function Invoke-ApimSmoke {
         [datetimeoffset]::UtcNow.ToString('yyyy-MM-dd_HHmmss')
     ), ([guid]::NewGuid().ToString('N').Substring(0, 8))
     $run = New-ApimRun -Config $Config -EnvironmentName $EnvironmentName `
-        -TenantId $TenantId -Operator 'LocalMaintainer' -RunId $runId
+        -TenantId $TenantId -Operator 'LocalMaintainer' -RunId $runId -IncludeTelemetry
     $environment = Get-ApimEnvironmentConfig -Config $Config `
         -EnvironmentName $EnvironmentName
+    Save-ApimRunSetting -RunPath $run.Path -Config $Config `
+        -Environment $environment -IncludeObservedRoutes
     $statuses = [ordered]@{}
     $failureCodes = @{}
 
@@ -158,10 +161,13 @@ function Invoke-ApimSmoke {
                 $record = @((
                         Get-RunManifest -RunPath $run.Path
                     ).collectors | Where-Object { $_.name -eq $check.Name })
-                if ($record.Count -ne 1 -or $record[0].status -ne 'Completed') {
+                if ($record.Count -ne 1 -or
+                    ($record[0].status -cne 'Completed' -and
+                        -not ($check.Name -cin $telemetryNames -and
+                            $record[0].status -cin @('Partial', 'Skipped')))) {
                     throw 'Smoke collector did not report completion.'
                 }
-                $statuses[$check.Name] = 'Completed'
+                $statuses[$check.Name] = $record[0].status
             }
             catch {
                 $failureCodes[$check.Name] = Get-ApimSmokeFailureCode -ErrorRecord $_
@@ -193,7 +199,11 @@ function Invoke-ApimSmoke {
         }
     }
 
-    $status = if (@($statuses.Values | Where-Object { $_ -ne 'Completed' }).Count) {
+    $status = if (@($checks | Where-Object {
+                $statuses[$_.Name] -cne 'Completed' -and
+                -not ($_.Name -cin @('LogAnalytics', 'Cost', 'LogicApps') -and
+                    $statuses[$_.Name] -ceq 'Skipped')
+            }).Count) {
         'Partial'
     }
     else {

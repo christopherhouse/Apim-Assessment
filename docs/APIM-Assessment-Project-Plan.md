@@ -67,6 +67,9 @@ and source-bound observed exposure without per-client/header values or estimated
 per-API public/private splits. Partial/absent/ambiguous evidence stays Unknown;
 legacy resumes retain their original capability. T-409 remaining telemetry/PERF
 rules and maintainer live/visual/host approval remain separate acceptance work.
+The D-64 smoke integration keeps the same maintainer command while including
+all sixteen collectors, telemetry saved-output checks and bounded four-query
+coverage. Unconfigured skips are exclusions, not live acceptance.
 
 ### 4.1 Trust model
 
