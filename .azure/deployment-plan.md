@@ -1,8 +1,8 @@
 # Azure Deployment Plan: Synthetic APIM Validation Lab
 
-> **Status:** Offline implementation approved - API contracts in review
+> **Status:** Offline implementation approved - API contracts complete
 >
-> Not deployment-ready. Five business API contracts are available for review.
+> Not deployment-ready. Five business API contracts pass offline acceptance.
 > Infrastructure/bootstrap tooling and all live changes remain outstanding.
 > Plan approval permits offline implementation, not deployment.
 
@@ -456,7 +456,9 @@ these are planning references, not assessment rule `References`.
 
 Owner approved offline implementation with D-66 refinements: five business
 APIs, new lab-owned networking and Azure DNS ACME delegation. T-712 contracts
-pass focused offline validation; the full gate/review is pending.
+pass focused offline validation and the full repository gate (1,334 passed,
+zero failed, two existing skips); acceptance tests are committed. Required
+PR review remains separate.
 Bootstrap/infrastructure/policies/traffic implementation,
 their offline checks, actual quota/context/cost confirmation, live
 bootstrap/deployment authorization and live validation are outstanding.
