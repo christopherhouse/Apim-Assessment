@@ -44,6 +44,10 @@ The toolkit is **customer-neutral**. All customer specifics live in a config fil
 - No unrestricted Copilot shell/filesystem access to the collection zone or raw/model run folders.
 - No model-based collection, redaction, safety validation, rule evaluation, or direct workbook/HTML mutation.
 
+The proposed maintainer development lab in section 16.1 is separate test
+infrastructure, not an assessment/remediation capability. Its plan does not
+authorize deployment or weaken any runtime/data-access constraint above.
+
 ---
 
 ## 2. Synthetic reference environment
@@ -1599,6 +1603,38 @@ error categories; `ARM_NO_RESPONSE` alone does not prove a network issue.
 It never prints exception text, response content, paths, or identifiers (D-21/D-22).
 
 ---
+
+### 16.1 Proposed synthetic live-validation lab
+
+D-65/T-701-T-711 plan an opt-in, customer-neutral Bicep lab to fulfill T-114 and
+support maintainer live testing. The detailed proposed design is in
+`.azure\deployment-plan.md`. Implementation starts only after owner plan
+approval; actual bootstrap/provisioning needs separate permission, context,
+quota, cost, DNS and live-execution approval.
+
+Baseline scope: internal classic Developer APIM, six generated OpenAPI
+scenarios, global/product/API/operation/fragment policies, HTTPS Application
+Gateway path routing, Key Vault certificates, managed identities, workspace-based
+Application Insights and Log Analytics with independent gateway diagnostics,
+bounded synthetic traffic and GitHub environment-scoped OIDC delivery.
+Default/unmatched gateway routes must not forward to APIM. Private-only negative
+scenarios cannot bypass independent network/caller restrictions.
+
+Provisioning, identity/RBAC bootstrap, certificate import/renewal and DNS writes
+belong only to separately invoked lab tooling. They never extend the assessment
+module, guarded ARM wrapper, collectors, broker operations or assessment-agent
+permissions. Ordinary CI remains offline; only explicitly approved owner lab
+workflows may change test infrastructure. Live assessment collection remains
+maintainer-operated outside Copilot/CI, with raw evidence and reports restricted.
+
+Proposed defaults use DNS-only Cloudflare records with ACME challenge delegation
+to Azure DNS for managed-identity renewal. A direct Cloudflare token is an
+explicitly chosen alternative, not Azure identity authentication. No tokens,
+certificate private material, real infrastructure identifiers or raw live output
+enter tracked files/model context/CI artifacts. No Cloudflare assessment collector
+is added. Product-policy exercise keys are isolated lab credentials and never
+retrieved by assessment collectors. Initial lab results cannot establish
+historical usage/cost, proxy/origin posture or approval of G3/G4/customer runs.
 
 ## 17. Acceptance criteria (v1)
 
