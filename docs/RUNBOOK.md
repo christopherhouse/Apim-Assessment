@@ -13,7 +13,7 @@ collectors, and an internal network collector for Application Gateway/WAF and
 Resource Graph evidence. Private offline helpers now merge effective policies,
 normalize/hash them, and extract deterministic policy flags. Private offline
 builders create schema-validated API, operation, policy-matrix, subscription,
-service, named-value, backend, certificate, network, and pre-telemetry
+service, named-value, backend, certificate, network, and evidence-qualified
 exposure records from saved synthetic-equivalent inputs. A private rule engine,
 seven NET catalog entries, fifteen model-backed
 SEC catalog entries, ten model-backed GOV catalog entries, all six REL catalog
@@ -24,8 +24,8 @@ deterministic workbook sheets from a validated saved run. Five bounded public
 commands now connect collection, offline analysis, and paired Excel/HTML
 reporting, including validated resume. A synthetic-tested narrow stdio broker,
 four broker-only assessment profiles, semantic output validation and four
-operator skills are implemented. Remaining collectors/models, telemetry-based
-exposure refinement and rule catalogs are not implemented. Offline tracking
+operator skills are implemented. Remaining collectors/models and the rest of
+the telemetry/PERF rule catalogs are not implemented. Offline tracking
 carry-forward and same-APIM/environment saved-run comparison are available.
 Optional committed Git policy collection, offline cross-environment policy/API
 presence comparison, and Environment Drift workbook rows are also available.
@@ -34,8 +34,9 @@ approval and visual/live G3 acceptance remain owner gates.
 
 Usage/cost collection and offline reports are connected with synthetic-tested LA
 aggregates, APIM/App Gateway metrics, daily costs, and cost-only Logic Apps
-inventory/metrics. Telemetry runs use manifest 1.2/settings 1.1; saved legacy runs
-keep their original contracts. Optional usage/capacity/cost models rebuild from
+inventory/metrics. New telemetry runs use manifest 1.2/settings 1.2, adding scoped
+aggregate-only route evidence and observed exposure; saved settings 1.0/1.1
+keep their original contracts. Optional usage/capacity/cost and observed exposure rebuild from
 validated saved sources/settings on every load. Development KQL tests require the pinned Kusto.Language assembly
 restored by `.\scripts\Install-DevDependencies.ps1`; this is not an Azure runtime
 dependency and does not authorize live access.
@@ -141,6 +142,36 @@ Logic Apps Standard costs belong to the linked shared plan, not each workflow.
 No workflow definitions or historical SKU changes are collected. Premium capacity
 P95 is nearest-rank over hourly averages; current units, zones and SKU do not prove
 historical capacity, safe downsizing or savings. Review HA requirements separately.
+
+### Observed routes and exposure
+
+New ordinary Collect/Assessment runs automatically include the four scoped route
+queries in LogAnalytics. No new public switch or Azure permission exception is
+added. Configure gateway subnet CIDRs for route classification; trusted edge
+IPv4 CIDRs enable non-edge aggregates. `Edge.TrustedEdgeRangesFile` can provide
+one CIDR per line with blank lines and `#` comments. Ranges are validated and
+snapshotted; offline Analyze/Report do not reopen the file. A changed range file
+requires a new run rather than incompatible resume.
+
+The restricted files are `logs/appgwByListener.json`, `logs/appgwNonEdge.json`,
+`logs/directNonAppGw.json` and `logs/headersLogged.json`. Gateway access logs
+have independent schema detection and AppGateway evidence windows; APIM direct/
+header queries use APIM usage windows. Records retain per-workspace coverage,
+failures and retention, never individual client IPs or header values. Empty
+configured ranges explicitly skip the corresponding query. `-SkipLogs` excludes
+all four; `-SkipCost` leaves them enabled.
+
+Complete route usage can distinguish ExternalInUse and ExternalUnintended.
+Missing/Partial/mixed evidence cannot prove zero. Identical overlapping workspace
+copies count once; conflicting copies stay Unknown. Public/private listener
+ambiguity and indistinguishable public routes withhold public counts instead of
+estimating a per-API split. Same-window listener evidence can exclude active
+private paths, but retains Medium confidence. Unresolved rewrites stay Unknown.
+API Inventory and Exposure Map show local counts/labels and evidence gaps.
+Saved-model loading rechecks these against restricted sources/settings before
+reports or model-safe construction. Packages retain only existing allowlisted
+labels and bands, not raw route evidence. NET-003/NET-005/SEC-016 and remaining
+T-409 rules are not enabled by this collection capability.
 
 | Exit | Meaning and local action |
 |---|---|

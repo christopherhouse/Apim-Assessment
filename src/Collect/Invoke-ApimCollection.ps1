@@ -83,7 +83,9 @@ function Remove-ApimCollectorOutput {
         OpenApi = @('raw/openapi')
         Organization = @((Get-ApimOrganizationEndpoint).File)
         LogAnalytics = @('logs/workspaces.json', 'logs/usageByApi.json', 'logs/usageByRoute.json',
-            'logs/usageMonthly.json', 'logs/tls.json', 'logs/noSubscriptionCalls.json', 'cost/laIngestion.json')
+            'logs/usageMonthly.json', 'logs/tls.json', 'logs/noSubscriptionCalls.json', 'cost/laIngestion.json',
+            'logs/appgwByListener.json', 'logs/appgwNonEdge.json', 'logs/directNonAppGw.json',
+            'logs/headersLogged.json')
         Metrics = @('metrics/apim.json', 'metrics/appgw.json')
         Cost = @('cost/daily.json')
         LogicApps = @('cost/logicApps.json')
@@ -198,7 +200,8 @@ function Invoke-ApimCollection {
             -RelativePath 'restricted/collection-context.json'
         $savedSettings = Get-ApimRunSetting -RunPath $ResumeRunPath
         $expectedSettings = Get-ApimRunSettingSnapshot -RunPath $ResumeRunPath `
-            -Config $Config -Environment $environment -SkipLogs:$SkipLogs -SkipCost:$SkipCost
+            -Config $Config -Environment $environment -SkipLogs:$SkipLogs -SkipCost:$SkipCost `
+            -IncludeObservedRoutes:($savedSettings.Settings.schemaVersion -ceq '1.2')
         if (@($context.PSObject.Properties.Name).Count -ne 2 -or
             $context.schemaVersion -cne '1.0' -or
             $context.configSha256 -cne $digest -or
@@ -227,7 +230,8 @@ function Invoke-ApimCollection {
                 [ordered]@{ schemaVersion = '1.0'; configSha256 = $digest }
             )
         Save-ApimRunSetting -RunPath $run.Path -Config $Config `
-            -Environment $environment -SkipLogs:$SkipLogs -SkipCost:$SkipCost
+            -Environment $environment -SkipLogs:$SkipLogs -SkipCost:$SkipCost `
+            -IncludeObservedRoutes:$IncludeTelemetry
     }
 
     $statuses = @{}

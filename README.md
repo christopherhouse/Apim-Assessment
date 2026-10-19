@@ -22,7 +22,7 @@ Effective policy inheritance, fragment expansion, scope attribution, and
 normalized hashing plus deterministic policy-flag extraction are implemented as
 private offline model helpers. Private schema-validated builders now produce the
 service, API, operation, policy-matrix, subscription, named-value,
-backend, certificate, network, and pre-telemetry exposure model records from
+backend, certificate, network, and evidence-qualified exposure model records from
 saved inputs. A private
 offline rule engine now loads rule
 definitions, evaluates available model-backed scopes, and validates deterministic
@@ -55,7 +55,7 @@ certificate validation, Key Vault-backed secret/certificate health, unapproved
 plain-HTTP backend targets, unsafe CORS, diagnostic body/sensitive-header
 logging, subscription tracing, missing managed identity, and production
 mock/trace policy. Remaining collectors
-and models, telemetry-based exposure refinement, the rest of the SEC catalog,
+and models, the rest of the SEC catalog,
 the remaining GOV and other rule catalogs
 are not implemented. The offline Excel writer now
 populates the implemented deterministic report sheets, Run Info, the implemented
@@ -83,8 +83,19 @@ of workstation timezone; MTD is excluded from complete-month comparisons.
 Body-logging cost signals require APIM-table ingestion, not unrelated App Gateway
 access-log volume.
 Capacity P95 uses nearest-rank hourly averages; current units/SKU are not
-historical sizing or proof of achievable savings. Observed-route exposure,
-individual-subscription usage and PERF rules remain deferred.
+historical sizing or proof of achievable savings.
+
+New collections use settings 1.2 for observed-route exposure: scoped App Gateway
+listener/non-edge aggregates and APIM direct-call/header-presence counts remain
+restricted. No client IPs or header values are persisted by these queries.
+Complete saved route usage distinguishes ExternalInUse from ExternalUnintended;
+absent/partial/mixed evidence is not zero. Ambiguous public/private traffic,
+indistinguishable public routes and unresolved rewrites stay Unknown, with
+confidence/data gaps retained. Listener totals are never proportionally assigned
+to individual APIs. Trusted edge IPv4 CIDRs (including an optional local ranges
+file) are snapshotted for offline replay; unsupported ranges reject.
+Legacy settings 1.0/1.1 resume without silently enabling this capability.
+Individual-subscription usage and remaining telemetry/PERF rules stay deferred.
 
 An independent, **maintainer-only collection smoke command** now exercises all
 twelve implemented collector checks in dependency order against a Microsoft-owned test
@@ -179,10 +190,10 @@ data. The coding-agent checks use synthetic data only.
 | Strict private configuration validation and closed allowlisted saved-run analysis settings | Actual host isolation and approval acceptance |
 | Structured JSON-lines logging; validated resume and prerequisite-aware collector isolation | Full live workflow acceptance |
 | Guarded ARM transport with paging/retry; offline tracking, saved-run comparison, and cross-environment policy/API-presence drift | Full API-definition comparison |
-| Versioned run manifest lifecycle, exact scoring snapshot, APIM configuration collectors, LA aggregates, resource metrics, daily costs, cost-only Logic Apps and optional committed Git policy hashes | App Gateway observed-route queries |
+| Versioned run manifest lifecycle, exact scoring snapshot, APIM configuration collectors, scoped LA/App Gateway route aggregates, resource metrics, daily costs, cost-only Logic Apps and optional committed Git policy hashes | Maintainer live query acceptance |
 | Maintainer-only cumulative collection smoke script with local output validation (twelve registered checks) | Full live assessment acceptance |
 | Local saved-run secret-scan script for supported text and Excel artifacts, also required by smoke | Host-enforced model-safe admission acceptance |
-| Effective policy merge/flags, ten required models and optional drift/portal/quality/governance/usage/capacity/cost with schema-gated source-bound loading | Observed-route exposure refinement |
+| Effective policy merge/flags, ten required models including source-bound observed exposure, and optional drift/portal/quality/governance/usage/capacity/cost with schema-gated loading | Remaining telemetry/PERF rules |
 | Optional pinned offline Spectral, trusted APIM style rules and source/settings-bound quality scores with description fallback | Full API-definition drift and maintainer live export validation |
 | Offline raw-to-model Analyze, seven NET, fifteen SEC, ten GOV, six REL, five POR and five COST checks; configurable scoring and closed findings/actions | Remaining telemetry-dependent SEC/GOV/NET and PERF entries |
 | Public validated-run Excel/HTML rendering, Usage/Cost/Drift/Comparison views, tracking, table-bound charts and approved-code synthesis | Owner visual/live acceptance |

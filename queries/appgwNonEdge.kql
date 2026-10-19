@@ -1,0 +1,9 @@
+AGWAccessLogs
+| where TimeGenerated >= datetime(__START__) and TimeGenerated < datetime(__END__)
+| where _ResourceId in~ (dynamic(__GATEWAYS__))
+| extend clientClass=case(
+    isempty(ClientIp) or isnull(parse_ipv4(ClientIp)), "Unknown",
+    ipv4_is_in_any_range(ClientIp, dynamic(__EDGE__)), "Trusted", "NonEdge")
+| where clientClass != "Trusted"
+| summarize calls=count(), clientCount=dcount(ClientIp)
+    by gatewayId=tolower(_ResourceId), listener=ListenerName, rule=RuleName, host=Host, clientClass

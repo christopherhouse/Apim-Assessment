@@ -679,6 +679,8 @@ function Get-ApimPublishedRouteSet {
                             Trim().TrimStart('/')
                         $routes.Add([pscustomobject] [ordered]@{
                                 gateway = $gatewayName
+                                gatewayId = ([string] (Get-ApimModelValue -InputObject $gateway `
+                                        -Name id -Context 'Application Gateway')).ToLowerInvariant()
                                 listener = $listenerName
                                 listenerHost = $listenerHost
                                 backendHost = $backendHost
@@ -1099,6 +1101,9 @@ function Get-ApimExposureModel {
 
         [switch] $UsageComplete,
 
+        [AllowNull()]
+        [System.Collections.IDictionary] $ObservedUsage,
+
         [ValidateSet('Cloudflare-Assumed')]
         [string] $Edge = 'Cloudflare-Assumed'
     )
@@ -1184,6 +1189,15 @@ function Get-ApimExposureModel {
     )
     if ($null -ne $UsageByRoute -and -not $UsageComplete) {
         throw 'Usage-by-route records require complete telemetry evidence.'
+    }
+    if ($null -ne $ObservedUsage -and ($UsageComplete -or $null -ne $UsageByRoute)) {
+        throw 'Observed-route and legacy usage inputs cannot be combined.'
+    }
+    if ($null -ne $ObservedUsage) {
+        foreach ($apiId in $apiMap.Keys) {
+            if (-not $ObservedUsage.Contains($apiId)) { throw 'Observed usage was missing an API.' }
+            $usageMap.Add($apiId, $ObservedUsage[$apiId])
+        }
     }
     if ($UsageComplete) {
         foreach ($apiId in $apiMap.Keys) {
@@ -1410,6 +1424,7 @@ function Get-ApimExposureModel {
                 foreach ($name in @('callsViaAppGw', 'callsInternal')) {
                     $value = Get-ApimModelValue -InputObject $usage -Name $name `
                         -Context 'Usage-by-route record'
+                    if ($null -eq $value -and $null -ne $ObservedUsage) { continue }
                     if (
                         (
                             $value -isnot [byte] -and
@@ -1430,6 +1445,9 @@ function Get-ApimExposureModel {
                     else {
                         $callsInternal = [double] $value
                     }
+                }
+                if ($null -ne $ObservedUsage) {
+                    foreach ($gap in $usage.missingInputs) { $null = $missingInputs.Add($gap) }
                 }
             }
 
@@ -1486,6 +1504,9 @@ function Get-ApimExposureModel {
                 $null -eq $directPublic -or
                 $restriction.restriction -eq 'Unknown') {
                 'Low'
+            }
+            elseif ($null -ne $ObservedUsage) {
+                $ObservedUsage[$apiId].confidence
             }
             elseif ($hasPrivateRoute -or
                 (
@@ -1565,7 +1586,10 @@ function ConvertTo-ApimApiExposureModel {
 
         [Parameter(Mandatory)]
         [AllowEmptyCollection()]
-        [object[]] $ExposureRecords
+        [object[]] $ExposureRecords,
+
+        [AllowNull()]
+        [System.Collections.IDictionary] $ObservedUsage
     )
 
     $records = [System.Collections.Generic.List[object]]::new()
@@ -1608,7 +1632,7 @@ function ConvertTo-ApimApiExposureModel {
             @(
                 $copy.missingInputs |
                     Where-Object { $_ -ne 'exposure' }
-                $routes.missingInputs
+                $routes | ForEach-Object missingInputs
             ) |
                 Sort-Object -Unique
         )
@@ -1617,6 +1641,10 @@ function ConvertTo-ApimApiExposureModel {
         }
         else {
             'Partial'
+        }
+        if ($null -ne $ObservedUsage) {
+            $copy.callsViaAppGw = $ObservedUsage[$apiId].callsViaAppGw
+            $copy.callsInternal = $ObservedUsage[$apiId].callsInternal
         }
         $records.Add($copy)
     }

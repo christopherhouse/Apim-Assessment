@@ -179,6 +179,38 @@ function Get-ApimSavedPortalModel {
         -ProductVisibility $intent
 }
 
+function Get-ApimSavedNetworkModel {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string] $RunPath,
+        [Parameter(Mandatory)][object] $Context,
+        [Parameter(Mandatory)][object] $Service
+    )
+
+    $arguments = @{ Service = $Service }
+    $gateways = @(
+        foreach ($gateway in $Context.Environment.AppGateways) {
+            $segment = ConvertTo-ApimResourceSegment -Value $gateway.Name
+            Read-ApimSmokeOutputJson -RunPath $RunPath -RelativePath "raw/network/appgw.$segment.json"
+        }
+    )
+    $arguments.AppGateways = $gateways
+    $arguments.WafPolicies = @(
+        foreach ($file in Get-ChildItem -LiteralPath (Join-Path $RunPath 'raw/network') `
+                -Filter 'wafPolicy.*.json' -File -ErrorAction Stop) {
+            Read-ApimSmokeOutputJson -RunPath $RunPath -RelativePath "raw/network/$($file.Name)"
+        }
+    )
+    foreach ($entry in @(
+            @('ApimSubnetPayload', 'apimSubnet'), @('NsgPayload', 'nsgs'),
+            @('PublicIpPayload', 'publicIps'), @('FrontDoorPayload', 'frontDoors')
+        )) {
+        $arguments[$entry[0]] = Read-ApimSmokeOutputJson -RunPath $RunPath `
+            -RelativePath "raw/network/$($entry[1]).json" -Collection
+    }
+    return [pscustomobject]@{ Network = Get-ApimNetworkModel @arguments; Gateways = $gateways }
+}
+
 function Invoke-ApimAnalyze {
     [CmdletBinding()]
     param(
@@ -269,43 +301,21 @@ function Invoke-ApimAnalyze {
             }
         }
         if ($available.Service -and $available.Network) {
-            $networkArguments = @{ Service = $service }
-            $gateways = @(
-                foreach ($gateway in $context.Environment.AppGateways) {
-                    $segment = ConvertTo-ApimResourceSegment -Value $gateway.name
-                    Read-ApimSmokeOutputJson -RunPath $RunFolder `
-                        -RelativePath "raw/network/appgw.$segment.json"
-                }
-            )
-            $networkArguments.AppGateways = $gateways
-            $networkArguments.WafPolicies = @(
-                foreach ($file in Get-ChildItem -LiteralPath (
-                        Join-Path $RunFolder 'raw/network'
-                    ) -Filter 'wafPolicy.*.json' -File -ErrorAction Stop) {
-                    Read-ApimSmokeOutputJson -RunPath $RunFolder `
-                        -RelativePath "raw/network/$($file.Name)"
-                }
-            )
-            foreach ($entry in @(
-                    @('ApimSubnetPayload', 'apimSubnet'),
-                    @('NsgPayload', 'nsgs'),
-                    @('PublicIpPayload', 'publicIps'),
-                    @('FrontDoorPayload', 'frontDoors')
-                )) {
-                $networkArguments[$entry[0]] = Read-ApimSmokeOutputJson `
-                    -RunPath $RunFolder -RelativePath "raw/network/$($entry[1]).json" `
-                    -Collection
-            }
-            $models.network = Get-ApimNetworkModel @networkArguments
+            $network = Get-ApimSavedNetworkModel -RunPath $RunFolder -Context $context -Service $service
+            $gateways = @($network.Gateways)
+            $models.network = $network.Network
             if ($null -ne $apiModel) {
+                $observed = Get-ApimSavedRouteUsage -RunPath $RunFolder -Context $context `
+                    -Apis $models.apis -Operations $models.operations -Service $service -AppGateways $gateways
                 $models.exposure = @(Get-ApimExposureModel -Apis $models.apis `
                         -Operations $models.operations -Network $models.network `
                         -Service $service -AppGateways $gateways `
                         -PolicyPaths $apiModel.PolicyPaths `
                         -AppGwSubnetCidrs $context.Settings.appGwSubnetCidrs `
+                        -ObservedUsage $observed `
                         -Edge "$($context.Config.Edge.Provider)-Assumed")
                 $models.apis = @(ConvertTo-ApimApiExposureModel -Apis $models.apis `
-                        -ExposureRecords $models.exposure)
+                        -ExposureRecords $models.exposure -ObservedUsage $observed)
             }
         }
         $portal = Get-ApimSavedPortalModel -RunPath $RunFolder -Manifest $manifest `

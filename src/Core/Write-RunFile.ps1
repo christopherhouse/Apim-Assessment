@@ -166,6 +166,7 @@ function Test-RunManifest {
                 Metric { [int] $Manifest.windows.metricDays }
                 Cost { [int] $Manifest.windows.costMonths }
                 Ingestion { [int] $Manifest.windows.usageDays }
+                AppGateway { [int] $Manifest.windows.usageDays }
             }
             $retention = @{}
             if ($null -ne $entry.retentionDays) {

@@ -59,6 +59,9 @@ function Test-ApimLogSavedOutput {
             @($coverage | Where-Object { $_.status -cne 'Skipped' -or $_.reason -cne $reason }).Count) {
             throw 'Skipped log evidence is inconsistent with the configured opt-out.'
         }
+        if ($saved.Settings.schemaVersion -ceq '1.2') {
+            $null = Test-ApimObservedRouteSavedOutput -RunPath $RunPath -Context $saved -Metadata $null
+        }
         return 0
     }
     $kinds = @('usageByApi', 'usageByRoute', 'usageMonthly', 'tls', 'noSubscriptionCalls')
@@ -76,6 +79,10 @@ function Test-ApimLogSavedOutput {
             if ($kind -ceq 'laIngestion') { 'cost/laIngestion.json' } else { "logs/$kind.json" }
         }
     )
+    if ($saved.Settings.schemaVersion -ceq '1.2') {
+        $expectedFiles += @('logs/appgwByListener.json', 'logs/appgwNonEdge.json',
+            'logs/directNonAppGw.json', 'logs/headersLogged.json')
+    }
     if ($Collector.status -cnotin @('Completed', 'Partial') -or
         $null -eq $Collector.PSObject.Properties['files'] -or
         $Collector.files.Count -ne $expectedFiles.Count -or
@@ -139,6 +146,11 @@ function Test-ApimLogSavedOutput {
             Test-ApimLogAggregate -Rows $projected -Window $entry
             $count += $projected.Count
         }
+    }
+    if ($saved.Settings.schemaVersion -ceq '1.2') {
+        $observed = Test-ApimObservedRouteSavedOutput -RunPath $RunPath -Context $saved -Metadata $metadata
+        $count += $observed.Items
+        $complete = $complete -and $observed.Complete
     }
     if (($Collector.status -ceq 'Completed') -ne $complete -or $Collector.items -ne $count) {
         throw 'Saved log collector totals or completion status are inconsistent.'

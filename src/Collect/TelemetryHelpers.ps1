@@ -9,7 +9,7 @@ function Get-ApimEvidenceWindow {
         [datetimeoffset] $EndUtc,
 
         [Parameter(Mandatory)]
-        [ValidateSet('Usage', 'Security', 'Metric', 'Cost', 'Ingestion')]
+        [ValidateSet('Usage', 'Security', 'Metric', 'Cost', 'Ingestion', 'AppGateway')]
         [string] $Kind,
 
         [Parameter(Mandatory)]
@@ -50,7 +50,8 @@ function Get-ApimEvidenceWindow {
         param(
             [Parameter(Mandatory)]
             [ValidateSet('usageByApi', 'usageByRoute', 'usageMonthly', 'tls',
-                'noSubscriptionCalls', 'laIngestion', 'schema')]
+                'noSubscriptionCalls', 'laIngestion', 'schema', 'appgwSchema',
+                'appgwByListener', 'appgwNonEdge', 'directNonAppGw', 'headersLogged')]
             [string] $Name,
 
             [Parameter(Mandatory)]
@@ -67,11 +68,17 @@ function Get-ApimEvidenceWindow {
             [string[]] $AppGwCidrs = @(),
 
             [AllowEmptyCollection()]
-            [string[]] $InternalCidrs = @()
+            [string[]] $InternalCidrs = @(),
+
+            [AllowEmptyCollection()]
+            [string[]] $GatewayResourceIds = @(),
+
+            [AllowEmptyCollection()]
+            [string[]] $TrustedEdgeRanges = @()
         )
 
         $suffix = if ($Schema -ceq 'Legacy' -and
-            $Name -cnotin @('schema', 'laIngestion')) { '.azdiag.kql' } else { '.kql' }
+            $Name -cnotin @('schema', 'laIngestion', 'appgwSchema')) { '.azdiag.kql' } else { '.kql' }
         $path = Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) (
             "queries/$Name$suffix"
         )
@@ -87,6 +94,11 @@ function Get-ApimEvidenceWindow {
             '__APPGW__' = ConvertTo-Json -InputObject @($AppGwCidrs) -Compress
             '__INTERNAL__' = ConvertTo-Json -InputObject @($InternalCidrs) -Compress
             '__TABLE__' = $table
+            '__GATEWAYTABLE__' = if ($Schema -ceq 'ResourceSpecific') {
+                'AGWAccessLogs'
+            } else { 'AzureDiagnostics | where Category == "ApplicationGatewayAccessLog"' }
+            '__GATEWAYS__' = ConvertTo-Json -InputObject @($GatewayResourceIds) -Compress
+            '__EDGE__' = ConvertTo-Json -InputObject @($TrustedEdgeRanges) -Compress
         }
         foreach ($token in $replacements.Keys) {
             $text = $text.Replace($token, $replacements[$token])
@@ -281,7 +293,7 @@ function Get-ApimEvidenceWindow {
             [string] $RunPath,
 
             [Parameter(Mandatory)]
-            [ValidateSet('Usage', 'Security', 'Metric', 'Cost', 'Ingestion')]
+            [ValidateSet('Usage', 'Security', 'Metric', 'Cost', 'Ingestion', 'AppGateway')]
             [string] $Kind,
 
             [Parameter(Mandatory)]

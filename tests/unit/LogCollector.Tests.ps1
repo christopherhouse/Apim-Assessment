@@ -20,6 +20,25 @@ Describe 'Aggregate-only Log Analytics collection' {
                 if ($Query -match '\|\s*summarize calls=count\(\)\s*$') {
                     return [pscustomobject]@{ calls = '10' }
                 }
+                if ($Query -match 'headersObserved=') {
+                    return [pscustomobject]@{
+                        calls = 10; headersObserved = 8; xForwardedForCalls = 5; cfConnectingIpCalls = 2
+                        RequestHeaders = 'SYNTHETIC_DROP_SENTINEL'
+                    }
+                }
+                if ($Query -match 'by gatewayId=') {
+                    $row = [ordered]@{
+                        gatewayId = ('/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/' +
+                            'rg-example-prod/providers/Microsoft.Network/applicationGateways/agw-example-prod')
+                        listener = 'listener-public'; rule = 'rule-basic-apim'; host = 'api.synthetic.invalid'
+                        calls = 10; clientCount = 2; ClientIp = 'SYNTHETIC_DROP_SENTINEL'
+                    }
+                    if ($Query -match 'clientClass=') { $row.clientClass = 'NonEdge' }
+                    return [pscustomobject] $row
+                }
+                if ($Query -match 'summarize calls=count\(\) by apiId=(?:ApiId|apiId_s)\s*$') {
+                    return [pscustomobject]@{ apiId = 'orders'; calls = 1; CallerIpAddress = 'SYNTHETIC_DROP_SENTINEL' }
+                }
                 if ($Query -match 'gb=sum') {
                     return [pscustomobject]@{
                         dataType = 'ApiManagementGatewayLogs'; day = '2026-10-14T00:00:00Z'
@@ -267,6 +286,112 @@ Describe 'Aggregate-only Log Analytics collection' {
             Test-Path -LiteralPath (Join-Path $script:logRun.Path cost/laIngestion.json) | Should -BeFalse
             Test-ApimLogSavedOutput -RunPath $script:logRun.Path -Collector $record | Should -Be $record.items
             Should -Invoke Invoke-ApimLogQuery -Exactly -Times 6
+        }
+
+        It 'collects scoped route aggregates with independent gateway retention and closed replay' {
+            $script:logConfig.Edge.TrustedEdgeRanges = @('192.0.2.0/24')
+            $script:logConfig.Network.AppGwSubnetCidrs = @('10.0.0.0/24')
+            Save-ApimRunSetting -RunPath $script:logRun.Path -Config $script:logConfig `
+                -Environment $script:logConfig.Environments[0] -IncludeObservedRoutes
+            Mock Get-ApimWorkspaceSetting {
+                [pscustomobject]@{
+                    workspaceId = $WorkspaceId; resourceId = $script:logWorkspaceResource; retentionDays = 90
+                    tables = @{ ApiManagementGatewayLogs = 30; AGWAccessLogs = 14; Usage = 14 }
+                }
+            }
+            Invoke-ApimLogCollector -RunPath $script:logRun.Path -Environment $script:logConfig.Environments[0]
+            $manifest = Get-RunManifest -RunPath $script:logRun.Path
+            $record = @($manifest.collectors | Where-Object name -CEQ LogAnalytics)[0]
+            $record.status | Should -BeExactly Completed
+            $record.files.Count | Should -Be 11
+            @($manifest.evidenceWindows | Where-Object kind -CEQ AppGateway)[0].retentionDays | Should -Be 14
+            $payload = Read-ApimObservedRouteEvidence -RunPath $script:logRun.Path -Kind appgwByListener
+            $payload.workspaces[0].schema | Should -BeExactly ResourceSpecific
+            $payload.workspaces[0].rows[0].clientCount | Should -Be 2
+            Test-ApimLogSavedOutput -RunPath $script:logRun.Path -Collector $record | Should -Be $record.items
+            foreach ($kind in @('appgwByListener', 'appgwNonEdge', 'directNonAppGw', 'headersLogged')) {
+                Get-Content -LiteralPath (Join-Path $script:logRun.Path "logs/$kind.json") -Raw |
+                    Should -Not -Match 'SYNTHETIC_DROP_SENTINEL|ClientIp"|CallerIpAddress|RequestHeaders'
+            }
+            Should -Invoke Invoke-ApimLogQuery -Exactly -Times 12
+            $payload.workspaces[0].retentionDays = 30
+            $null = Write-RunFile -RunPath $script:logRun.Path -RelativePath logs/appgwByListener.json -InputObject $payload
+            { Test-ApimLogSavedOutput -RunPath $script:logRun.Path -Collector $record } |
+                Should -Throw '*schema and retention*'
+        }
+
+        It 'preserves ordinary usage when gateway telemetry is unavailable and skips unconfigured non-edge queries' {
+            Save-ApimRunSetting -RunPath $script:logRun.Path -Config $script:logConfig `
+                -Environment $script:logConfig.Environments[0] -IncludeObservedRoutes
+            Invoke-ApimLogCollector -RunPath $script:logRun.Path -Environment $script:logConfig.Environments[0]
+            $manifest = Get-RunManifest -RunPath $script:logRun.Path
+            @($manifest.evidenceWindows | Where-Object kind -CEQ Usage)[0].status | Should -BeExactly Completed
+            @($manifest.evidenceWindows | Where-Object kind -CEQ AppGateway)[0].status | Should -BeExactly Failed
+            $nonEdge = Read-ApimObservedRouteEvidence -RunPath $script:logRun.Path -Kind appgwNonEdge
+            $nonEdge.workspaces[0].status | Should -BeExactly Skipped
+            $nonEdge.workspaces[0].reason | Should -BeExactly Unconfigured
+            $record = @($manifest.collectors | Where-Object name -CEQ LogAnalytics)[0]
+            $record.status | Should -BeExactly Partial
+            Test-ApimLogSavedOutput -RunPath $script:logRun.Path -Collector $record | Should -Be $record.items
+        }
+
+        It 'qualifies mixed gateway schemas and isolates a failed header query' {
+            Save-ApimRunSetting -RunPath $script:logRun.Path -Config $script:logConfig `
+                -Environment $script:logConfig.Environments[0] -IncludeObservedRoutes
+            Mock Get-ApimWorkspaceSetting {
+                [pscustomobject]@{
+                    workspaceId = $WorkspaceId; resourceId = $script:logWorkspaceResource; retentionDays = 90
+                    tables = @{ ApiManagementGatewayLogs = 30; AGWAccessLogs = 30; AzureDiagnostics = 30; Usage = 14 }
+                }
+            }
+            Mock Invoke-ApimLogQuery {
+                if ($Query -match 'headersObserved=') { throw 'Synthetic forbidden header query details.' }
+                if ($Query -match 'Category == "GatewayLogs"' -and $Query -match 'summarize calls=count\(\)\s*$') {
+                    return [pscustomobject]@{ calls = 0 }
+                }
+                Get-SyntheticLogRow -Query $Query
+            }
+            Invoke-ApimLogCollector -RunPath $script:logRun.Path -Environment $script:logConfig.Environments[0]
+            $manifest = Get-RunManifest -RunPath $script:logRun.Path
+            @($manifest.evidenceWindows | Where-Object kind -CEQ Usage)[0].status | Should -BeExactly Completed
+            @($manifest.evidenceWindows | Where-Object kind -CEQ AppGateway)[0].schema | Should -BeExactly Mixed
+            (Read-ApimObservedRouteEvidence -RunPath $script:logRun.Path -Kind headersLogged).workspaces[0].status |
+                Should -BeExactly Failed
+            $record = @($manifest.collectors | Where-Object name -CEQ LogAnalytics)[0]
+            Test-ApimLogSavedOutput -RunPath $script:logRun.Path -Collector $record | Should -Be $record.items
+        }
+
+        It 'records observed-route opt-out without querying and preserves legacy log inventories' {
+            Save-ApimRunSetting -RunPath $script:logRun.Path -Config $script:logConfig `
+                -Environment $script:logConfig.Environments[0] -IncludeObservedRoutes -SkipLogs
+            Invoke-ApimLogCollector -RunPath $script:logRun.Path -Environment $script:logConfig.Environments[0]
+            $manifest = Get-RunManifest -RunPath $script:logRun.Path
+            @($manifest.evidenceWindows | Where-Object reason -CEQ OptOut).Count | Should -Be 4
+            $record = @($manifest.collectors | Where-Object name -CEQ LogAnalytics)[0]
+            Test-ApimLogSavedOutput -RunPath $script:logRun.Path -Collector $record | Should -Be 0
+            Should -Invoke Invoke-ApimLogQuery -Exactly -Times 0
+        }
+
+        It 'collects legacy gateway aggregates even when cost is excluded' {
+            $script:logConfig.Edge.TrustedEdgeRanges = @('192.0.2.0/24')
+            Save-ApimRunSetting -RunPath $script:logRun.Path -Config $script:logConfig `
+                -Environment $script:logConfig.Environments[0] -IncludeObservedRoutes -SkipCost
+            Mock Get-ApimWorkspaceSetting {
+                [pscustomobject]@{
+                    workspaceId = $WorkspaceId; resourceId = $script:logWorkspaceResource; retentionDays = 90
+                    tables = @{ AzureDiagnostics = 60 }
+                }
+            }
+            Invoke-ApimLogCollector -RunPath $script:logRun.Path -Environment $script:logConfig.Environments[0]
+            $manifest = Get-RunManifest -RunPath $script:logRun.Path
+            $record = @($manifest.collectors | Where-Object name -CEQ LogAnalytics)[0]
+            $record.status | Should -BeExactly Completed
+            $record.files.Count | Should -Be 10
+            @($manifest.evidenceWindows | Where-Object kind -CEQ AppGateway)[0].schema | Should -BeExactly Legacy
+            (Read-ApimObservedRouteEvidence -RunPath $script:logRun.Path -Kind appgwNonEdge).
+                workspaces[0].rows[0].clientClass | Should -BeExactly NonEdge
+            Test-ApimLogSavedOutput -RunPath $script:logRun.Path -Collector $record | Should -Be $record.items
+            Test-Path -LiteralPath (Join-Path $script:logRun.Path cost/laIngestion.json) | Should -BeFalse
         }
     }
 }

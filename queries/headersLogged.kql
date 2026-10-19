@@ -1,0 +1,7 @@
+ApiManagementGatewayLogs
+| where TimeGenerated >= datetime(__START__) and TimeGenerated < datetime(__END__)
+| where _ResourceId =~ __RESOURCE__
+| extend headerNames=tolower(tostring(bag_keys(RequestHeaders)))
+| summarize calls=count(), headersObserved=countif(isnotnull(bag_keys(RequestHeaders))),
+    xForwardedForCalls=countif(headerNames contains '"x-forwarded-for"'),
+    cfConnectingIpCalls=countif(headerNames contains '"cf-connecting-ip"')

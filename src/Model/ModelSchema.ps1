@@ -171,6 +171,7 @@ function Get-ApimModelSet {
     Test-ApimSavedDrift -RunPath $RunPath -Models $models
     Test-ApimSavedOpenApiQuality -RunPath $RunPath -Models $models
     Test-ApimSavedGovernanceModel -RunPath $RunPath -Models $models
+    Test-ApimSavedExposureModel -RunPath $RunPath -Models $models
     $manifestPath = Resolve-RunFilePath -RunPath $RunPath -RelativePath 'manifest.json'
     Test-ConfigPathLink -Path $manifestPath -Context 'Model manifest path'
     $telemetryManifest = if (Test-Path -LiteralPath $manifestPath) {
