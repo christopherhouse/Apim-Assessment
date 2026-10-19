@@ -1,0 +1,19 @@
+AzureDiagnostics
+| where TimeGenerated >= datetime(__START__) and TimeGenerated < datetime(__END__)
+| where _ResourceId =~ __RESOURCE__ and Category == "GatewayLogs"
+| extend callerIp=tostring(CallerIPAddress), responseCode=toint(responseCode_d),
+    totalTime=todouble(DurationMs), backendTime=todouble(backendTime_d),
+    subscriptionId=tostring(apimSubscriptionId_s)
+| extend route=case(
+    isempty(callerIp) or isnull(parse_ipv4(callerIp)), "Unknown",
+    ipv4_is_in_any_range(callerIp, dynamic(__APPGW__)), "ViaAppGw",
+    ipv4_is_in_any_range(callerIp, dynamic(__INTERNAL__)), "Internal",
+    "Other")
+| summarize calls=count(), error4xx=countif(responseCode between (400 .. 499)),
+    error5xx=countif(responseCode between (500 .. 599)),
+    unauthorized=countif(responseCode in (401, 403)),
+    totalTimeP50=percentile(totalTime, 50), totalTimeP95=percentile(totalTime, 95),
+    backendTimeP95=percentile(backendTime, 95),
+    subscriptionCount=dcountif(subscriptionId, isnotempty(subscriptionId)),
+    lastCall=max(TimeGenerated)
+    by apiId=tostring(apiId_s), operationId=tostring(operationId_s), productId=tostring(productId_s), route

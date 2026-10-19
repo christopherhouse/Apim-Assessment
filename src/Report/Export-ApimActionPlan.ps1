@@ -165,6 +165,7 @@ function Get-ApimReportTableMapping {
             'tblRun',
             'tblRules',
             'tblWeights',
+            'tblUsage', 'tblCost',
             'tblDrift',
             'tblComparison', 'tblComparisonGaps', 'tblComparisonPillars',
             'tblComparisonKpis', 'tblResolvedTracking', 'tblUnassessedTracking'
@@ -173,6 +174,22 @@ function Get-ApimReportTableMapping {
     )
 
     switch ($TableName) {
+        tblUsage {
+            return [ordered]@{
+                Period = 'period'; 'API ID' = 'apiId'; Calls = 'calls'
+                'Calls via App Gateway' = $null; 'Calls Internal' = $null; 'Last Call' = $null
+                'P50 ms' = $null; 'P95 ms' = $null; 'Backend P95 ms' = $null
+                '4xx Percent' = $null; '5xx Percent' = $null
+                'Model Status' = 'modelStatus'; 'Missing Inputs' = 'missingInputs'
+            }
+        }
+        tblCost {
+            return [ordered]@{
+                Month = 'month'; Scope = 'scope'; Service = 'service'; Cost = 'cost'; Currency = 'currency'
+                Calls = 'calls'; 'Cost per Million Calls' = 'costPerMillionCalls'; 'Change Percent' = 'changePercent'
+                'Model Status' = 'modelStatus'; 'Missing Inputs' = 'missingInputs'
+            }
+        }
         tblActions {
             return [ordered]@{
                 'Rule ID' = 'ruleId'
@@ -508,6 +525,14 @@ function ConvertTo-ApimReportRunRowSet {
                 -Name $collector.name -Status $collector.status `
                 -Items $collector.items -Errors $collector.errors `
                 -DurationSec $collector.durationSec))
+    }
+    if ($Manifest.schemaVersion -ceq '1.2') {
+        foreach ($entry in $Manifest.evidenceWindows) {
+            $rows.Add((ConvertTo-ApimReportRunRow -Section 'Evidence window' `
+                -Name "$($entry.kind): $($entry.target)" -Status $entry.status `
+                -StartedUtc $entry.startUtc -CompletedUtc $entry.endUtc `
+                -Value "$($entry.schema); capped=$($entry.isCapped); retention=$($entry.retentionDays); reason=$($entry.reason)"))
+        }
     }
     foreach ($window in @(
             @{
@@ -853,7 +878,7 @@ function Write-ApimReportSummary {
     $summary.Cells[4, 1].Value = (
         'ASSUMPTIONS AND DATA GAPS - Edge: {0}/{1}; windows: usage {2}d, ' +
         'security {3}d, cost {4}m; NotEvaluated findings: {5}; manifest ' +
-        'warnings: {6}; Usage and Cost remain deferred; Environment Drift requires explicit comparison evidence ' +
+        'warnings: {6}; Usage and Cost require complete same-period evidence; blanks are unknown, not zero. Environment Drift requires explicit comparison evidence ' +
         'in this report slice.'
     ) -f
         $Manifest.edge.provider,
@@ -1012,6 +1037,31 @@ function Export-ApimActionPlan {
             }
         }
     )
+    $usageRows = @(if ($models.Contains('usage')) { $models.usage.rows })
+    $costRows = @(
+        if ($models.Contains('cost')) {
+            foreach ($row in $models.cost.monthly) {
+                [ordered]@{
+                    month = $row.month; scope = $row.resourceId
+                    service = "$($row.resourceType) / $($row.meterCategory)"
+                    cost = $row.cost; currency = $row.currency; calls = $null
+                    costPerMillionCalls = $null; changePercent = $null
+                    modelStatus = if ($row.completeMonth) { 'Complete' } else { 'Partial' }
+                    missingInputs = @(if (-not $row.completeMonth) { 'costCoverage' })
+                }
+            }
+            foreach ($row in $models.cost.normalized) {
+                [ordered]@{
+                    month = $row.month; scope = 'Configured APIM + App Gateways'; service = 'Combined normalization (not additional cost)'
+                    cost = $row.cost; currency = $row.currency; calls = $row.calls
+                    costPerMillionCalls = $row.costPerMillionCalls; changePercent = $row.changePercent
+                    modelStatus = if ($row.completeMonth -and $null -ne $row.costPerMillionCalls) { 'Complete' } else { 'Partial' }
+                    missingInputs = @(if ($null -eq $row.costPerMillionCalls) { 'usage' }
+                        if (-not $row.completeMonth) { 'costCoverage' })
+                }
+            }
+        }
+    )
     $runRows += ConvertTo-ApimReportRunRow -Section Analysis -Name 'Drift coverage' `
         -Value $(if ($models.Contains('drift')) {
                 'Compared configured saved sources; unknown rows are not matches.'
@@ -1075,6 +1125,8 @@ function Export-ApimActionPlan {
                     Records = $runRows
                 }
                 @{ Worksheet = 'Environment Drift'; Table = 'tblDrift'; Records = $driftRows }
+                @{ Worksheet = 'Usage'; Table = 'tblUsage'; Records = $usageRows }
+                @{ Worksheet = 'Cost'; Table = 'tblCost'; Records = $costRows }
                 @{
                     Worksheet = 'Method & Rules'
                     Table = 'tblRules'
@@ -1100,6 +1152,7 @@ function Export-ApimActionPlan {
                 -WorksheetName $definition.Worksheet `
                 -TableName $definition.Table -Rows $rows -Mapping $mapping
         }
+        Write-ApimTelemetryChart -Package $package -Models $models
         Write-ApimReportPriorityFormula -Package $package `
             -ActionCount $actions.Count -FindingCount $findings.Count
         Write-ApimReportSummary -Package $package -Manifest $manifest `

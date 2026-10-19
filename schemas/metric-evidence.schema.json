@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object", "additionalProperties": false,
+  "required": ["schemaVersion", "resources"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "resources": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["resourceId", "metrics"],
+        "properties": {
+          "resourceId": { "type": "string", "pattern": "^/[^?#\\u0000-\\u001f]+$" },
+          "metrics": {
+            "type": "array", "minItems": 1,
+            "items": {
+              "type": "object", "additionalProperties": false,
+              "required": ["name", "unit", "interval", "expectedPoints", "status", "points"],
+              "properties": {
+                "name": { "enum": ["Capacity", "Requests", "Duration", "BackendDuration", "CapacityUnits", "Throughput", "UnhealthyHostCount", "BillableActionExecutions", "BillableTriggerExecutions", "CpuPercentage"] },
+                "unit": { "enum": ["Percent", "Count", "MilliSeconds", "BytesPerSecond"] },
+                "interval": { "enum": ["PT1H", "P1D"] },
+                "expectedPoints": { "type": "integer", "minimum": 1, "maximum": 87600 },
+                "status": { "enum": ["Completed", "Partial", "Failed"] },
+                "points": {
+                  "type": "array", "maxItems": 87600,
+                  "items": {
+                    "type": "object", "additionalProperties": false,
+                    "required": ["timestamp", "average", "maximum", "total"],
+                    "properties": {
+                      "timestamp": { "type": "string", "format": "date-time" },
+                      "average": { "type": ["number", "null"], "minimum": 0 },
+                      "maximum": { "type": ["number", "null"], "minimum": 0 },
+                      "total": { "type": ["number", "null"], "minimum": 0 }
+                    }
+                  }
+                }
+              },
+              "allOf": [{
+                "if": { "properties": { "status": { "const": "Failed" } } },
+                "then": { "properties": { "points": { "maxItems": 0 } } }
+              }]
+            }
+          }
+        }
+      }
+    }
+  }
+}

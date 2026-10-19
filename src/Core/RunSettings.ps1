@@ -22,7 +22,9 @@ function Test-ApimRunSetting {
     }
     $settings = ConvertFrom-Json -InputObject $Json -Depth 100 -AsHashtable `
         -ErrorAction Stop
+    $expectedVersion = if ($Manifest.schemaVersion -ceq '1.2') { '1.1' } else { '1.0' }
     if ($settings.runId -cne $Manifest.runId -or
+        $settings.schemaVersion -cne $expectedVersion -or
         $settings.toolVersion -cne $Manifest.toolVersion -or
         $settings.toolVersion -cne (Get-ApimAssessmentToolVersion) -or
         $settings.usageBuckets[0] -ne 0) {
@@ -36,6 +38,13 @@ function Test-ApimRunSetting {
     foreach ($cidr in $settings.appGwSubnetCidrs) {
         if ($null -eq (Get-ApimIpv4Range -Value $cidr)) {
             throw 'Run subnet CIDR is invalid.'
+        }
+    }
+    if ($settings.Contains('telemetry')) {
+        foreach ($cidr in $settings.telemetry.internalCidrs) {
+            if ($null -eq (Get-ApimIpv4Range -Value $cidr)) {
+                throw 'Run internal subnet CIDR is invalid.'
+            }
         }
     }
     if ($settings.Contains('governance')) {
@@ -82,7 +91,11 @@ function Get-ApimRunSettingSnapshot {
         [System.Collections.IDictionary] $Config,
 
         [Parameter(Mandatory)]
-        [System.Collections.IDictionary] $Environment
+        [System.Collections.IDictionary] $Environment,
+
+        [switch] $SkipLogs,
+
+        [switch] $SkipCost
     )
 
     $manifest = Get-RunManifest -RunPath $RunPath
@@ -107,6 +120,24 @@ function Get-ApimRunSettingSnapshot {
                 $Config.RuleExceptions.ApprovedPlainHttpOperationKeys
             })
         usageBuckets = @($Config.AnalysisPackage.UsageBuckets)
+    }
+    if ($manifest.schemaVersion -ceq '1.2') {
+        $settings.schemaVersion = '1.1'
+        $settings.telemetry = [ordered]@{
+            workspaceIds = @($Environment.LogAnalyticsWorkspaceIds |
+                    ForEach-Object { $_.ToLowerInvariant() } | Sort-Object -Unique)
+            costScopes = @($Environment.CostScopes |
+                    ForEach-Object { $_.TrimEnd('/').ToLowerInvariant() } | Sort-Object -Unique)
+            logicAppResourceGroups = @($Environment.LogicAppResourceGroups |
+                    ForEach-Object { $_.ToLowerInvariant() } | Sort-Object -Unique)
+            internalCidrs = @($Config.Network.InternalCidrs | Sort-Object -Unique)
+            skipLogs = [bool] $SkipLogs
+            skipCost = [bool] $SkipCost
+            unusedDays = [int] $Config.Thresholds.UnusedDays
+        }
+    }
+    elseif ($SkipLogs -or $SkipCost) {
+        throw 'Telemetry opt-outs cannot change legacy run settings.'
     }
     if ($Config.Contains('Governance')) {
         Test-ConfigGovernance -Value $Config.Governance
@@ -156,11 +187,15 @@ function Save-ApimRunSetting {
         [System.Collections.IDictionary] $Config,
 
         [Parameter(Mandatory)]
-        [System.Collections.IDictionary] $Environment
+        [System.Collections.IDictionary] $Environment,
+
+        [switch] $SkipLogs,
+
+        [switch] $SkipCost
     )
 
     $settings = Get-ApimRunSettingSnapshot -RunPath $RunPath -Config $Config `
-        -Environment $Environment
+        -Environment $Environment -SkipLogs:$SkipLogs -SkipCost:$SkipCost
     $json = ConvertTo-Json -InputObject $settings -Depth 100 -WarningAction Stop
     $null = Write-RunFile -RunPath $RunPath `
         -RelativePath 'restricted/run-settings.json' -InputObject $json -Format Text
@@ -250,6 +285,25 @@ function Get-ApimRunSetting {
     }
     if ($settings.Contains('portalProductVisibility')) {
         $result.Config.Portal = $portalConfig
+    }
+    if ($settings.Contains('telemetry')) {
+        $result.Config.Windows = @{
+            UsageDays = [int] $manifest.windows.usageDays
+            SecurityLogDays = [int] $manifest.windows.securityLogDays
+            CostMonths = [int] $manifest.windows.costMonths
+            MetricDays = [int] $manifest.windows.metricDays
+        }
+        $result.Config.Thresholds.UnusedDays = [int] $settings.telemetry.unusedDays
+        $result.Config.Network = @{
+            AppGwSubnetCidrs = @($settings.appGwSubnetCidrs)
+            InternalCidrs = @($settings.telemetry.internalCidrs)
+        }
+        $result.Environment.SubscriptionId = $manifest.subscriptionId
+        $result.Environment.ApimResourceGroup = ($manifest.apim.resourceId -split '/')[4]
+        $result.Environment.ApimName = ($manifest.apim.resourceId -split '/')[8]
+        $result.Environment.LogAnalyticsWorkspaceIds = @($settings.telemetry.workspaceIds)
+        $result.Environment.CostScopes = @($settings.telemetry.costScopes)
+        $result.Environment.LogicAppResourceGroups = @($settings.telemetry.logicAppResourceGroups)
     }
     return $result
 }

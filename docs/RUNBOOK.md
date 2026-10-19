@@ -17,7 +17,7 @@ service, named-value, backend, certificate, network, and pre-telemetry
 exposure records from saved synthetic-equivalent inputs. A private rule engine,
 seven NET catalog entries, fifteen model-backed
 SEC catalog entries, ten model-backed GOV catalog entries, all six REL catalog
-entries, all five POR catalog entries, a closed findings schema, and private closed action-item aggregation
+entries, all five POR and five COST catalog entries, a closed findings schema, and private closed action-item aggregation
 plus a customer-neutral generated Excel action-plan template are available for
 offline synthetic testing. A private report writer can populate the current
 deterministic workbook sheets from a validated saved run. Five bounded public
@@ -31,6 +31,14 @@ Optional committed Git policy collection, offline cross-environment policy/API
 presence comparison, and Environment Drift workbook rows are also available.
 Actual clean Copilot-session/tool isolation, approved roots/ACLs, organization
 approval and visual/live G3 acceptance remain owner gates.
+
+Usage/cost collection and offline reports are connected with synthetic-tested LA
+aggregates, APIM/App Gateway metrics, daily costs, and cost-only Logic Apps
+inventory/metrics. Telemetry runs use manifest 1.2/settings 1.1; saved legacy runs
+keep their original contracts. Optional usage/capacity/cost models rebuild from
+validated saved sources/settings on every load. Development KQL tests require the pinned Kusto.Language assembly
+restored by `.\scripts\Install-DevDependencies.ps1`; this is not an Azure runtime
+dependency and does not authorize live access.
 
 Ten required model contracts and optional drift/portal/OpenAPI-quality/product-governance/
 diagnostic-coverage contracts share a private
@@ -47,12 +55,14 @@ and executive assumption/data-gap carry-forward. Private package construction,
 independent privacy validation, local attestation, and immutable atomic promotion
 are also implemented and synthetic-tested. Packages use version 1.1, or 1.2 for
 evaluated drift findings, 1.3 for evaluated POR findings, or 1.4 for evaluated
-GOV-003/GOV-009 findings, with only approved
+GOV-003/GOV-009 findings, or 1.5 for evaluated COST findings, with only approved
 additional condition codes, never Git/source/environment or portal/provider/domain/
 product/group values or exact coverage. Existing Service/Product/Api aliases are reused.
 Package 1.4 exports only `ProductGovernanceWeak`/`ApiDiagnosticsWeak`, never
 organization inventories, user counts, intent or exact sampling. Earlier
-package schemas remain unchanged.
+package schemas remain unchanged. Version 1.5 adds only five Service-bound COST
+conditions; exact telemetry, billing, workspace/resource/plan identities and
+current sizing remain restricted. Broker permissions are unchanged.
 The broker invokes these private helpers;
 standalone root package/promotion facades remain planned.
 No customer data is approved for model access by a schema/reference pass.
@@ -67,7 +77,8 @@ existing Reader access and matching Azure context. Never launch it through a
 coding agent, `!`, or CI. Store private configuration and restricted runs in
 approved external locations. I-05/I-06 and live G3 remain owner gates.
 
-Prerequisites: PowerShell 7.4+, Az.Accounts and Az.ResourceGraph for collection;
+Prerequisites: PowerShell 7.4+, Az.Accounts and Az.ResourceGraph for collection,
+plus Az.OperationalInsights for configured Log Analytics queries;
 ImportExcel 7.8.10 for Excel rendering. Use the dependency installer for the
 pinned local Excel dependency, not Azure authentication. The runtime does not
 log in, switch subscriptions, retrieve credentials, or install Azure modules.
@@ -78,6 +89,7 @@ log in, switch subscriptions, retrieve credentials, or install Azure modules.
 .\Invoke-ApimAssessment.ps1 -Config <private-config.psd1> -Environment Prod -Stage Collect
 .\Invoke-ApimCollect.ps1 -Config <private-config.psd1> -Environment Prod -ThrottleLimit 4
 .\Invoke-ApimCollect.ps1 -Config <private-config.psd1> -Environment Prod -Resume <run-folder>
+.\Invoke-ApimCollect.ps1 -Config <private-config.psd1> -Environment Prod -SkipLogs -SkipCost
 
 # Offline stages still operate on restricted local data.
 .\Invoke-ApimAnalyze.ps1 -RunFolder <run-folder>
@@ -91,11 +103,14 @@ status objects, with Collect/Assessment carrying the run ID. Reports remain
 under that run's `report` directory and never overwrite previous workbooks.
 
 The implemented slice collects Service, Apis, Products, Subscriptions,
-SecurityAssets, Diagnostics, Identity, Portal, OpenApi, Organization, Policies, and Network. It accepts only
+SecurityAssets, Diagnostics, Identity, Portal, OpenApi, Organization, Policies, Network,
+LogAnalytics, Metrics, Cost and LogicApps. It accepts only
 Cloudflare/AssumedReachable edge settings and six increasing usage thresholds.
-`-SkipCost` and `-SkipLogs` confirm default exclusions of future cost and
-Log Analytics queries; explicit `:$false` on those two switches is rejected.
-Diagnostic settings are still collected. Git is optional as described below.
+Configured logs and cost default on. `-SkipLogs` excludes all LA queries including
+ingestion; it does not skip diagnostic settings or resource metrics. `-SkipCost`
+excludes daily costs, ingestion and cost-only Logic Apps evidence. Explicit
+`:$false` enables the configured evidence. Exclusions must match when resuming.
+Git is optional as described below.
 Analyze's `-RulesPath`/`-OnlyRules` remain unavailable; neither silently
 falls back to a speculative capability.
 
@@ -109,7 +124,23 @@ Analyze uses only saved evidence and the restricted closed settings snapshot.
 Unavailable required models generate Info/NotEvaluated findings where possible,
 leave analysis Failed, and withhold reporting. Missing diagnostics remain unknown
 facts even if the other models can be built. Reporting replays every deterministic
-finding, including evidence, before writing a workbook.
+finding, including evidence, before writing a workbook. Optional telemetry
+exclusions and unconfigured optional targets are Skipped without failing collection;
+metric gaps and configured-target failures stay Partial. Legacy resumes do not
+silently add telemetry or accept new telemetry exclusions.
+
+Usage contains monthly APIM counts and labeled partial boundary months, not
+observed-route attribution. Cost retains currencies separately and leaves
+same-period normalized costs null when calls or cost coverage are unknown.
+The combined normalization rows repeat resource costs and must not be added
+to them; stacked charts use resource rows only. Calendar months close at UTC
+midnight, independent of workstation timezone; MTD is not a complete month.
+APIM body logging can qualify an ingestion-cost signal only with billable
+APIM-table ingestion, not stable App Gateway access-log volume.
+Logic Apps Standard costs belong to the linked shared plan, not each workflow.
+No workflow definitions or historical SKU changes are collected. Premium capacity
+P95 is nearest-rank over hourly averages; current units, zones and SKU do not prove
+historical capacity, safe downsizing or savings. Review HA requirements separately.
 
 | Exit | Meaning and local action |
 |---|---|
@@ -346,8 +377,9 @@ Run Comparison lists comparable New/Resolved/Persisting findings, including
 previous/current severity. Comparison Gaps lists NotReassessed rows; Comparison
 Pillars and Comparison KPIs retain counts and availability reasons. Unknown
 reachability produces a null reachable-API KPI; active AllApis counts use
-collected subscription state/scope. Unused APIs and monthly cost remain null
-because complete telemetry/cost contracts are not implemented.
+collected subscription state/scope. Comparison's unused-API and monthly-cost KPIs
+remain null: this slice adds report models, not a cross-run KPI period-selection
+contract.
 
 Changed settings, historical replay disagreement, and Partial required evidence
 prevent unqualified absence claims. Resolved means absent from comparable
@@ -689,8 +721,8 @@ Details formulas recalculate Severity × Exposure × Usage, with blank usage
 remaining the neutral 1.0 multiplier; Action Plan formulas select each rule's
 maximum recalculated detail priority. Weight edits change workbook values on
 recalculation but do not alter restricted `findings.json` or automatically
-resort action rows. Usage, Cost, and Environment Drift are intentionally empty
-pending their owning tasks. The generated workbook is restricted customer
+resort action rows. Telemetry runs populate Usage/Cost; requested comparison
+evidence populates Environment Drift. The generated workbook is restricted customer
 output and must never be sent to Copilot or another model.
 
 ## Reusable collection smoke (Microsoft-owned test APIM only)
@@ -1046,7 +1078,8 @@ The candidate is restricted, not approved for an agent.
 
 Version 1.1 supports six ascending usage thresholds starting at zero and
 relative priority buckets; other threshold counts reject. `Zero` and `Unknown`
-remain distinct. Cost is `Unknown` until a cost model is implemented. Conditions
+remain distinct. Cost trend is relative and stays `Unknown` without comparable
+complete-month normalization; multiple currencies never produce a merged trend. Conditions
 are approved codes for replay-verified deterministic rule outcomes; source
 evidence text, labels, paths, policy XML, and exact usage/cost/priority are not
 copied. Equivalent reordered inventories produce identical package/map bytes.

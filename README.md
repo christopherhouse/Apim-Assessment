@@ -31,7 +31,7 @@ report helper groups schema-valid findings into closed, deterministic action
 items without removing the instance rows needed by future Finding Details.
 Seven NET rules,
 fifteen currently model-backed SEC rules, ten currently model-backed GOV rules,
-all six REL rules, and all five POR rules are implemented privately. Secret-safe
+all six REL rules, all five POR rules, and COST-001 through COST-005 are implemented. Secret-safe
 identity/authentication and portal configuration collectors feed an optional
 closed portal model. POR-002 reads `portalconfigs/default.properties.enableBasicAuth`
 directly; absent evidence stays Unknown. POR-003 requires explicit product/group
@@ -67,6 +67,25 @@ reports. HTML includes deterministic local topology/exposure charts, risks,
 actions, assumptions/gaps, roadmap, keyboard navigation, print and reduced-motion
 support. It has no remote dependencies and uses escaped local labels.
 
+The approved usage/cost slice is connected end to end: versioned telemetry
+settings, UTC evidence windows, aggregate-only LA queries with retention/schema
+qualification, APIM/App Gateway metrics, cost-only Logic Apps inventory/metrics,
+and reconciled daily costs feed source-bound offline usage/capacity/cost models,
+five COST rules, populated Usage/Cost tables and table-bound Excel charts,
+and local HTML summaries. Cost grouping uses two reconciled query stages
+because the API permits only two grouping columns; blocked pagination stays
+incomplete rather than weakening the ARM token guard.
+Configured logs and cost default on; exclusions are saved and checked on resume.
+Manifest 1.2/settings 1.1 add closed evidence coverage without upgrading legacy
+runs. Unknown denominators stay null, overlapping copies are not added,
+currencies stay separate, and complete months close at UTC midnight regardless
+of workstation timezone; MTD is excluded from complete-month comparisons.
+Body-logging cost signals require APIM-table ingestion, not unrelated App Gateway
+access-log volume.
+Capacity P95 uses nearest-rank hourly averages; current units/SKU are not
+historical sizing or proof of achievable savings. Observed-route exposure,
+individual-subscription usage and PERF rules remain deferred.
+
 An independent, **maintainer-only collection smoke command** now exercises all
 twelve implemented collector checks in dependency order against a Microsoft-owned test
 APIM. It is not an assessment entry point or a customer-run command: it cannot
@@ -95,7 +114,7 @@ also remains clean; actual embedded token values and literal signing/decryption
 keys are still checked, including policies serialized inside JSON or logs.
 
 Ten required model contracts and optional drift/portal/OpenAPI-quality/product-governance/
-diagnostic-coverage contracts share a fail-closed schema gate.
+diagnostic-coverage and usage/capacity/cost contracts share a fail-closed schema gate.
 Writers validate every pending serialized snapshot before writing any file, and
 the private saved-run loader requires all ten baseline files and validates any
 present portal/quality/governance model and any requested drift model, including restricted
@@ -127,7 +146,11 @@ Evaluated GOV-003/GOV-009 select closed package 1.4 with only
 `ProductGovernanceWeak`/`ApiDiagnosticsWeak`, bound to existing Product/Api aliases.
 Unreferenced collected products receive unique aliases too. No organization
 inventory, user counts, product intent or exact sampling is exported; older
-package versions remain unchanged.
+package versions remain unchanged. Evaluated COST findings select package 1.5:
+five approved Service-bound condition codes and relative cost trends only;
+exact costs/calls/capacity, resource/workspace/plan identifiers and billing
+history remain restricted. Independent validation and claim entailment admit
+this version without expanding broker operations.
 Promotion requires explicit complete host-supplied visible roots, isolated
 restricted/analysis/private-staging roots, and an exclusively controlled local
 filesystem. Unknown isolation, linked paths, tampering, and failed validation
@@ -156,13 +179,13 @@ data. The coding-agent checks use synthetic data only.
 | Strict private configuration validation and closed allowlisted saved-run analysis settings | Actual host isolation and approval acceptance |
 | Structured JSON-lines logging; validated resume and prerequisite-aware collector isolation | Full live workflow acceptance |
 | Guarded ARM transport with paging/retry; offline tracking, saved-run comparison, and cross-environment policy/API-presence drift | Full API-definition comparison |
-| Versioned run manifest lifecycle with an exact scoring snapshot, APIM service/API/product/subscription/policy/network and secret-safe security/diagnostic/identity/portal/OpenAPI/organization collectors, plus optional local committed Git policy hashes | Remaining telemetry and cost collectors |
+| Versioned run manifest lifecycle, exact scoring snapshot, APIM configuration collectors, LA aggregates, resource metrics, daily costs, cost-only Logic Apps and optional committed Git policy hashes | App Gateway observed-route queries |
 | Maintainer-only cumulative collection smoke script with local output validation (twelve registered checks) | Full live assessment acceptance |
 | Local saved-run secret-scan script for supported text and Excel artifacts, also required by smoke | Host-enforced model-safe admission acceptance |
-| Effective policy merge/flags plus ten required models and optional drift/portal/OpenAPI quality/product governance/diagnostic coverage with schema-gated persistence and saved-run loading | Remaining model builders and telemetry exposure refinement |
+| Effective policy merge/flags, ten required models and optional drift/portal/quality/governance/usage/capacity/cost with schema-gated source-bound loading | Observed-route exposure refinement |
 | Optional pinned offline Spectral, trusted APIM style rules and source/settings-bound quality scores with description fallback | Full API-definition drift and maintainer live export validation |
-| Offline raw-to-model Analyze, seven NET checks, fifteen SEC checks, ten GOV checks, all six REL checks, all five POR checks, configurable priority scoring, schema-gated findings, and closed action-item aggregation | Remaining SEC/GOV catalog entries, PERF and other catalogs |
-| Public validated-run Excel/HTML rendering, Environment Drift and Run Comparison views, tracking, local charts/diagrams, deterministic fallback, and validated approved-code synthesis | Future usage/cost population |
+| Offline raw-to-model Analyze, seven NET, fifteen SEC, ten GOV, six REL, five POR and five COST checks; configurable scoring and closed findings/actions | Remaining telemetry-dependent SEC/GOV/NET and PERF entries |
+| Public validated-run Excel/HTML rendering, Usage/Cost/Drift/Comparison views, tracking, table-bound charts and approved-code synthesis | Owner visual/live acceptance |
 | Compact raw-to-Excel/HTML and actual stdio broker integration plus a deterministic 60-API synthetic model generator and offline airlock canary/mutation integration | Full scaled raw collection fixture and live acceptance |
 | Closed model-safe contracts, allowlist package construction, independent privacy validation, hash attestation, immutable promotion, and digest-bound semantic proposal validation | Actual isolated Copilot/host admission acceptance |
 | Windows/Linux lint and test CI | Owner visual/live go-no-go approval |
@@ -200,13 +223,16 @@ artifact IDs reach a model, and operators resolve them locally.
 .\Compare-ApimRun.ps1 -Baseline <baseline-run-folder> -Current <current-run-folder>
 ```
 
-The current slice runs twelve implemented collectors and the installed rule
+The public workflow runs sixteen implemented collectors and the installed rule
 catalog, using `Cloudflare/AssumedReachable` edge settings. Collection requires
-Az.Accounts and Az.ResourceGraph; Excel requires pinned ImportExcel 7.8.10.
+Az.Accounts and Az.ResourceGraph, plus Az.OperationalInsights for configured LA
+queries; Excel requires pinned ImportExcel 7.8.10.
 `-Stage Collect` limits Assessment to collection. `-ThrottleLimit` controls
-implemented child-collection concurrency. Cost and Log Analytics usage/security
-queries remain excluded; `-SkipCost`/`-SkipLogs` confirm these exclusions and their
-explicit `:$false` values fail, as do custom/filtered rules.
+implemented child-collection concurrency. Configured Log Analytics aggregates
+and cost collection default on. `-SkipLogs` excludes LA queries, including
+ingestion, but not diagnostic configuration or metrics; `-SkipCost` excludes
+daily costs, ingestion and Logic Apps evidence. Explicit `:$false` includes
+the configured evidence. Custom/filtered rules remain unavailable.
 Configured `GitRepoPath` enables a local committed policy snapshot unless
 `-SkipGit` is set. No repository means Git is explicitly Skipped, while
 `-SkipGit:$false` without configuration fails before authentication.
@@ -279,7 +305,10 @@ Import-Module .\ApimAssessment.psd1 -Force
 
 The dependency installer installs pinned ImportExcel, Pester 5.x, and
 PSScriptAnalyzer versions from PowerShell Gallery into the current user's module
-directory; administrator rights are not needed. ImportExcel is used to generate
+directory; administrator rights are not needed. It also restores pinned
+Kusto.Language 12.4.1 from NuGet into ignored `.tools/kusto` for real offline
+KQL syntax checks, including an invalid-query control. No parser is downloaded
+by collection or analysis. ImportExcel is used to generate
 and structurally validate the workbook template without desktop Excel.
 Validation is offline and does not authenticate to Azure. Results are written to
 the ignored `artifacts` directory.
@@ -340,8 +369,9 @@ This repository setup does not change GitHub repository settings.
 
 ## Intended runtime and permissions
 
-The full collection runtime will use `Az.Accounts`,
-`Az.ResourceGraph`, `Az.OperationalInsights`, `Az.Monitor`, and `ImportExcel`.
+Collection uses `Az.Accounts` and `Az.ResourceGraph`, with
+`Az.OperationalInsights` for configured LA queries. Metrics use guarded ARM GETs,
+not an additional Az.Monitor dependency. Excel rendering uses pinned ImportExcel.
 Optional OpenAPI linting uses Node 22.x or 24+ on PATH and toolkit-local pinned
 Spectral 6.17.0 in `.tools\spectral`, installed explicitly by
 `scripts\Install-OptionalTools.ps1`. Global/PATH Spectral commands and environment
@@ -534,15 +564,17 @@ in rule-ID order, and fills editable Severity/Exposure/Usage weights. Finding
 Details priority formulas reference those weights, while Action Plan formulas
 take the maximum recalculated detail priority for each rule. Editing a weight
 therefore changes workbook priorities without mutating `findings.json`; rows
-retain their original deterministic order. Usage, Cost, and Environment Drift
-remain empty until their owning tasks. Generated reports can contain customer
+retain their original deterministic order. Usage and Cost are populated for
+telemetry runs; Environment Drift is populated when comparison evidence exists.
+Unimplemented route/latency columns remain blank, not inferred from monthly counts.
+Generated reports can contain customer
 and infrastructure identifiers and must never be provided to a model.
 
 The subscription model classifies AllApis/Product/Api scope, extracts a stable
 scope target, detects the built-in master subscription, and emits sorted
 risk/context flags. Usage-dependent `calls90d` and `lastUsed` remain `null` with
-`modelStatus=Partial` and `missingInputs=["usage"]` until telemetry is
-implemented. Its array is also closed-schema validated before persistence.
+`modelStatus=Partial` and `missingInputs=["usage"]`: aggregate telemetry does not
+identify individual subscriptions. Its array is closed-schema validated before persistence.
 
 The closed single-object network model evaluates the effective priority of broad
 inbound NSG rules on port 443, identifies positive direct-public paths, and

@@ -9,6 +9,7 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path $PSScriptRoot -Parent
 $dependencies = Import-PowerShellDataFile (Join-Path $PSScriptRoot 'DevDependencies.psd1')
 foreach ($name in $dependencies.Keys) {
+    if ($name -eq 'KustoLanguage') { continue }
     if ($name -eq 'ImportExcel') {
         Import-Module -Name $name -RequiredVersion $dependencies[$name] `
             -ErrorAction Stop 3>$null

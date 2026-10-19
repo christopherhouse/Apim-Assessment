@@ -48,6 +48,12 @@ function Test-ApimClaimFact {
         [Parameter(Mandatory)][string] $Claim,
         [Parameter(Mandatory)][System.Collections.IDictionary] $Fact
     )
+    if ($Claim -ceq 'CostTrend' -and $Fact.code -ceq 'AssessmentCondition') {
+        return $Fact.value -cin @(
+            'PremiumCapacityReview', 'NormalizedCostIncreasing', 'DiagnosticIngestionGrowth',
+            'LogicAppCostIncreasing', 'NonProductionPremium'
+        )
+    }
     if ($Claim -cin @('UsageBucket', 'CostTrend')) {
         return $Fact.code -ceq $Claim -and $Fact.value -cne 'Unknown'
     }

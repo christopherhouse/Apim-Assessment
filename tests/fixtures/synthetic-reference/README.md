@@ -121,6 +121,21 @@ All ten generated model files validate and round-trip through the saved loader;
 the existing compact raw/model fixtures above remain unchanged. This is not
 an implementation of telemetry collection or a scaled ARM collector export.
 
+Usage/cost acceptance adds disposable evidence through
+`tests/helpers/New-SyntheticTelemetryRun.ps1`, not a customer export: one workspace,
+two API-month rows totaling two million calls, two billable ingestion rows
+(10/20 GB), 145 APIM/App Gateway metric samples over one day, one Consumption
+Logic App with two daily billable metrics, and four daily cost rows across two
+complete months. The usage model has four rows including two partial boundary
+months; capacity average/P95/max are 11.5/22/63 and current units are two.
+APIM normalization is 10 then 20 synthetic USD per million calls, a 100-percent
+increase; Logic Apps cost is 10 then 16. In Prod this yields evaluated
+COST-001/002/003/004, not COST-005; changing only explicit environment to Test
+adds COST-005. Focused mutations cover strict thresholds, currencies, MTD,
+overlap deduplication/conflicts, missing/zero denominators, source/settings
+tampering, opt-out/resume, closed package 1.5 and table-bound Excel/local HTML.
+Individual-subscription usage, observed-route exposure and PERF remain deferred.
+
 Portal model/rule tests construct disposable synthetic evidence: one modern and
 one legacy status, five portal-setting/revision payloads, one Entra provider,
 one product, and one intended/actual partner-group membership. The passing
