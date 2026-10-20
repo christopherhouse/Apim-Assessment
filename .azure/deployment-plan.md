@@ -1,9 +1,9 @@
 # Azure Deployment Plan: Synthetic APIM Validation Lab
 
-> **Status:** Offline implementation approved - foundation in progress
+> **Status:** Offline foundation accepted - remaining lab implementation outstanding
 >
-> Not deployment-ready. Five business API contracts and owner bootstrap tooling
-> pass offline acceptance. T-703 foundation implementation is in progress;
+> Not deployment-ready. Five business API contracts, owner bootstrap tooling
+> and the T-703 foundation pass offline acceptance;
 > worker, certificates, gateway, lifecycle and all live changes remain outstanding.
 > Plan approval permits offline implementation, not deployment.
 
@@ -374,8 +374,15 @@ No compiled template/snapshot/private parameters are uploaded.
 **Validation proof (offline slice only):** pinned `bicep build` and `bicep lint`
 passed without diagnostics. The focused command
 `pwsh -NoProfile -File .\scripts\Invoke-Checks.ps1 -TestPath .\tests\unit\LabFoundation.Tests.ps1 -OutputDirectory .\artifacts\lab-foundation-checks`
-passed repository-wide PowerShell lint and the initial 38 foundation cases;
-final focused/full-gate evidence is recorded in the task register.
+passed repository-wide PowerShell lint and all 39 foundation cases, with zero
+failures or skips. The full command
+`pwsh -NoProfile -File .\scripts\Invoke-Checks.ps1 -OutputDirectory .\artifacts\lab-foundation-full-checks`
+passed lint and 1435 tests, with zero failures and two existing skips.
+Code CI run 39459307855 on committed implementation/tests `0be6e73` passed both
+full gates: Windows 1429 passed/eight existing skips; Linux 1431 passed/six
+existing skips; zero failures and lint clean on both. All 39 new tests execute
+without skips on both platforms. PR #48 remains subject to required review;
+final commands/results are recorded in the task register.
 Static role review confirms that this slice deliberately creates no grants;
 the six fixed vault/DNS/App Insights grants remain separately owner-approved
 T-702 Runtime operations and need the future worker identity.
