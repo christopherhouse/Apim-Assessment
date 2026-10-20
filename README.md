@@ -199,7 +199,7 @@ data. The coding-agent checks use synthetic data only.
 | Guarded ARM transport with paging/retry; offline tracking, saved-run comparison, and cross-environment policy/API-presence drift | Full API-definition comparison |
 | Versioned run manifest lifecycle, exact scoring snapshot, APIM configuration collectors, scoped LA/App Gateway route aggregates, resource metrics, daily costs, cost-only Logic Apps and optional committed Git policy hashes | Maintainer live query acceptance |
 | Maintainer-only cumulative collection smoke script with local output validation (sixteen registered checks) and bounded observed-query coverage | Full live assessment acceptance |
-| Owner-run, mocked-tested lab identity/OIDC/GitHub bootstrap and staged runtime RBAC; five synthetic business OpenAPI contracts (16 operations) and scenario inventory | Bicep networking/APIM/observability, API imports/policies, certificate/worker automation and owner live acceptance |
+| Owner-run lab bootstrap/staged RBAC, offline-tested pinned Bicep network/internal APIM/vault/observability foundation, and five synthetic business API contracts (16 operations) | Private worker, gateway, API imports/policies, certificate automation, protected delivery/lifecycle and owner live acceptance |
 | Local saved-run secret-scan script for supported text and Excel artifacts, also required by smoke | Host-enforced model-safe admission acceptance |
 | Effective policy merge/flags, ten required models including source-bound observed exposure, and optional drift/portal/quality/governance/usage/capacity/cost with schema-gated loading | Remaining telemetry/PERF rules |
 | Optional pinned offline Spectral, trusted APIM style rules and source/settings-bound quality scores with description fallback | Full API-definition drift and maintainer live export validation |
@@ -227,8 +227,15 @@ E-commerce, PLM, Manufacturing and Service Management. Their sixteen operations
 use small representative schemas and synthetic examples; the inventory maps
 private-only, initially dormant, product-context and bounded-failure scenarios.
 They are contracts, not deployed APIs or implemented authentication policies.
-The planned Bicep foundation owns a new VNet and four sized subnets; ACME
-challenge delegation to Azure DNS is the selected design.
+`infra\live-validation-lab\foundation.bicep` supplies the offline-tested foundation:
+a new VNet/four sized NSG-protected subnets, explicit worker NAT egress, internal
+classic Developer APIM, gateway identity, protected Key Vault/private DNS,
+challenge zone, Log Analytics and workspace-based Entra-only App Insights.
+Pinned AVMs are used where suitable; the direct workspace avoids an AVM's
+unconditional shared-key retrieval. Independent gateway logs and a managed-identity
+App Insights logger are configured without body/header capture. Runtime role
+grants remain in the separate owner stage, so declared logging is not proof of
+ingestion. ACME challenge delegation to Azure DNS remains the selected design.
 `scripts\lab\Invoke-LabBootstrap.ps1` now provides owner-only Identity/Runtime
 preview and digest-approved apply stages. It requires separately owned, tagged
 lab/identity resource groups, private closed-schema configuration and a matching
@@ -238,6 +245,11 @@ receives Contributor only on the lab group. Runtime grants are fixed and
 resource-scoped, and missing future foundation/worker resources yield NotReady.
 See the [owner bootstrap runbook](docs/RUNBOOK.md#owner-only-lab-bootstrap)
 for prerequisites, private approval commands and partial-failure handling.
+The [foundation runbook](docs/RUNBOOK.md#offline-lab-foundation)
+documents synthetic build/topology checks and a status-only private parameter
+writer. It rejects invalid/overlapping/undersized IPv4 layouts and empty or
+unrestricted internet lists before creating a new external parameter file.
+Private network collisions, permissions, cost and actual readiness are owner gates.
 This source-checkout tooling is separate from the read-only assessment module
 and release package. Mocked checks are not live authorization: no bootstrap,
 deployment, DNS/certificate change or live inspection was performed.
@@ -350,7 +362,12 @@ The dependency installer installs pinned ImportExcel, Pester 5.x, and
 PSScriptAnalyzer versions from PowerShell Gallery into the current user's module
 directory; administrator rights are not needed. It also restores pinned
 Kusto.Language 12.4.1 from NuGet into ignored `.tools/kusto` for real offline
-KQL syntax checks, including an invalid-query control. No parser is downloaded
+KQL syntax checks, including an invalid-query control. It installs SHA-256-pinned
+Bicep 0.48.1 into ignored `.tools\bicep` and restores exact public AVM versions
+from MCR without Azure authentication. Build/lint and offline synthetic snapshots
+run in the existing Pester gate on Windows/Linux; snapshot evaluation makes no
+Azure requests. Network access is needed for dependency/module installation,
+not live infrastructure inspection. No parser or compiler is downloaded
 by collection or analysis. ImportExcel is used to generate
 and structurally validate the workbook template without desktop Excel.
 Validation is offline and does not authenticate to Azure. Results are written to

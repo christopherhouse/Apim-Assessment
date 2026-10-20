@@ -1635,6 +1635,32 @@ private-endpoint subnets. Require containment, non-overlap, capacity and private
 collision checks before deployment; preserve documented platform traffic and
 explicit worker egress. These sizes are lab defaults, not service minimum claims.
 
+T-703's source-checkout foundation implements this topology with exact AVM
+versions and a direct Log Analytics workspace: reviewed AVM workspace 0.16.1
+unconditionally evaluates shared-key outputs and is unsuitable for this boundary.
+The closed version 1.0 foundation input is validated locally before a new private
+ARM parameter file is written. Require canonical RFC1918 /16-/22 VNet addressing,
+the stated minimum subnet capacities, non-overlap/containment, and non-empty,
+bounded public caller/worker-HTTPS CIDR lists. These checks cannot discover
+collisions with existing private infrastructure or enforce destination FQDNs.
+Standard App Gateway platform/outbound rules and classic APIM service dependencies
+remain available; only the worker subnet uses the explicit NAT gateway.
+
+The empty vault uses RBAC, soft delete, purge protection, a linked private endpoint
+for worker/gateway access, and public-network firewall default Deny with
+AzureServices bypass plus the APIM subnet's Key Vault service endpoint. This is
+the documented APIM system-identity certificate control-plane path, not a
+public-to-all fallback or obsolete gateway trusted-service assumption. Actual
+certificate access must pass owner validation before later hostname binding.
+The foundation declares independent resource-specific APIM gateway logs and
+workspace-based Entra-only App Insights with system-identity logger credentials,
+all-API bounded sampling/error controls and zero body/header/client-IP capture.
+No foundation role assignment is made: T-702 Runtime still needs the future
+worker principal, and neither log declaration nor offline snapshots prove ingestion.
+Worker/backend, certificate issuance/binding, Application Gateway/listeners,
+exact application-name private DNS, API imports/policies and protected delivery/
+lifecycle remain separate tasks. No broad `azure-api.net` private zone is created.
+
 Provisioning, identity/RBAC bootstrap, certificate import/renewal and DNS writes
 belong only to separately invoked lab tooling. They never extend the assessment
 module, guarded ARM wrapper, collectors, broker operations or assessment-agent

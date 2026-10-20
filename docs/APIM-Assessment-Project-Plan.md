@@ -107,8 +107,17 @@ configuration, expiring preview/approved apply, isolated deployment UAMI,
 exact protected-environment federation/variables and separately staged,
 resource-scoped runtime RBAC. Offline acceptance uses synthetic mocks only.
 Two existing owner-tagged resource groups are prerequisites; missing future
-foundation/worker resources return NotReady. Bicep, worker and actual
-GitHub/Azure execution remain outstanding.
+foundation/worker resources return NotReady. T-703 adds an offline-tested,
+resource-group-scoped foundation with pinned AVMs, four subnet NSGs, worker NAT,
+internal Developer APIM, gateway UAMI, protected vault/private DNS, public challenge
+zone and independent Log Analytics/managed-identity App Insights configuration.
+A direct workspace avoids AVM shared-key outputs. Closed private parameters are
+written only after canonical IPv4, capacity/containment/overlap, allowlist and
+budget validation. Synthetic Bicep snapshots evaluate the real module graph in
+the existing Windows/Linux test gate without Azure requests.
+No runtime role grant, VM, gateway listener, certificate binding or live readiness
+is implied. Worker, remaining lab automation and actual GitHub/Azure execution
+remain outstanding.
 Actual provisioning remains T-114 and live acceptance
 T-710. Owner-selected subscription/region, quotas, budget/lifetime, permissions,
 DNS/certificate delegation and private output boundaries must be confirmed before

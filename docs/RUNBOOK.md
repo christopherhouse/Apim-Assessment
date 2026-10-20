@@ -763,8 +763,9 @@ not an assessment command or part of the release package. Its tests are offline
 and synthetic; **do not run it through Copilot, a coding agent or ordinary PR
 CI**. Availability does not authorize live bootstrap. Owner permission,
 subscription/region/policy/cost approval and the later lab lifecycle/readiness
-gates remain prerequisites. The Bicep foundation, worker, certificate/DNS
-automation, protected live workflows and teardown are not implemented here.
+gates remain prerequisites. The offline Bicep foundation is documented below;
+worker, certificate/DNS automation, protected live workflows and teardown
+remain planned.
 
 Owner prerequisites, established privately outside the model session:
 
@@ -891,13 +892,108 @@ subscription for the selected principals, not a global effective-access audit.
 Live availability/permissions, consistency/propagation and recovery remain owner
 acceptance; mocked checks do not claim that live bootstrap has been exercised.
 
+## Offline lab foundation
+
+`infra\live-validation-lab\foundation.bicep` is a resource-group-scoped
+source-checkout template, not an assessment export, release asset or deployment
+command. It creates internal classic Developer APIM (one unit/system identity),
+a new VNet/four subnets/four NSGs, worker NAT/static IP, gateway UAMI, empty
+RBAC/soft-delete/purge-protected vault with private endpoint/DNS, a public ACME
+challenge zone, Log Analytics and linked workspace-based App Insights.
+It creates **no** worker VM, gateway/listener, certificate/secret, API, application
+DNS record, federation or role assignment. Keep the separate deployment identity
+in its existing identity group; do not redeploy it into its own Contributor scope.
+
+Install public dependencies, then run the existing synthetic-only gate:
+
+```powershell
+.\scripts\Install-DevDependencies.ps1
+.\scripts\Invoke-Checks.ps1 -TestPath .\tests\unit\LabFoundation.Tests.ps1 `
+    -OutputDirectory .\artifacts\lab-foundation-checks
+```
+
+This installs checksum-pinned Bicep 0.48.1 and exact public AVMs, then performs
+build/lint and offline snapshot evaluation against fixed synthetic tenant,
+subscription, resource-group, name and documentation-IP inputs. It checks evaluated
+subnets, NSGs, private endpoint/DNS and observability, not just source strings.
+Snapshots and compiled files stay in temporary test storage; only synthetic Pester
+results enter CI artifacts. Public dependency/module download requires network
+access, but no Azure account, credentials, context, resources, quota or what-if
+request is used. The template configuration has no credential sources.
+Do not deploy `foundation.synthetic.bicepparam` or the sample configuration.
+
+For a future owner handoff, first establish `$privateRoot` outside every
+agent-visible/trusted root on owner-controlled, non-linked storage with protected
+ancestors/ACLs and serialized access, as required by the bootstrap section.
+Copy `foundation.sample.json` there as `foundation.json` and replace synthetic
+values **privately**, in an ordinary owner terminal, never in a model session.
+The exact names, ownership `labId`, region and intended lab group must agree
+with the bootstrap contract. The writer does not inspect Azure or verify existing
+ownership, subscription/context, collisions, permissions, provider or SKU readiness.
+Those remain owner deployment preflight checks; no command here authorizes provision.
+
+```powershell
+$foundationConfig = Join-Path $privateRoot 'foundation.json'
+$foundationParameters = Join-Path $privateRoot 'foundation-parameters-01.json'
+pwsh -NoProfile -File .\scripts\lab\New-LabFoundationParameters.ps1 `
+    -ConfigPath $foundationConfig -OutputPath $foundationParameters
+```
+
+The writer validates closed schema 1.0, duplicate/case-conflicting members,
+canonical IPv4 network boundaries, RFC1918 /16-/22 VNet, subnet containment,
+pairwise non-overlap and at least the agreed /24, /26, /27, /27 capacities.
+Caller and worker HTTPS destination lists must each contain 1-16 unique canonical
+public CIDRs; unrestricted, private, loopback, multicast and selected nonpublic
+ranges reject. Documentation IPs are allowed for synthetic tests, not proof of
+routable destinations. Retention is 30/60/90/120/180/270/365 days, workspace daily
+quota 1-10 GB, sampling 1-100%. Quotas/alerts are not a guaranteed cost cutoff.
+Missing/unknown fields, invalid inputs, relative/checkout/linked paths, missing
+directories and existing outputs refuse. A new file uses exclusive CreateNew;
+no output is overwritten. Success prints only `LAB_FOUNDATION_PARAMETERS_READY`
+(exit 0); failure prints `LAB_FOUNDATION_PARAMETERS_FAILED` (exit 1). A write
+failure can leave a partial private file; investigate locally and use a new path.
+Do not paste parameters, errors, snapshots, deployment outputs or identifiers
+into chat or CI. Checkout/link checks do not audit every host trust root or ACL.
+
+Worker egress uses NAT and explicit approved HTTPS CIDRs plus Azure ARM/Entra/
+Monitor/Storage and platform DNS/agent/identity paths; no internet-wide outbound
+allow is added to that subnet. NSGs cannot filter by FQDN: the owner must approve
+and maintain the actual package/ACME and later gateway public-IP destinations.
+Missing destinations are a readiness failure, not permission to replace the list
+with `Internet`. APIM retains required classic platform/CRL/PKI/update egress;
+the standard App Gateway subnet retains its required outbound default and
+GatewayManager/load-balancer/health ports. This is not blanket egress isolation.
+APIM HTTPS ingress permits only gateway/worker subnets before deny-all.
+
+Key Vault private DNS serves worker/gateway access. APIM's system-identity
+certificate control-plane path separately uses the documented default-deny
+public firewall/AzureServices bypass and APIM Key Vault service endpoint;
+there is no all-networks fallback. Later owner validation must prove certificate
+access before hostname binding. App Gateway does not rely on a trusted-service
+bypass. APIM's `publicNetworkAccess: Enabled` preserves classic control-plane
+requirements; `virtualNetworkType: Internal` and NSGs keep its API data plane private.
+
+Dedicated `GatewayLogs` to Log Analytics and APIM's all-API App Insights diagnostic
+are independent. App Insights disables local ingestion auth and masks IPs;
+logger credentials use connection-string metadata and `SystemAssigned`.
+Body bytes/header lists/client-IP capture are disabled. T-702 Runtime supplies
+the fixed vault and Monitoring Metrics Publisher roles only after all future
+worker/foundation resources exist, so it remains NotReady after foundation alone.
+Initial telemetry may be unavailable until those grants propagate; an owner must
+prove actual ingestion, never interpret absent logs as zero traffic or a pass.
+API-specific overrides/traffic, certificate bindings, exact APIM/backend application
+DNS, gateway routing, lifecycle and live deploy/validation are later tasks.
+Module pins and the shared-key-free workspace exception are recorded in
+`.azure\deployment-plan.md`; module exports/version and release boundaries are unchanged.
+
 ## Reusable collection smoke (Microsoft-owned test APIM only)
 
 The repeatable Bicep target is documented in
 `.azure\deployment-plan.md` and tasks T-701-T-712. It includes Log Analytics and
 workspace-based Application Insights, not just APIM/App Gateway.
-Owner-only Identity/Runtime bootstrap tooling is available as documented above;
-the deployment/worker/certificate workflow is not implemented. Five OpenAPI 3.0.3
+Owner-only Identity/Runtime bootstrap and offline Bicep foundation tooling are
+available as documented above; live deployment/worker/certificate workflows
+remain planned. Five OpenAPI 3.0.3
 contracts and a stable inventory are
 available under `infra\live-validation-lab\scenarios`: Supply Chain (3 operations),
 E-commerce (4), PLM (3), Manufacturing (3) and Service Management (3).
@@ -911,7 +1007,7 @@ PLM has no public route, Manufacturing receives no initial traffic, and two
 product contexts share Supply Chain/E-commerce. Service Management's
 controlled-failure profile must be private-worker-only and disabled by default;
 there is no public fault-toggle endpoint.
-The planned T-703 foundation creates a new VNet and four subnets; no existing
+The offline-tested T-703 foundation defines a new VNet and four subnets; no existing
 VNet is required. `.azure\deployment-plan.md` records parameterized sizing and
 the selected Azure DNS ACME challenge delegation, with private overlap checks
 and staging issuance required before actual use.

@@ -1,9 +1,10 @@
 # Azure Deployment Plan: Synthetic APIM Validation Lab
 
-> **Status:** Offline implementation approved - API contracts complete
+> **Status:** Offline implementation approved - foundation in progress
 >
-> Not deployment-ready. Five business API contracts pass offline acceptance.
-> Infrastructure/bootstrap tooling and all live changes remain outstanding.
+> Not deployment-ready. Five business API contracts and owner bootstrap tooling
+> pass offline acceptance. T-703 foundation implementation is in progress;
+> worker, certificates, gateway, lifecycle and all live changes remain outstanding.
 > Plan approval permits offline implementation, not deployment.
 
 Generated: 2026-10-19
@@ -326,6 +327,74 @@ in the owner's restricted location; CI receives bounded pass/fail/not-ready
 codes. Run the existing assessment smoke from an authorized ordinary terminal,
 not from PR CI or this coding session.
 
+### 5.1 T-703 offline foundation implementation
+
+`foundation.bicep` and `network.bicep` under `infra/live-validation-lab/` target
+the existing owner-tagged lab resource group. They never recreate the deployment
+identity/federation or grant runtime roles. `New-LabFoundationParameters.ps1`
+validates closed private configuration and canonical RFC1918 IPv4 containment,
+overlap and agreed subnet capacity, then creates a new external private parameter
+file with fixed console outcomes. It performs no cloud preflight or deployment.
+Owner collision/context/ownership/cost approval remains mandatory.
+
+Suitable resource AVMs are pinned to the exact versions below. The official
+pattern index was reviewed on 2026-10-20; it has no matching bounded classic-APIM
+lab foundation. No pattern with unrelated workloads is introduced.
+
+| AVM registry path (`br/public:avm/res/`) | Exact version |
+|---|---|
+| `api-management/service` | `0.15.0` |
+| `network/virtual-network` | `0.10.2` |
+| `network/network-security-group` | `0.5.4` |
+| `network/nat-gateway` | `2.1.1` |
+| `network/public-ip-address` | `0.13.0` |
+| `managed-identity/user-assigned-identity` | `0.6.0` |
+| `key-vault/vault` | `0.14.2` |
+| `network/dns-zone` | `0.6.2` |
+| `network/private-dns-zone` | `0.8.1` |
+| `insights/component` | `0.8.0` |
+
+**Direct-resource gap:** `Microsoft.OperationalInsights/workspaces@2025-07-01`
+replaces unsuitable workspace AVM `0.16.1`, whose unconditional secure outputs
+evaluate `listKeys()` twice even when the caller never requests those keys.
+The direct workspace sets only metadata, retention, bounded daily cap, local-auth
+disablement and query/ingestion configuration; it has no key retrieval or output.
+No other direct resource gap is needed. Registry tags and corresponding immutable
+version-tagged upstream source contracts were checked before implementation.
+
+The developer installer verifies official release SHA-256 values for Bicep
+`0.48.1`, installs it under ignored `.tools/bicep`, and restores the pinned public
+modules. Existing CI uses that toolchain without Azure authentication. Focused
+Pester tests build/lint and evaluate an offline snapshot of the real module graph:
+25 predicted resources, four NSGs/four subnets, internal Developer APIM, explicit
+worker NAT, protected vault private endpoint/DNS and separate gateway/App Insights
+diagnostics. Tests use explicit synthetic context, not a live account or what-if.
+No compiled template/snapshot/private parameters are uploaded.
+
+**Validation proof (offline slice only):** pinned `bicep build` and `bicep lint`
+passed without diagnostics. The focused command
+`pwsh -NoProfile -File .\scripts\Invoke-Checks.ps1 -TestPath .\tests\unit\LabFoundation.Tests.ps1 -OutputDirectory .\artifacts\lab-foundation-checks`
+passed repository-wide PowerShell lint and the initial 38 foundation cases;
+final focused/full-gate evidence is recorded in the task register.
+Static role review confirms that this slice deliberately creates no grants;
+the six fixed vault/DNS/App Insights grants remain separately owner-approved
+T-702 Runtime operations and need the future worker identity.
+The `azure-validate` Bicep recipe's authenticated ARM validation, what-if and
+policy/capacity checks were **not run**: they access live infrastructure and are
+outside this offline authorization. Full deployment validation is blocked,
+not marked Validated or Ready for Deployment; do not invoke deployment.
+
+The worker has no blanket Internet egress; owner-approved package/ACME/later-gateway
+HTTPS CIDRs supplement fixed Azure/platform dependencies. This is IP-based control,
+not FQDN filtering. Standard App Gateway egress and classic APIM platform
+dependencies are preserved. Key Vault's default-deny public firewall with
+AzureServices bypass/APIM service endpoint is intentional for its system-identity
+certificate control plane; worker/gateway use private endpoint/DNS. A successful
+snapshot is not proof of that path, grants, certificate binding or ingestion.
+No VM, gateway listener, application DNS record, certificate, API or role grant
+is created by this slice. Keep T-704-T-711 and all owner live gates blocked as
+their dependencies require.
+
 ## 6. Inventory and owner-only deployment preflight
 
 These are planned quantities, not discovered resources or verified capacity.
@@ -335,7 +404,7 @@ These are planned quantities, not discovered resources or verified capacity.
 | Resource groups | 1 lab + 1 separately owned retained identity boundary | Owner-created/tagged bootstrap prerequisites; not queried |
 | APIM classic Developer | 1 | Not queried; confirm region, offer and service limit |
 | Application Gateway WAF_v2 + WAF policy | 1 each | Not queried; confirm regional capacity and approved maximum |
-| VNet / subnets / NSGs | 1 / 4 / at least 3 | Not queried; validate address space and platform rules |
+| VNet / subnets / NSGs | 1 / 4 / 4 | Offline foundation asserted; private address collisions/platform readiness not queried |
 | Public IP / NAT gateway | 2 / 1 | Not queried; confirm public-IP/NAT limits and cost |
 | Linux VM / NIC / OS disk | 1 each | Not queried; select small supported SKU and vCPU quota |
 | Key Vault / private endpoint / vault private DNS zone | 1 each | Not queried; confirm policy, protection and routing |
