@@ -986,13 +986,169 @@ DNS, gateway routing, lifecycle and live deploy/validation are later tasks.
 Module pins and the shared-key-free workspace exception are recorded in
 `.azure\deployment-plan.md`; module exports/version and release boundaries are unchanged.
 
+## Offline private lab worker
+
+T-704's `infra\live-validation-lab\worker.bicep` adds only one private Linux VM/NIC
+to the foundation worker subnet, not another VNet, public endpoint or runtime
+grant. VM AVM 0.22.3, a 32-GB Standard SSD, Trusted Launch/secure boot/vTPM,
+system-assigned identity and password-disabled provisioning are fixed.
+The owner chooses `Standard_B2ls_v2` or `Standard_B2s`, an available zone 1-3
+and the fixed Canonical Ubuntu 24.04 server image version (`latest` or a numeric
+version). Regional SKU/image/zone availability, quota, cost and private address
+collisions remain unverified owner gates, never an automatic fallback.
+Cloud-init masks both SSH service/socket and prepares protected directories.
+It does not download a binary, issue a certificate or start a service.
+The privileged VM agent channel is not job/identity isolation or a public runner.
+
+Run only synthetic acceptance in this development session:
+
+```powershell
+.\scripts\Install-DevDependencies.ps1
+.\scripts\Invoke-Checks.ps1 -TestPath .\tests\unit\LabWorker.Tests.ps1 `
+    -OutputDirectory .\artifacts\lab-worker-checks
+```
+
+This checks closed VM/app/job inputs, reserved addresses, no-overwrite/private-path/
+every-stream handling, evaluated VM/NIC/guest settings, actual loopback TLS 1.2,
+JWT issuer/audience/role/caller/signature negatives and all sixteen contract
+operations. Generated test keys/certificates stay in temporary synthetic storage.
+Fake metadata/network clients cover bounded jobs without accessing Azure.
+Locked Linux-x64 publishing admits binaries and the five contract files only,
+not private configuration or sample/job files. Public SDK/NuGet/AVM downloads are
+dependency installation, not live deployment or credential access.
+
+For a future owner handoff, use the protected external `$privateRoot` established
+in the bootstrap section. Privately copy `worker.sample.json` there as
+`worker.json`; replace only synthetic values in an ordinary owner terminal.
+Names, `labId`, region, VNet and worker subnet must agree with the foundation and
+bootstrap. `workerCidr` is validation-only and is not a deployment parameter.
+The static address must be canonical RFC1918 within that subnet, after Azure's
+first four reserved addresses and before its final address; a /27 or larger
+subnet is required. Supply a valid RSA 2048-4096 public provisioning key, never
+a private key; its presence does not open SSH.
+
+```powershell
+$workerConfig = Join-Path $privateRoot 'worker.json'
+$workerParameters = Join-Path $privateRoot 'worker-parameters-01.json'
+pwsh -NoProfile -File .\scripts\lab\New-LabWorkerParameters.ps1 `
+    -ConfigPath $workerConfig -OutputPath $workerParameters
+```
+
+The closed version 1.0 writer refuses missing/unknown/case-duplicate fields,
+unsupported versions, unbounded SKU/image/zone choices, invalid addresses/keys,
+relative/checkout/linked paths and existing output. It does not inspect Azure,
+existing ownership or the actual subnet. Exclusive creation never overwrites a
+file. Success prints only `LAB_WORKER_PARAMETERS_READY` (exit 0); failure prints
+`LAB_WORKER_PARAMETERS_FAILED` (exit 1). A failed write may leave a partial
+private file: inspect locally and use a new output path, without pasting it into
+chat or CI. Checkout/link guards are not an audit of all host-visible roots/ACLs.
+Do not deploy the committed synthetic parameter file.
+
+Build the delivery payload offline from source, without private files. The SDK
+resolver must run from the worker directory to honor exact `global.json`.
+The installer either reuses an exact installed SDK or places it under `.tools`:
+
+```powershell
+$sdk = (Import-PowerShellDataFile .\scripts\DevDependencies.psd1).DotNetSdk
+$dotnet = Join-Path $PWD ".tools\dotnet\$sdk\dotnet.exe"
+if (-not $IsWindows) { $dotnet = Join-Path $PWD ".tools\dotnet\$sdk\dotnet" }
+if (-not (Test-Path -LiteralPath $dotnet -PathType Leaf)) {
+    $dotnet = @(Get-Command dotnet -CommandType Application -ErrorAction Stop)[0].Source
+}
+$workerPayload = Join-Path $PWD 'artifacts\lab-worker-publish'
+Push-Location .\infra\live-validation-lab\worker
+try {
+    & $dotnet publish .\LabWorker.csproj --configuration Release `
+        --runtime linux-x64 --self-contained true --output $workerPayload `
+        -p:RestoreLockedMode=true --verbosity quiet
+    if ($LASTEXITCODE -ne 0) { throw 'Worker publishing failed.' }
+}
+finally { Pop-Location }
+```
+
+SDK 10.0.402, ASP.NET Core/JWT bearer 10.0.13 and Linux runtime packs are pinned;
+the closed NuGet configuration uses Microsoft's public `dotnet-public` mirror,
+with committed dependency locks. No TLS/audit check is disabled.
+This produces an ignored, self-contained Linux-x64 payload, not a Windows worker
+or a release asset. No customer, certificate, token or job input belongs there.
+
+**Private installation is not yet automated.** T-708 must deliver that payload
+and the reviewed service unit through an approved protected channel, never
+public SSH or a long-lived GitHub runner. The owner supplies these private files
+outside all model-visible roots before starting the service:
+
+| Guest path | Required protection / purpose |
+|---|---|
+| `/opt/apim-lab-worker` | Root-owned `root:apimlab`, directories/executable 0750 and readable libraries/contracts; reviewed published payload only |
+| `/etc/apim-lab-worker/config.json` | Root-owned `root:apimlab` 0640; closed `worker/config.schema.json` 1.0 |
+| `/etc/apim-lab-worker/tls/cert.pem` and `key.pem` | Root-owned `root:apimlab` 0640; matching valid leaf/chain and private key, never public/tracked/output |
+| `/var/lib/apim-lab-worker` | Root-owned `root:apimlab` 2750; setgid preserves service-readable group on privileged atomic fault files without granting backend write access |
+| `/var/lib/apim-lab-worker/request.json` | Root-owned `root:apimlab` 0640; closed `worker/job.schema.json` 1.0, privately replaced by one serialized privileged owner |
+| `/var/lib/apim-lab-worker/runtime` | `apimlab:apimlab` 0750; backend may update bounded persistent fault counters only |
+| `/etc/systemd/system/apim-lab-worker.service` | Root-owned 0644; shipped hardened unit with only bind-service capability |
+
+Configuration requires canonical tenant/resource/caller IDs and distinct HTTPS
+backend/APIM/gateway origins without paths, ports or query strings.
+`backendCallerClientIds` names the allowed calling applications (for example the
+APIM managed identity's client ID), not their principal/object IDs.
+Backend startup verifies certificate hostname, validity and key strength;
+clients must trust the complete supplied chain. Use an owner-approved private
+test CA and configure APIM backend trust separately, or wait for T-705 public
+ACME. Never disable certificate/name validation. Leaf/certificate inputs missing
+or invalid fail startup; a process/VM existing is not a readiness pass.
+Public ACME, private DNS, actual trust binding and file delivery remain separate
+owner/T-705/T-706/T-708 gates.
+
+After protected delivery only, these Linux guest commands use the fixed service
+and installed input paths; they are not Azure invocation commands:
+
+```sh
+systemctl daemon-reload
+systemctl enable --now apim-lab-worker.service
+/opt/apim-lab-worker/LabWorker job
+```
+
+The service starts as unprivileged `apimlab`; privileged private jobs run
+separately and exclusively. The backend serves TLS 1.2/1.3, exact synthetic
+contract responses, a fixed unauthenticated `/healthz` and 403 deny/fallback
+routes that never forward. Business routes require a valid RS256 Entra v2 token
+for the configured backend resource GUID, exact tenant/issuer,
+`Lab.Backend.Invoke` application role and an allowlisted `azp`; delegated `scp`
+tokens reject. The backend and frontend resource applications must be distinct.
+Creating those applications, requesting v2 access tokens and assigning roles
+to APIM/worker are explicit owner directory tasks, not automatic RBAC/bootstrap.
+
+Jobs read only the installed request path and return `LAB_WORKER_JOB_READY`
+(exit 0), `LAB_WORKER_JOB_NOT_READY` (exit 3), or `LAB_WORKER_JOB_FAILED`
+(exit 1); command/config failures return `LAB_WORKER_FAILED` (exit 1).
+No URLs, identities, tokens, response bodies, exact metrics or exception text
+are printed. `readiness` requires trusted HTTPS and the exact safe health body;
+it does not certify APIM/gateway routes or telemetry.
+Traffic uses system-assigned identity tokens held only in memory, fixed origins/
+paths, no redirects/proxies, 1-20 sequential requests, 250-2000 ms spacing,
+three-second HTTP/metadata timeouts and a 60-second whole-job budget.
+Allowed profiles are `supply-chain`, `e-commerce`, `service-management`,
+`plm-private`, `unmatched-denied` and `public-plm-denied`. There is no initial
+Manufacturing profile, arbitrary URL/script, subscription-key job or public
+fault toggle. Product-context/key automation is still future work.
+
+Only a private `fault` job can enable Service Management faults: duration 1-120
+seconds, delay 0-1000 ms, failure count 0-10, with at least one effect nonzero.
+Faults are off by default, retain a request counter across backend restarts,
+expire by UTC plus an in-process monotonic deadline, and never affect other APIs.
+Malformed/tampered fault state fails closed; `clearFault` removes the active
+profile. Same-VM/root access is privileged: these limits are not isolation from
+a malicious administrator or job. Ordinary CI remains synthetic-only;
+no deployment, runtime grants, live backend access or full lab readiness is claimed.
+
 ## Reusable collection smoke (Microsoft-owned test APIM only)
 
 The repeatable Bicep target is documented in
 `.azure\deployment-plan.md` and tasks T-701-T-712. It includes Log Analytics and
 workspace-based Application Insights, not just APIM/App Gateway.
-Owner-only Identity/Runtime bootstrap and offline Bicep foundation tooling are
-available as documented above; live deployment/worker/certificate workflows
+Owner-only Identity/Runtime bootstrap, offline Bicep foundation/private worker,
+and synthetic backend/bounded job tooling are
+available as documented above; live deployment/delivery/certificate workflows
 remain planned. Five OpenAPI 3.0.3
 contracts and a stable inventory are
 available under `infra\live-validation-lab\scenarios`: Supply Chain (3 operations),

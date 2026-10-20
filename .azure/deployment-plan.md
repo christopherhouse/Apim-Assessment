@@ -1,10 +1,12 @@
 # Azure Deployment Plan: Synthetic APIM Validation Lab
 
-> **Status:** Offline foundation accepted - remaining lab implementation outstanding
+> **Status:** T-704 ready for offline validation only - full lab deployment blocked
 >
 > Not deployment-ready. Five business API contracts, owner bootstrap tooling
 > and the T-703 foundation pass offline acceptance;
-> worker, certificates, gateway, lifecycle and all live changes remain outstanding.
+> T-704's owner-approved private VM worker/backend/jobs are implemented; its
+> final offline acceptance and complete repository gate are in progress.
+> Certificates, gateway, lifecycle and all live changes remain outstanding.
 > Plan approval permits offline implementation, not deployment.
 
 Generated: 2026-10-19
@@ -402,6 +404,59 @@ No VM, gateway listener, application DNS record, certificate, API or role grant
 is created by this slice. Keep T-704-T-711 and all owner live gates blocked as
 their dependencies require.
 
+### 5.2 T-704 private worker implementation
+
+The owner explicitly confirmed the VM choice on 2026-10-20; D-69 records the
+bounded implementation. Reuse the foundation worker subnet/NSG/NAT rather than
+creating another network or public VM IP. Pin VM AVM `0.22.3` (version-tagged
+source commit `2af429a8933beea9b7d0754535d33e47eff0d007`), use a system-assigned
+identity, static private IPv4 address, Trusted Launch and password-disabled
+Linux provisioning. No inbound SSH, standing runtime grant or public runner.
+
+The separate backend/job application uses .NET SDK `10.0.402` and ASP.NET Core
+JWT bearer `10.0.13`, verified against the official 2026-10-13 release metadata.
+The public Microsoft `dotnet-public` package mirror avoids reliance on inaccessible
+NuGet endpoints; lock restored dependencies. Serve only TLS 1.2/1.3 with an
+owner-provided certificate/private key and a chain trusted by each caller.
+Missing certificate/trust/identity inputs must not produce a readiness pass.
+Linux-x64 is the fixed self-contained publish target. Default/static web asset
+publication is disabled; only binaries/runtime metadata and the five explicitly
+listed contract assets may ship. SDK roll-forward is disabled. Windows synthetic
+TLS acceptance reimports PEM keys into Schannel-compatible certificate handles
+without bypassing trust/name validation; the Linux service retains PEM loading.
+
+Backend tokens require a configured tenant, exact v2 resource audience, fixed
+application role and explicit caller-client allowlist. Synthetic business
+responses follow the five committed contracts; the deny endpoint never forwards.
+Fault state is private, time/request-bounded, off by default and restricted to
+Service Management. Jobs accept only fixed profiles, cap calls/time/body sizes,
+disable redirects, keep managed-identity tokens in memory and emit fixed outcomes,
+not URLs, tokens, response bodies, metrics or exception details. Manufacturing
+is not in initial traffic profiles.
+Traffic bounds are 1-20 sequential requests, 250-2000 ms spacing, three-second
+HTTP/metadata timeouts and a 60-second whole-job deadline. Service Management
+faults expire within 120 seconds, cap delay at 1000 ms and failure count at ten,
+with persistent failure counters and an in-process monotonic expiry bound.
+Only the runtime counter directory is service-writable; the root-owned job/state
+directory uses setgid so root-created atomic profiles inherit the readable
+service group without granting backend write access.
+
+Implement and test offline only. Actual private binary/config/certificate delivery
+and protected Run Command orchestration remain T-708; public ACME stays T-705,
+and resource-application grants/APIM backend trust and imports stay owner/T-706
+gates. The VM agent channel is privileged, not a job/identity isolation boundary.
+**Validation scope:** Ready for Validation applies only to this offline T-704
+slice. Final pinned Bicep build/lint, the evaluated two-resource VM/NIC graph,
+real synthetic TLS/JWT/operation/job acceptance and exact Linux-x64 publish
+allowlist all pass through twenty focused Pester checks with zero failures/skips.
+The complete repository gate remains in progress; Section 7 records the proof.
+
+Authenticated ARM validation/what-if, policy/capacity/permission checks,
+deployment, private delivery, role grants and actual TLS/ingestion readiness are
+**not run and blocked** by the explicit offline-only authorization. There is no
+Azure context or private input to inspect. Do not run those recipe steps,
+call the full lab Validated/Ready for Deployment or invoke deployment.
+
 ## 6. Inventory and owner-only deployment preflight
 
 These are planned quantities, not discovered resources or verified capacity.
@@ -434,7 +489,7 @@ Key Vault operations and log ingestion for the selected region/lifetime. Budget
 alerts are notifications, not a spending cutoff. Labels/expiry reminders do not
 stop billing; approved cleanup is still required.
 
-## 7. Implementation tasks and order
+## 7. Implementation tasks, order and validation proof
 
 The authoritative acceptance/status records are T-701 through T-712 in
 `docs/APIM-Assessment-Task-Register.md`. Existing T-114 owns actual provisioning;
@@ -458,6 +513,34 @@ Use small reviewed implementation PRs; do not land eleven tasks as one
 unvalidated deployment. The requested independent API assets are T-712;
 T-702 remains the first infrastructure/bootstrap slice, with mocked
 Azure/GitHub calls and no actual bootstrap execution.
+
+### Validation proof: T-704 offline slice
+
+- [ ] All deployment validation checks pass (blocked; not deployment-ready).
+  - [ ] Core validation: CLI/authentication, ARM validation and what-if.
+    Not run: requires unauthorized live Azure access and private scope/parameters.
+    The offline build portion passes through the pinned standalone compiler.
+  - [x] Bicep lint: pinned compiler and evaluated synthetic VM/NIC graph pass.
+  - [ ] Azure Policy validation. Not run: owner subscription/policy/capacity/
+    permission inspection remains outside this offline authorization.
+- [x] Build verification: locked .NET build and self-contained Linux-x64 publish
+  pass; private JSON canary is excluded and the published JSON inventory is exact.
+- [x] Static role review: the worker template creates only its VM/NIC/system
+  identity, with no role assignments or broad grant. Separate T-702 Runtime
+  grants and owner directory application roles are prerequisites for actual use;
+  their absence is not an implied successful deployment.
+- [x] `pwsh -NoProfile -File .\scripts\Test-DevelopmentBranch.ps1` passed on
+  `feature/lab-private-worker`.
+- [x] `pwsh -NoProfile -File .\scripts\Invoke-Checks.ps1 -TestPath .\tests\unit\LabWorker.Tests.ps1 -OutputDirectory .\artifacts\lab-worker-checks`
+  passed: repository-wide PSScriptAnalyzer clean, twenty Pester tests passed,
+  zero failed/skipped. Includes locked runtime build/publish, actual loopback
+  TLS/JWT/contract acceptance, bounded private jobs and evaluated topology.
+- [ ] `pwsh -NoProfile -File .\scripts\Invoke-Checks.ps1 -OutputDirectory .\artifacts\lab-worker-full-checks`
+  running; record final result before accepting T-704.
+
+Do not invoke `azure-deploy`: authenticated/owner/lifecycle checks have not passed.
+Offline proof is not live permission, certificate trust, telemetry ingestion or
+full lab readiness.
 
 ## 8. Acceptance gates
 
@@ -566,14 +649,16 @@ these are planning references, not assessment rule `References`.
 ## 11. Current readiness
 
 Owner approved offline implementation with D-66 refinements: five business
-APIs, new lab-owned networking and Azure DNS ACME delegation. T-712 contracts
-pass focused offline validation and the full repository gate (1,334 passed,
-zero failed, two existing skips); acceptance tests are committed. Required
-PR review remains separate.
-Bootstrap/infrastructure/policies/traffic implementation,
-their offline checks, actual quota/context/cost confirmation, live
-bootstrap/deployment authorization and live validation are outstanding.
+APIs, new lab-owned networking and Azure DNS ACME delegation. T-701/T-712 design/
+contracts, T-702 bootstrap and T-703 foundation have committed offline acceptance.
+The owner-approved T-704 private VM, TLS backend/deny service and bounded jobs now
+pass twenty focused checks including closed Linux publishing. Its full repository
+gate, committed evidence and PR review are pending; no whole-lab acceptance is
+claimed.
 
-Next infrastructure slice: T-702. Do not advance this plan to Ready for
-Validation, Validated or Deployed
-until the corresponding implementation and evidence exist.
+After T-704 acceptance/review, the next implementation slice is T-705 ACME.
+API/policy/trust binding, gateway routes, protected delivery/invocation, lifecycle
+and live acceptance remain T-705-T-711. Actual quota/context/cost/permission/DNS
+confirmation and owner bootstrap/deployment authorization remain blocked, not
+implicitly approved. Ready for offline validation applies only to T-704;
+do not mark the full lab Validated, Ready for Deployment or Deployed.

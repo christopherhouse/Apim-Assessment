@@ -1657,9 +1657,53 @@ workspace-based Entra-only App Insights with system-identity logger credentials,
 all-API bounded sampling/error controls and zero body/header/client-IP capture.
 No foundation role assignment is made: T-702 Runtime still needs the future
 worker principal, and neither log declaration nor offline snapshots prove ingestion.
-Worker/backend, certificate issuance/binding, Application Gateway/listeners,
+Certificate issuance/binding, Application Gateway/listeners,
 exact application-name private DNS, API imports/policies and protected delivery/
 lifecycle remain separate tasks. No broad `azure-api.net` private zone is created.
+
+T-704 adds a pinned AVM 0.22.3 small Linux worker on that existing subnet/NSG/NAT.
+Its single NIC has a validated, unreserved static private IPv4 address; no public
+IP, forwarding, inbound SSH or password authentication is enabled. Trusted Launch,
+secure boot/vTPM and system-assigned identity are required. Cloud-init masks SSH,
+creates protected directories/an unprivileged service user and does not fetch
+binaries, generate certificates or start an unconfigured service. The root-owned
+private job directory inherits its `apimlab` group so atomic fault files created
+by privileged jobs remain readable, but not writable, by the backend.
+
+The separate Linux-x64 .NET worker pins SDK 10.0.402, ASP.NET Core/JWT bearer
+10.0.13 and locked public dependencies; it is not imported into the assessment
+module. Its closed application configuration 1.0 requires canonical tenant/
+resource/caller IDs and three distinct HTTPS DNS origins without paths, ports,
+credentials, queries or fragments. Backend startup requires a matching, currently
+valid RSA-2048+/EC-256+ certificate/private key and supplied chain. Serve TLS
+1.2/1.3 only; callers must trust that chain without disabled validation.
+Standard JWT validation requires RS256, exact tenant v2 issuer/resource audience,
+lifetime, `ver=2.0`, fixed `Lab.Backend.Invoke` application role and an allowlisted
+`azp`; delegated `scp` tokens reject. Frontend/backend resource audiences are
+distinct and application-role assignments remain explicit owner directory work.
+
+The backend follows the five committed contracts with bounded request/response
+handling, never echoing arbitrary inputs. `/healthz` returns a fixed readiness
+body without authentication; `/deny` and unmatched paths return fixed 403s and
+never forward. No public HTTP fault toggle exists. Closed version 1.0 jobs accept
+only readiness, clearFault, fault or six fixed traffic profiles: Supply Chain,
+E-commerce, Service Management, private PLM, unmatched-denied and public-PLM-denied.
+Traffic is serialized and sequential, limited to 1-20 requests, 250-2000 ms
+spacing, three-second HTTP/metadata timeouts and a 60-second whole-job budget.
+Manufacturing has no initial traffic profile. Redirects/proxies are disabled;
+managed-identity tokens stay in memory. Faults affect Service Management only,
+expire within 120 seconds and cap delay at 1000 ms and failures at ten. Persistent
+counters preserve the remaining failure budget across restarts; monotonic deadlines
+bound expiry within each backend process alongside the persisted UTC expiry.
+Unknown/malformed inputs refuse; missing
+TLS, identity, permission or readiness evidence never yields Ready.
+Private jobs print only fixed codes with exit 0/3/1 for Ready/NotReady/Failed;
+no identifiers, URLs, tokens, response bodies, metrics or exception details.
+
+The VM agent/control-plane channel and root jobs are privileged, not isolation
+between jobs/identities. T-704's binary publishing and offline acceptance do not
+implement private delivery/protected orchestration (T-708), public ACME (T-705),
+API imports/backend CA trust binding (T-706), or any live deployment/role grant.
 
 Provisioning, identity/RBAC bootstrap, certificate import/renewal and DNS writes
 belong only to separately invoked lab tooling. They never extend the assessment

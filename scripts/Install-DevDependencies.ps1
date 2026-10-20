@@ -7,6 +7,10 @@ $dependencies = Import-PowerShellDataFile (Join-Path $PSScriptRoot 'DevDependenc
 
 foreach ($name in $dependencies.Keys | Sort-Object) {
     $version = $dependencies[$name]
+    if ($name -eq 'DotNetSdk') {
+        & (Join-Path $PSScriptRoot 'Install-DotNet.ps1')
+        continue
+    }
     if ($name -eq 'Bicep') {
         & (Join-Path $PSScriptRoot 'Install-Bicep.ps1')
         continue

@@ -49,4 +49,7 @@ if ($LASTEXITCODE -ne 0 -or $actual -notmatch "^Bicep CLI version $([regex]::Esc
 $foundation = Join-Path (Split-Path $PSScriptRoot -Parent) 'infra\live-validation-lab\foundation.bicep'
 & $binary restore $foundation
 if ($LASTEXITCODE -ne 0) { throw 'Pinned public Bicep module restore failed.' }
+$worker = Join-Path (Split-Path $PSScriptRoot -Parent) 'infra\live-validation-lab\worker.bicep'
+& $binary restore $worker
+if ($LASTEXITCODE -ne 0) { throw 'Pinned public worker module restore failed.' }
 Write-Verbose "Ready: Bicep $version"
