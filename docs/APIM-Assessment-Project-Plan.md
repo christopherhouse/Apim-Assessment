@@ -92,7 +92,7 @@ This is a separate development-infrastructure workstream, not permission for
 the assessment to write to Azure or consume secrets. Coding agents implement
 against synthetic/mocked inputs only. Owner-approved bootstrap/deployment and
 live assessment stay outside Copilot; ordinary PR CI remains offline.
-No infrastructure or identity change has been implemented by this plan.
+No infrastructure or identity change has been executed by this workstream.
 The owner refined the baseline to five representative business APIs
 (Supply Chain, E-commerce, PLM, Manufacturing and Service Management),
 lab-provisioned networking and Azure DNS ACME challenge delegation.
@@ -101,8 +101,15 @@ chain. T-703 owns the new /22 VNet with /24 App Gateway, /26 APIM and separate
 /27 worker/private-endpoint subnets; all addresses remain parameterized and
 subject to private collision checks.
 
-T-701 design approval is recorded; T-702 bootstrap tooling remains the first
-infrastructure slice before its dependent lab tasks. Actual provisioning remains T-114 and live acceptance
+T-701 design approval and T-712's five API contracts are complete. T-702 now
+implements the first owner-only infrastructure slice: closed private
+configuration, expiring preview/approved apply, isolated deployment UAMI,
+exact protected-environment federation/variables and separately staged,
+resource-scoped runtime RBAC. Offline acceptance uses synthetic mocks only.
+Two existing owner-tagged resource groups are prerequisites; missing future
+foundation/worker resources return NotReady. Bicep, worker and actual
+GitHub/Azure execution remain outstanding.
+Actual provisioning remains T-114 and live acceptance
 T-710. Owner-selected subscription/region, quotas, budget/lifetime, permissions,
 DNS/certificate delegation and private output boundaries must be confirmed before
 any live change. T-409 remains queued, not completed or functionally dependent
