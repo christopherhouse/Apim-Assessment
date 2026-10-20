@@ -1,0 +1,110 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Synthetic Manufacturing API",
+    "version": "1.0.0",
+    "description": "Lab-only production scheduling and quality inspection. This API is initially excluded from generated data-plane traffic.",
+    "contact": { "name": "Synthetic lab maintainer" }
+  },
+  "servers": [{ "url": "https://backend.invalid/manufacturing", "description": "Non-routable placeholder; deployment supplies the private backend." }],
+  "tags": [{ "name": "manufacturing", "description": "Production orders and quality checks." }],
+  "security": [{ "entraBearer": [], "productSubscription": [] }],
+  "paths": {
+    "/production-orders": {
+      "post": {
+        "operationId": "createProductionOrder",
+        "summary": "Schedule a production order",
+        "description": "Plan a bounded quantity of a synthetic part revision on one work center.",
+        "tags": ["manufacturing"],
+        "requestBody": { "required": true, "description": "Part revision, work center and planned quantity.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ProductionOrderRequest" } } } },
+        "responses": {
+          "201": { "description": "Production order scheduled.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ProductionOrder" } } } },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/production-orders/{productionOrderId}": {
+      "parameters": [{ "name": "productionOrderId", "in": "path", "required": true, "description": "Synthetic production-order identifier.", "schema": { "type": "string", "minLength": 1, "maxLength": 40 }, "example": "MFG-1001" }],
+      "get": {
+        "operationId": "getProductionOrder",
+        "summary": "Get production progress",
+        "description": "Read planned and completed quantities for a synthetic production order.",
+        "tags": ["manufacturing"],
+        "responses": {
+          "200": { "description": "Production-order progress.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ProductionOrder" } } } },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/quality-inspections": {
+      "post": {
+        "operationId": "recordQualityInspection",
+        "summary": "Record a quality inspection",
+        "description": "Record bounded pass/fail sample counts for a synthetic batch; no device or person identity is collected.",
+        "tags": ["manufacturing"],
+        "requestBody": { "required": true, "description": "Batch and inspected sample counts.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/InspectionRequest" } } } },
+        "responses": {
+          "201": { "description": "Quality inspection recorded.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Inspection" } } } },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "entraBearer": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT", "description": "Owner-approved lab caller audience and application role; enforced by deployment policies." },
+      "productSubscription": { "type": "apiKey", "in": "header", "name": "Ocp-Apim-Subscription-Key", "description": "Product-scoped test subscription. No example credential is supplied." }
+    },
+    "responses": { "Error": { "description": "Validation, authentication, authorization, missing-resource, throttling or backend error.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } } },
+    "schemas": {
+      "ProductionOrderRequest": {
+        "type": "object",
+        "required": ["partNumber", "revision", "workCenterCode", "plannedQuantity"],
+        "properties": {
+          "partNumber": { "type": "string", "minLength": 1, "maxLength": 40 },
+          "revision": { "type": "string", "minLength": 1, "maxLength": 12 },
+          "workCenterCode": { "type": "string", "minLength": 1, "maxLength": 32 },
+          "plannedQuantity": { "type": "integer", "minimum": 1, "maximum": 1000 }
+        },
+        "example": { "partNumber": "PART-100", "revision": "A", "workCenterCode": "WC-01", "plannedQuantity": 40 }
+      },
+      "ProductionOrder": {
+        "type": "object",
+        "required": ["productionOrderId", "status", "plannedQuantity", "completedQuantity"],
+        "properties": {
+          "productionOrderId": { "type": "string", "maxLength": 40 },
+          "status": { "type": "string", "enum": ["scheduled", "inProgress", "complete"] },
+          "plannedQuantity": { "type": "integer", "minimum": 1, "maximum": 1000 },
+          "completedQuantity": { "type": "integer", "minimum": 0, "maximum": 1000 }
+        },
+        "example": { "productionOrderId": "MFG-1001", "status": "inProgress", "plannedQuantity": 40, "completedQuantity": 12 }
+      },
+      "InspectionRequest": {
+        "type": "object",
+        "required": ["batchCode", "passedQuantity", "failedQuantity"],
+        "properties": {
+          "batchCode": { "type": "string", "minLength": 1, "maxLength": 40 },
+          "passedQuantity": { "type": "integer", "minimum": 0, "maximum": 1000 },
+          "failedQuantity": { "type": "integer", "minimum": 0, "maximum": 1000 }
+        },
+        "example": { "batchCode": "BATCH-01", "passedQuantity": 9, "failedQuantity": 1 }
+      },
+      "Inspection": {
+        "type": "object",
+        "required": ["inspectionId", "batchCode", "outcome"],
+        "properties": {
+          "inspectionId": { "type": "string", "maxLength": 40 },
+          "batchCode": { "type": "string", "maxLength": 40 },
+          "outcome": { "type": "string", "enum": ["accepted", "reviewRequired"] }
+        },
+        "example": { "inspectionId": "INSP-1001", "batchCode": "BATCH-01", "outcome": "reviewRequired" }
+      },
+      "Error": {
+        "type": "object",
+        "required": ["code", "message"],
+        "properties": { "code": { "type": "string" }, "message": { "type": "string" } },
+        "example": { "code": "invalidRequest", "message": "Synthetic batch quantity was invalid." }
+      }
+    }
+  }
+}

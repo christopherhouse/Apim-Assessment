@@ -1,0 +1,129 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Synthetic E-commerce API",
+    "version": "1.0.0",
+    "description": "Lab-only product discovery and order capture without customer, payment or address data.",
+    "contact": { "name": "Synthetic lab maintainer" }
+  },
+  "servers": [{ "url": "https://backend.invalid/e-commerce", "description": "Non-routable placeholder; deployment supplies the private backend." }],
+  "tags": [{ "name": "commerce", "description": "Product discovery and synthetic orders." }],
+  "security": [{ "entraBearer": [], "productSubscription": [] }],
+  "paths": {
+    "/products": {
+      "get": {
+        "operationId": "listProducts",
+        "summary": "Browse products",
+        "description": "Return a bounded product page with prices in one explicit currency.",
+        "tags": ["commerce"],
+        "parameters": [{ "name": "limit", "in": "query", "description": "Maximum number of returned products.", "schema": { "type": "integer", "minimum": 1, "maximum": 50, "default": 20 } }],
+        "responses": {
+          "200": { "description": "Product page.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ProductPage" } } } },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/products/{productId}": {
+      "parameters": [{ "name": "productId", "in": "path", "required": true, "description": "Synthetic product identifier.", "schema": { "type": "string", "minLength": 1, "maxLength": 40 }, "example": "PRD-100" }],
+      "get": {
+        "operationId": "getProduct",
+        "summary": "Get product details",
+        "description": "Read a synthetic product, price and availability flag.",
+        "tags": ["commerce"],
+        "responses": {
+          "200": { "description": "Product details.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Product" } } } },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/orders": {
+      "post": {
+        "operationId": "createOrder",
+        "summary": "Capture a synthetic order",
+        "description": "Accept bounded product lines and a synthetic sales-channel code; never collect payment or person data.",
+        "tags": ["commerce"],
+        "requestBody": { "required": true, "description": "Sales channel and order lines.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OrderRequest" } } } },
+        "responses": {
+          "201": { "description": "Order captured.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Order" } } } },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/orders/{orderId}": {
+      "parameters": [{ "name": "orderId", "in": "path", "required": true, "description": "Synthetic order identifier.", "schema": { "type": "string", "minLength": 1, "maxLength": 40 }, "example": "ORD-1001" }],
+      "get": {
+        "operationId": "getOrder",
+        "summary": "Get order status",
+        "description": "Read a synthetic order's accepted, fulfilled or cancelled state.",
+        "tags": ["commerce"],
+        "responses": {
+          "200": { "description": "Order status.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Order" } } } },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "entraBearer": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT", "description": "Owner-approved lab caller audience and application role; enforced by deployment policies." },
+      "productSubscription": { "type": "apiKey", "in": "header", "name": "Ocp-Apim-Subscription-Key", "description": "Product-scoped test subscription. No example credential is supplied." }
+    },
+    "responses": { "Error": { "description": "Validation, authentication, authorization, missing-resource, throttling or backend error.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } } },
+    "schemas": {
+      "Product": {
+        "type": "object",
+        "required": ["productId", "sku", "name", "priceMinorUnits", "currency", "available"],
+        "properties": {
+          "productId": { "type": "string", "maxLength": 40 },
+          "sku": { "type": "string", "maxLength": 40 },
+          "name": { "type": "string", "maxLength": 100 },
+          "priceMinorUnits": { "type": "integer", "minimum": 0 },
+          "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+          "available": { "type": "boolean" }
+        },
+        "example": { "productId": "PRD-100", "sku": "SKU-100", "name": "Synthetic component kit", "priceMinorUnits": 2499, "currency": "USD", "available": true }
+      },
+      "ProductPage": {
+        "type": "object",
+        "required": ["items"],
+        "properties": { "items": { "type": "array", "maxItems": 50, "items": { "$ref": "#/components/schemas/Product" } } },
+        "example": { "items": [{ "productId": "PRD-100", "sku": "SKU-100", "name": "Synthetic component kit", "priceMinorUnits": 2499, "currency": "USD", "available": true }] }
+      },
+      "OrderLine": {
+        "type": "object",
+        "required": ["productId", "quantity"],
+        "properties": {
+          "productId": { "type": "string", "minLength": 1, "maxLength": 40 },
+          "quantity": { "type": "integer", "minimum": 1, "maximum": 100 }
+        },
+        "example": { "productId": "PRD-100", "quantity": 2 }
+      },
+      "OrderRequest": {
+        "type": "object",
+        "required": ["channelCode", "items"],
+        "properties": {
+          "channelCode": { "type": "string", "enum": ["web", "partner"] },
+          "items": { "type": "array", "minItems": 1, "maxItems": 20, "items": { "$ref": "#/components/schemas/OrderLine" } }
+        },
+        "example": { "channelCode": "web", "items": [{ "productId": "PRD-100", "quantity": 2 }] }
+      },
+      "Order": {
+        "type": "object",
+        "required": ["orderId", "status", "totalMinorUnits", "currency"],
+        "properties": {
+          "orderId": { "type": "string", "maxLength": 40 },
+          "status": { "type": "string", "enum": ["accepted", "fulfilled", "cancelled"] },
+          "totalMinorUnits": { "type": "integer", "minimum": 0 },
+          "currency": { "type": "string", "pattern": "^[A-Z]{3}$" }
+        },
+        "example": { "orderId": "ORD-1001", "status": "accepted", "totalMinorUnits": 4998, "currency": "USD" }
+      },
+      "Error": {
+        "type": "object",
+        "required": ["code", "message"],
+        "properties": { "code": { "type": "string" }, "message": { "type": "string" } },
+        "example": { "code": "invalidRequest", "message": "Synthetic order line was invalid." }
+      }
+    }
+  }
+}

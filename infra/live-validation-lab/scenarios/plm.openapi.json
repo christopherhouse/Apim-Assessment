@@ -1,0 +1,119 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Synthetic Product Lifecycle Management API",
+    "version": "1.0.0",
+    "description": "Private-only lab part revisions, bills of materials and engineering changes. All examples are synthetic.",
+    "contact": { "name": "Synthetic lab maintainer" }
+  },
+  "servers": [{ "url": "https://backend.invalid/plm", "description": "Non-routable placeholder; deployment supplies the private backend." }],
+  "tags": [{ "name": "plm", "description": "Engineering part lifecycle and change control." }],
+  "security": [{ "entraBearer": [], "productSubscription": [] }],
+  "paths": {
+    "/parts/{partNumber}/revisions/{revision}": {
+      "parameters": [
+        { "name": "partNumber", "in": "path", "required": true, "description": "Synthetic engineering part number.", "schema": { "type": "string", "minLength": 1, "maxLength": 40 }, "example": "PART-100" },
+        { "name": "revision", "in": "path", "required": true, "description": "Engineering revision code.", "schema": { "type": "string", "minLength": 1, "maxLength": 12 }, "example": "A" }
+      ],
+      "get": {
+        "operationId": "getPartRevision",
+        "summary": "Get an engineering revision",
+        "description": "Read the lifecycle state and bill of materials for a synthetic part revision.",
+        "tags": ["plm"],
+        "responses": {
+          "200": { "description": "Part revision and components.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PartRevision" } } } },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/change-requests": {
+      "post": {
+        "operationId": "createEngineeringChange",
+        "summary": "Propose an engineering change",
+        "description": "Create a synthetic revision-change request without uploading engineering files or real-person data.",
+        "tags": ["plm"],
+        "requestBody": { "required": true, "description": "Affected part revision and change classification.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ChangeRequest" } } } },
+        "responses": {
+          "201": { "description": "Engineering change proposed.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/EngineeringChange" } } } },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/change-requests/{changeId}": {
+      "parameters": [{ "name": "changeId", "in": "path", "required": true, "description": "Synthetic engineering-change identifier.", "schema": { "type": "string", "minLength": 1, "maxLength": 40 }, "example": "ECR-1001" }],
+      "patch": {
+        "operationId": "updateEngineeringChange",
+        "summary": "Review an engineering change",
+        "description": "Transition a synthetic change to approved or rejected; application-role enforcement remains a deployment policy.",
+        "tags": ["plm"],
+        "requestBody": { "required": true, "description": "Review disposition.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ChangeDisposition" } } } },
+        "responses": {
+          "200": { "description": "Updated engineering change.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/EngineeringChange" } } } },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "entraBearer": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT", "description": "Owner-approved lab caller audience and application role; enforced by deployment policies." },
+      "productSubscription": { "type": "apiKey", "in": "header", "name": "Ocp-Apim-Subscription-Key", "description": "Product-scoped test subscription. No example credential is supplied." }
+    },
+    "responses": { "Error": { "description": "Validation, authentication, authorization, missing-resource, throttling or backend error.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } } },
+    "schemas": {
+      "BomLine": {
+        "type": "object",
+        "required": ["componentPartNumber", "quantity"],
+        "properties": {
+          "componentPartNumber": { "type": "string", "maxLength": 40 },
+          "quantity": { "type": "integer", "minimum": 1, "maximum": 1000 }
+        },
+        "example": { "componentPartNumber": "PART-101", "quantity": 2 }
+      },
+      "PartRevision": {
+        "type": "object",
+        "required": ["partNumber", "revision", "lifecycleState", "bom"],
+        "properties": {
+          "partNumber": { "type": "string", "maxLength": 40 },
+          "revision": { "type": "string", "maxLength": 12 },
+          "lifecycleState": { "type": "string", "enum": ["draft", "released", "obsolete"] },
+          "bom": { "type": "array", "maxItems": 20, "items": { "$ref": "#/components/schemas/BomLine" } }
+        },
+        "example": { "partNumber": "PART-100", "revision": "A", "lifecycleState": "released", "bom": [{ "componentPartNumber": "PART-101", "quantity": 2 }] }
+      },
+      "ChangeRequest": {
+        "type": "object",
+        "required": ["partNumber", "fromRevision", "toRevision", "reasonCode"],
+        "properties": {
+          "partNumber": { "type": "string", "minLength": 1, "maxLength": 40 },
+          "fromRevision": { "type": "string", "minLength": 1, "maxLength": 12 },
+          "toRevision": { "type": "string", "minLength": 1, "maxLength": 12 },
+          "reasonCode": { "type": "string", "enum": ["material", "design", "compliance"] }
+        },
+        "example": { "partNumber": "PART-100", "fromRevision": "A", "toRevision": "B", "reasonCode": "material" }
+      },
+      "ChangeDisposition": {
+        "type": "object",
+        "required": ["status"],
+        "properties": { "status": { "type": "string", "enum": ["approved", "rejected"] } },
+        "example": { "status": "approved" }
+      },
+      "EngineeringChange": {
+        "type": "object",
+        "required": ["changeId", "partNumber", "status"],
+        "properties": {
+          "changeId": { "type": "string", "maxLength": 40 },
+          "partNumber": { "type": "string", "maxLength": 40 },
+          "status": { "type": "string", "enum": ["proposed", "approved", "rejected"] }
+        },
+        "example": { "changeId": "ECR-1001", "partNumber": "PART-100", "status": "proposed" }
+      },
+      "Error": {
+        "type": "object",
+        "required": ["code", "message"],
+        "properties": { "code": { "type": "string" }, "message": { "type": "string" } },
+        "example": { "code": "forbidden", "message": "Synthetic change requires the engineering-review role." }
+      }
+    }
+  }
+}

@@ -44,7 +44,7 @@ The toolkit is **customer-neutral**. All customer specifics live in a config fil
 - No unrestricted Copilot shell/filesystem access to the collection zone or raw/model run folders.
 - No model-based collection, redaction, safety validation, rule evaluation, or direct workbook/HTML mutation.
 
-The proposed maintainer development lab in section 16.1 is separate test
+The maintainer development lab in section 16.1 is separate test
 infrastructure, not an assessment/remediation capability. Its plan does not
 authorize deployment or weaken any runtime/data-access constraint above.
 
@@ -1604,21 +1604,36 @@ It never prints exception text, response content, paths, or identifiers (D-21/D-
 
 ---
 
-### 16.1 Proposed synthetic live-validation lab
+### 16.1 Synthetic live-validation lab
 
-D-65/T-701-T-711 plan an opt-in, customer-neutral Bicep lab to fulfill T-114 and
-support maintainer live testing. The detailed proposed design is in
-`.azure\deployment-plan.md`. Implementation starts only after owner plan
-approval; actual bootstrap/provisioning needs separate permission, context,
+D-65/D-66 and T-701-T-712 define an opt-in, customer-neutral Bicep lab to fulfill
+T-114 and support maintainer live testing. The detailed design is in
+`.azure\deployment-plan.md`. Owner approval permits offline implementation;
+actual bootstrap/provisioning needs separate permission, context,
 quota, cost, DNS and live-execution approval.
 
-Baseline scope: internal classic Developer APIM, six generated OpenAPI
-scenarios, global/product/API/operation/fragment policies, HTTPS Application
+Baseline scope: internal classic Developer APIM, five representative business
+OpenAPI APIs (Supply Chain, E-commerce, PLM, Manufacturing and Service
+Management), global/product/API/operation/fragment policies, HTTPS Application
 Gateway path routing, Key Vault certificates, managed identities, workspace-based
 Application Insights and Log Analytics with independent gateway diagnostics,
 bounded synthetic traffic and GitHub environment-scoped OIDC delivery.
 Default/unmatched gateway routes must not forward to APIM. Private-only negative
 scenarios cannot bypass independent network/caller restrictions.
+PLM is private-only; Manufacturing is initially excluded from generated
+data-plane traffic. Product-context, routed and bounded-failure scenarios
+are distributed across the remaining APIs, not separate extra APIs.
+Fault behavior is controlled only through private worker jobs, never a public
+fault-toggle operation. T-712's standalone contracts use synthetic examples,
+local references and placeholder backend URLs; they do not implement policy
+enforcement, API imports or a running backend.
+
+T-703 provisions the VNet and all four subnets rather than requiring an existing
+network. The parameterized synthetic layout uses a /22 VNet, dedicated /24
+App Gateway subnet, /26 classic APIM subnet and separate /27 worker and
+private-endpoint subnets. Require containment, non-overlap, capacity and private
+collision checks before deployment; preserve documented platform traffic and
+explicit worker egress. These sizes are lab defaults, not service minimum claims.
 
 Provisioning, identity/RBAC bootstrap, certificate import/renewal and DNS writes
 belong only to separately invoked lab tooling. They never extend the assessment
@@ -1627,9 +1642,12 @@ permissions. Ordinary CI remains offline; only explicitly approved owner lab
 workflows may change test infrastructure. Live assessment collection remains
 maintainer-operated outside Copilot/CI, with raw evidence and reports restricted.
 
-Proposed defaults use DNS-only Cloudflare records with ACME challenge delegation
+The selected design uses DNS-only Cloudflare records with ACME challenge delegation
 to Azure DNS for managed-identity renewal. A direct Cloudflare token is an
-explicitly chosen alternative, not Azure identity authentication. No tokens,
+alternative requiring a new owner decision, not Azure identity authentication.
+Use an isolated Azure DNS challenge subzone and explicit per-hostname CNAME
+challenge aliases/client configuration; verify public delegation and staging
+issuance before production issuance. No tokens,
 certificate private material, real infrastructure identifiers or raw live output
 enter tracked files/model context/CI artifacts. No Cloudflare assessment collector
 is added. Product-policy exercise keys are isolated lab credentials and never

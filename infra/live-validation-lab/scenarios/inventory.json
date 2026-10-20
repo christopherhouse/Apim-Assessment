@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "1.0",
+  "apis": [
+    {
+      "apiId": "e-commerce",
+      "document": "e-commerce.openapi.json",
+      "path": "e-commerce",
+      "operationCount": 4,
+      "publication": "gateway",
+      "initialTraffic": "bounded",
+      "productIds": ["business", "partner"],
+      "assertions": ["routedBaseline", "productContext", "operationPolicy"]
+    },
+    {
+      "apiId": "manufacturing",
+      "document": "manufacturing.openapi.json",
+      "path": "manufacturing",
+      "operationCount": 3,
+      "publication": "gateway",
+      "initialTraffic": "none",
+      "productIds": ["business"],
+      "assertions": ["dormantControl"]
+    },
+    {
+      "apiId": "plm",
+      "document": "plm.openapi.json",
+      "path": "plm",
+      "operationCount": 3,
+      "publication": "privateOnly",
+      "initialTraffic": "bounded",
+      "productIds": ["business"],
+      "assertions": ["privateOnly", "roleDenied", "inheritance"]
+    },
+    {
+      "apiId": "service-management",
+      "document": "service-management.openapi.json",
+      "path": "service-management",
+      "operationCount": 3,
+      "publication": "gateway",
+      "initialTraffic": "bounded",
+      "productIds": ["business"],
+      "assertions": ["routedBaseline", "boundedFaultProfile"]
+    },
+    {
+      "apiId": "supply-chain",
+      "document": "supply-chain.openapi.json",
+      "path": "supply-chain",
+      "operationCount": 3,
+      "publication": "gateway",
+      "initialTraffic": "bounded",
+      "productIds": ["business", "partner"],
+      "assertions": ["routedBaseline", "productContext", "inheritance", "backendIdentity"]
+    }
+  ]
+}

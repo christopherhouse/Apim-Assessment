@@ -1,0 +1,118 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Synthetic Supply Chain API",
+    "version": "1.0.0",
+    "description": "Lab-only inventory availability and shipment planning. All examples are synthetic.",
+    "contact": { "name": "Synthetic lab maintainer" }
+  },
+  "servers": [{ "url": "https://backend.invalid/supply-chain", "description": "Non-routable placeholder; deployment supplies the private backend." }],
+  "tags": [{ "name": "supplyChain", "description": "Inventory and shipment lifecycle." }],
+  "security": [{ "entraBearer": [], "productSubscription": [] }],
+  "paths": {
+    "/inventory": {
+      "get": {
+        "operationId": "listInventory",
+        "summary": "List inventory availability",
+        "description": "Return a bounded inventory page, optionally filtered to one warehouse.",
+        "tags": ["supplyChain"],
+        "parameters": [
+          { "name": "warehouseCode", "in": "query", "description": "Synthetic warehouse code.", "schema": { "type": "string", "maxLength": 32 }, "example": "WH-01" },
+          { "name": "limit", "in": "query", "description": "Maximum number of returned records.", "schema": { "type": "integer", "minimum": 1, "maximum": 50, "default": 20 } }
+        ],
+        "responses": {
+          "200": { "description": "Inventory page.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/InventoryPage" } } } },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/shipments": {
+      "post": {
+        "operationId": "createShipment",
+        "summary": "Plan an outbound shipment",
+        "description": "Create a synthetic shipment with bounded line items; no real inventory is reserved.",
+        "tags": ["supplyChain"],
+        "requestBody": { "required": true, "description": "Warehouse, destination and requested items.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ShipmentRequest" } } } },
+        "responses": {
+          "201": { "description": "Shipment planned.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Shipment" } } } },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/shipments/{shipmentId}": {
+      "parameters": [{ "name": "shipmentId", "in": "path", "required": true, "description": "Synthetic shipment identifier.", "schema": { "type": "string", "minLength": 1, "maxLength": 40 }, "example": "SHP-1001" }],
+      "get": {
+        "operationId": "getShipment",
+        "summary": "Get shipment status",
+        "description": "Read the planned, dispatched or delivered status of a synthetic shipment.",
+        "tags": ["supplyChain"],
+        "responses": {
+          "200": { "description": "Shipment status.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Shipment" } } } },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "entraBearer": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT", "description": "Owner-approved lab caller audience and application role; enforced by deployment policies." },
+      "productSubscription": { "type": "apiKey", "in": "header", "name": "Ocp-Apim-Subscription-Key", "description": "Product-scoped test subscription. No example credential is supplied." }
+    },
+    "responses": { "Error": { "description": "Validation, authentication, authorization, missing-resource, throttling or backend error.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } } },
+    "schemas": {
+      "InventoryItem": {
+        "type": "object",
+        "required": ["sku", "warehouseCode", "availableQuantity", "reservedQuantity"],
+        "properties": {
+          "sku": { "type": "string", "maxLength": 40 },
+          "warehouseCode": { "type": "string", "maxLength": 32 },
+          "availableQuantity": { "type": "integer", "minimum": 0 },
+          "reservedQuantity": { "type": "integer", "minimum": 0 },
+          "unitOfMeasure": { "type": "string", "enum": ["each", "case"] }
+        },
+        "example": { "sku": "SKU-100", "warehouseCode": "WH-01", "availableQuantity": 120, "reservedQuantity": 8, "unitOfMeasure": "each" }
+      },
+      "InventoryPage": {
+        "type": "object",
+        "required": ["items"],
+        "properties": { "items": { "type": "array", "maxItems": 50, "items": { "$ref": "#/components/schemas/InventoryItem" } } },
+        "example": { "items": [{ "sku": "SKU-100", "warehouseCode": "WH-01", "availableQuantity": 120, "reservedQuantity": 8 }] }
+      },
+      "ShipmentLine": {
+        "type": "object",
+        "required": ["sku", "quantity"],
+        "properties": {
+          "sku": { "type": "string", "minLength": 1, "maxLength": 40 },
+          "quantity": { "type": "integer", "minimum": 1, "maximum": 1000 }
+        },
+        "example": { "sku": "SKU-100", "quantity": 4 }
+      },
+      "ShipmentRequest": {
+        "type": "object",
+        "required": ["warehouseCode", "destinationCode", "items"],
+        "properties": {
+          "warehouseCode": { "type": "string", "minLength": 1, "maxLength": 32 },
+          "destinationCode": { "type": "string", "minLength": 1, "maxLength": 32 },
+          "items": { "type": "array", "minItems": 1, "maxItems": 20, "items": { "$ref": "#/components/schemas/ShipmentLine" } }
+        },
+        "example": { "warehouseCode": "WH-01", "destinationCode": "STORE-02", "items": [{ "sku": "SKU-100", "quantity": 4 }] }
+      },
+      "Shipment": {
+        "type": "object",
+        "required": ["shipmentId", "status", "plannedDispatchUtc"],
+        "properties": {
+          "shipmentId": { "type": "string", "maxLength": 40 },
+          "status": { "type": "string", "enum": ["planned", "dispatched", "delivered"] },
+          "plannedDispatchUtc": { "type": "string", "format": "date-time" }
+        },
+        "example": { "shipmentId": "SHP-1001", "status": "planned", "plannedDispatchUtc": "2026-01-15T10:00:00Z" }
+      },
+      "Error": {
+        "type": "object",
+        "required": ["code", "message"],
+        "properties": { "code": { "type": "string" }, "message": { "type": "string" } },
+        "example": { "code": "notFound", "message": "Synthetic shipment was not found." }
+      }
+    }
+  }
+}

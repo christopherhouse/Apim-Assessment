@@ -1,0 +1,108 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Synthetic Service Management API",
+    "version": "1.0.0",
+    "description": "Lab-only asset support and work-order handling without customer or technician identities.",
+    "contact": { "name": "Synthetic lab maintainer" }
+  },
+  "servers": [{ "url": "https://backend.invalid/service-management", "description": "Non-routable placeholder; deployment supplies the private backend." }],
+  "tags": [{ "name": "serviceManagement", "description": "Asset support tickets and work orders." }],
+  "security": [{ "entraBearer": [], "productSubscription": [] }],
+  "paths": {
+    "/tickets": {
+      "post": {
+        "operationId": "createServiceTicket",
+        "summary": "Open an asset support ticket",
+        "description": "Create a classified synthetic asset issue using codes instead of free-text person or customer data.",
+        "tags": ["serviceManagement"],
+        "requestBody": { "required": true, "description": "Synthetic asset, issue classification and priority.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TicketRequest" } } } },
+        "responses": {
+          "201": { "description": "Support ticket opened.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Ticket" } } } },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/tickets/{ticketId}": {
+      "parameters": [{ "name": "ticketId", "in": "path", "required": true, "description": "Synthetic service-ticket identifier.", "schema": { "type": "string", "minLength": 1, "maxLength": 40 }, "example": "TKT-1001" }],
+      "get": {
+        "operationId": "getServiceTicket",
+        "summary": "Get ticket status",
+        "description": "Read the open, scheduled or resolved state of a synthetic support ticket.",
+        "tags": ["serviceManagement"],
+        "responses": {
+          "200": { "description": "Support ticket status.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Ticket" } } } },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/work-orders": {
+      "post": {
+        "operationId": "createServiceWorkOrder",
+        "summary": "Schedule asset service",
+        "description": "Create a synthetic work order for a ticket and service team code; no real service is dispatched.",
+        "tags": ["serviceManagement"],
+        "requestBody": { "required": true, "description": "Ticket and service-team assignment.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/WorkOrderRequest" } } } },
+        "responses": {
+          "201": { "description": "Service work order scheduled.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/WorkOrder" } } } },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "entraBearer": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT", "description": "Owner-approved lab caller audience and application role; enforced by deployment policies." },
+      "productSubscription": { "type": "apiKey", "in": "header", "name": "Ocp-Apim-Subscription-Key", "description": "Product-scoped test subscription. No example credential is supplied." }
+    },
+    "responses": { "Error": { "description": "Validation, authentication, authorization, missing-resource, throttling or backend error.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } } },
+    "schemas": {
+      "TicketRequest": {
+        "type": "object",
+        "required": ["assetCode", "issueCode", "priority"],
+        "properties": {
+          "assetCode": { "type": "string", "minLength": 1, "maxLength": 40 },
+          "issueCode": { "type": "string", "enum": ["inspection", "repair", "replacement"] },
+          "priority": { "type": "string", "enum": ["normal", "urgent"] }
+        },
+        "example": { "assetCode": "ASSET-100", "issueCode": "repair", "priority": "normal" }
+      },
+      "Ticket": {
+        "type": "object",
+        "required": ["ticketId", "assetCode", "status"],
+        "properties": {
+          "ticketId": { "type": "string", "maxLength": 40 },
+          "assetCode": { "type": "string", "maxLength": 40 },
+          "status": { "type": "string", "enum": ["open", "scheduled", "resolved"] }
+        },
+        "example": { "ticketId": "TKT-1001", "assetCode": "ASSET-100", "status": "open" }
+      },
+      "WorkOrderRequest": {
+        "type": "object",
+        "required": ["ticketId", "serviceTeamCode"],
+        "properties": {
+          "ticketId": { "type": "string", "minLength": 1, "maxLength": 40 },
+          "serviceTeamCode": { "type": "string", "minLength": 1, "maxLength": 32 }
+        },
+        "example": { "ticketId": "TKT-1001", "serviceTeamCode": "TEAM-01" }
+      },
+      "WorkOrder": {
+        "type": "object",
+        "required": ["workOrderId", "ticketId", "status", "scheduledUtc"],
+        "properties": {
+          "workOrderId": { "type": "string", "maxLength": 40 },
+          "ticketId": { "type": "string", "maxLength": 40 },
+          "status": { "type": "string", "enum": ["scheduled", "inProgress", "complete"] },
+          "scheduledUtc": { "type": "string", "format": "date-time" }
+        },
+        "example": { "workOrderId": "WO-1001", "ticketId": "TKT-1001", "status": "scheduled", "scheduledUtc": "2026-01-15T11:00:00Z" }
+      },
+      "Error": {
+        "type": "object",
+        "required": ["code", "message"],
+        "properties": { "code": { "type": "string" }, "message": { "type": "string" } },
+        "example": { "code": "backendUnavailable", "message": "Synthetic service is temporarily unavailable." }
+      }
+    }
+  }
+}
