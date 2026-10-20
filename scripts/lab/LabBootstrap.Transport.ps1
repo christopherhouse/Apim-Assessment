@@ -63,7 +63,7 @@ function Invoke-LabGhProcess {
     $clock = [System.Diagnostics.Stopwatch]::StartNew()
     $started = $false
     try {
-        $tool = Get-Command gh -CommandType Application -ErrorAction Stop
+        $tool = Get-Command gh -CommandType Application -ErrorAction Stop | Select-Object -First 1
         $start = [System.Diagnostics.ProcessStartInfo]::new($tool.Source)
         $start.UseShellExecute = $false
         $start.CreateNoWindow = $true

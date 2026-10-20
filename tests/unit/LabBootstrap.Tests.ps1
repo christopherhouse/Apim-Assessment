@@ -505,9 +505,11 @@ Describe 'Bootstrap transport output boundary' {
         $output | Should -BeExactly 'LAB_ARM_FAILED'
     }
 
-    It 'bounds the native process streams and discards stderr without live network access' {
-        $script:testPwsh = (Get-Command pwsh -CommandType Application).Source
-        Mock Get-Command { return @{ Source = $script:testPwsh } } -ParameterFilter { $Name -ceq 'gh' }
+    It 'selects the first application match, bounds native streams and discards stderr without live network access' {
+        $script:testPwsh = (Get-Command pwsh -CommandType Application | Select-Object -First 1).Source
+        Mock Get-Command {
+            return @(@{ Source = $script:testPwsh }, @{ Source = 'unused-synthetic-application' })
+        } -ParameterFilter { $Name -ceq 'gh' }
         $output = @(Invoke-LabGhProcess -Arguments @('-NoProfile', '-Command',
                 '[Console]::Error.WriteLine("SYNTHETIC_PRIVATE_CANARY"); [Console]::Out.Write("safe")') -InputText $null *>&1)
         $output.Count | Should -Be 1
@@ -521,7 +523,7 @@ Describe 'Bootstrap transport output boundary' {
     }
 
     It 'emits only a fixed refusal and nonzero exit from the owner entry point without consent' {
-        $script:testPwsh = (Get-Command pwsh -CommandType Application).Source
+        $script:testPwsh = (Get-Command pwsh -CommandType Application | Select-Object -First 1).Source
         Mock Get-Command { return @{ Source = $script:testPwsh } } -ParameterFilter { $Name -ceq 'gh' }
         $entry = Join-Path $script:labRoot 'scripts\lab\Invoke-LabBootstrap.ps1'
         $result = Invoke-LabGhProcess -Arguments @('-NoProfile', '-File', $entry,
