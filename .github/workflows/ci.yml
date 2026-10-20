@@ -49,7 +49,7 @@ jobs:
               throw "PowerShell $minimumVersion or later is required."
           }
           Import-Module ./ApimAssessment.psd1 -Force -ErrorAction Stop
-      - name: Install pinned development modules
+      - name: Install pinned development tools and public Bicep modules
         run: ./scripts/Install-DevDependencies.ps1
       - name: Lint and run offline tests
         run: ./scripts/Invoke-Checks.ps1

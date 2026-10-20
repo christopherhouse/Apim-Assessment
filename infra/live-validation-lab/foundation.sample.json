@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "1.0",
+  "labId": "synthetic-lab",
+  "location": "eastus2",
+  "names": {
+    "apim": "apim-synthetic",
+    "gatewayIdentity": "id-synthetic-gateway",
+    "keyVault": "kv-synthetic",
+    "dnsZone": "challenge.synthetic.invalid",
+    "appInsights": "ai-synthetic",
+    "logAnalytics": "law-synthetic",
+    "vnet": "vnet-synthetic",
+    "natGateway": "nat-synthetic",
+    "natPublicIp": "pip-synthetic-nat"
+  },
+  "publisherEmail": "operator@synthetic.invalid",
+  "publisherName": "Synthetic Lab",
+  "network": {
+    "vnetCidr": "10.240.0.0/22",
+    "gatewayCidr": "10.240.0.0/24",
+    "apimCidr": "10.240.1.0/26",
+    "workerCidr": "10.240.1.64/27",
+    "privateEndpointCidr": "10.240.1.96/27",
+    "approvedCallerCidrs": ["192.0.2.10/32"],
+    "workerHttpsEgressCidrs": ["198.51.100.10/32"]
+  },
+  "observability": {
+    "retentionDays": 30,
+    "dailyQuotaGb": 1,
+    "samplingPercentage": 100
+  }
+}

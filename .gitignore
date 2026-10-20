@@ -19,3 +19,13 @@
 Thumbs.db
 *.tmp
 *.swp
+
+# Lab handoff files are private; only fixed synthetic/config-schema JSON is tracked.
+/infra/live-validation-lab/*.json
+!/infra/live-validation-lab/bicepconfig.json
+!/infra/live-validation-lab/bootstrap.config.schema.json
+!/infra/live-validation-lab/bootstrap.sample.json
+!/infra/live-validation-lab/foundation.config.schema.json
+!/infra/live-validation-lab/foundation.sample.json
+/infra/live-validation-lab/*.bicepparam
+!/infra/live-validation-lab/foundation.synthetic.bicepparam

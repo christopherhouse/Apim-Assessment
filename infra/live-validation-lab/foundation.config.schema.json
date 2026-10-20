@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Private synthetic lab foundation configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "labId", "location", "names", "publisherEmail", "publisherName", "network", "observability"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "labId": { "type": "string", "pattern": "^[a-z][a-z0-9-]{2,39}$" },
+    "location": { "type": "string", "pattern": "^[a-z][a-z0-9]{1,39}$" },
+    "publisherEmail": { "type": "string", "minLength": 5, "maxLength": 254, "pattern": "^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$" },
+    "publisherName": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9 ._-]{0,79}$" },
+    "names": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["apim", "gatewayIdentity", "keyVault", "dnsZone", "appInsights", "logAnalytics", "vnet", "natGateway", "natPublicIp"],
+      "properties": {
+        "apim": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,48}[a-z0-9]$" },
+        "gatewayIdentity": { "$ref": "#/$defs/name" },
+        "keyVault": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,22}[a-z0-9]$" },
+        "dnsZone": { "type": "string", "minLength": 5, "maxLength": 253, "pattern": "^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$" },
+        "appInsights": { "$ref": "#/$defs/name" },
+        "logAnalytics": { "$ref": "#/$defs/name" },
+        "vnet": { "$ref": "#/$defs/name" },
+        "natGateway": { "$ref": "#/$defs/name" },
+        "natPublicIp": { "$ref": "#/$defs/name" }
+      }
+    },
+    "network": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["vnetCidr", "gatewayCidr", "apimCidr", "workerCidr", "privateEndpointCidr", "approvedCallerCidrs", "workerHttpsEgressCidrs"],
+      "properties": {
+        "vnetCidr": { "$ref": "#/$defs/cidr" },
+        "gatewayCidr": { "$ref": "#/$defs/cidr" },
+        "apimCidr": { "$ref": "#/$defs/cidr" },
+        "workerCidr": { "$ref": "#/$defs/cidr" },
+        "privateEndpointCidr": { "$ref": "#/$defs/cidr" },
+        "approvedCallerCidrs": { "$ref": "#/$defs/cidrList" },
+        "workerHttpsEgressCidrs": { "$ref": "#/$defs/cidrList" }
+      }
+    },
+    "observability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["retentionDays", "dailyQuotaGb", "samplingPercentage"],
+      "properties": {
+        "retentionDays": { "enum": [30, 60, 90, 120, 180, 270, 365] },
+        "dailyQuotaGb": { "type": "integer", "minimum": 1, "maximum": 10 },
+        "samplingPercentage": { "type": "integer", "minimum": 1, "maximum": 100 }
+      }
+    }
+  },
+  "$defs": {
+    "name": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,38}[a-z0-9]$" },
+    "cidr": { "type": "string", "minLength": 9, "maxLength": 18, "pattern": "^[0-9.]+/[0-9]{1,2}$" },
+    "cidrList": { "type": "array", "minItems": 1, "maxItems": 16, "uniqueItems": true, "items": { "$ref": "#/$defs/cidr" } }
+  }
+}

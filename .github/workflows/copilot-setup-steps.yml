@@ -6,12 +6,18 @@ on:
     paths:
       - .github/workflows/copilot-setup-steps.yml
       - scripts/Install-DevDependencies.ps1
+      - scripts/Install-Bicep.ps1
       - scripts/DevDependencies.psd1
+      - infra/live-validation-lab/*.bicep
+      - infra/live-validation-lab/bicepconfig.json
   pull_request:
     paths:
       - .github/workflows/copilot-setup-steps.yml
       - scripts/Install-DevDependencies.ps1
+      - scripts/Install-Bicep.ps1
       - scripts/DevDependencies.psd1
+      - infra/live-validation-lab/*.bicep
+      - infra/live-validation-lab/bicepconfig.json
 
 permissions:
   contents: read
@@ -27,6 +33,6 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
-      - name: Install development modules without Azure authentication
+      - name: Install pinned development tools without Azure authentication
         shell: pwsh
         run: ./scripts/Install-DevDependencies.ps1

@@ -7,6 +7,10 @@ $dependencies = Import-PowerShellDataFile (Join-Path $PSScriptRoot 'DevDependenc
 
 foreach ($name in $dependencies.Keys | Sort-Object) {
     $version = $dependencies[$name]
+    if ($name -eq 'Bicep') {
+        & (Join-Path $PSScriptRoot 'Install-Bicep.ps1')
+        continue
+    }
     if ($name -eq 'KustoLanguage') {
         $toolPath = Join-Path (Split-Path $PSScriptRoot -Parent) ".tools/kusto/$version"
         $assemblyPath = Join-Path $toolPath 'lib/net6.0/Kusto.Language.dll'
