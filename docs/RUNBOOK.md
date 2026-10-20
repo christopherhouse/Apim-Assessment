@@ -756,13 +756,149 @@ resort action rows. Telemetry runs populate Usage/Cost; requested comparison
 evidence populates Environment Drift. The generated workbook is restricted customer
 output and must never be sent to Copilot or another model.
 
+## Owner-only lab bootstrap
+
+`scripts\lab\Invoke-LabBootstrap.ps1` is separate source-checkout lab tooling,
+not an assessment command or part of the release package. Its tests are offline
+and synthetic; **do not run it through Copilot, a coding agent or ordinary PR
+CI**. Availability does not authorize live bootstrap. Owner permission,
+subscription/region/policy/cost approval and the later lab lifecycle/readiness
+gates remain prerequisites. The Bicep foundation, worker, certificate/DNS
+automation, protected live workflows and teardown are not implemented here.
+
+Owner prerequisites, established privately outside the model session:
+
+- PowerShell 7.4+, `Az.Accounts` with `Get-AzContext`/`Invoke-AzRestMethod`, and
+  authenticated `gh` for `github.com`. No login, context selection, token
+  retrieval, secret creation or dependency installation happens in this tool.
+- An existing interactive **User** AzureCloud context matching the exact private
+  tenant/subscription; owner authorization to create the UAMI/federation and
+  explicitly scoped role assignments. Routine CI receives no role administration.
+- Two existing, distinct resource groups in the configured location, each tagged
+  `apimAssessmentLab=<labId>`: the lab group and deployment-identity group.
+  The deployment UAMI must remain outside the group it can deploy into.
+- Administration of the exact, non-fork GitHub repository with default branch
+  `main`; support for environment reviewers, prevention of self-review and admin
+  bypass, and selected deployment branches. Choose 1-6 approved reviewer
+  User/Team numeric IDs privately. Unsupported or unreadable controls block
+  bootstrap; do not downgrade them to make the tool succeed.
+- A canonical, owner-controlled private directory outside **every** actual
+  Copilot-visible/trusted root, with protected ancestors/ACLs and no concurrent
+  writers. The tool rejects checkout overlap and links but cannot discover or
+  enforce the host's complete trust/ACL boundary. Gitignore is not isolation.
+  Serialize owner executions and other administrative changes.
+
+Copy `infra\live-validation-lab\bootstrap.sample.json` to that private directory
+and replace synthetic identifiers there, not in Git or chat. The closed schema
+`bootstrap.config.schema.json` allows only the documented version 1.0 fields,
+`lab` environment, `main` branch and `baseline` profile. Keep `runtime: null`
+for the first Identity stage. Unknown fields, credentials, arbitrary roles,
+wildcards and overlapping resource groups are refused.
+
+Run these commands only in an ordinary **owner PowerShell 7.4+ terminal**.
+Set `$privateRoot` to the already approved private directory first; its value
+and all files/output below must never enter model context or CI artifacts.
+
+```powershell
+$configPath = Join-Path $privateRoot 'bootstrap.json'
+$planPath = Join-Path $privateRoot 'identity-plan-01.json'
+pwsh -NoProfile -File .\scripts\lab\Invoke-LabBootstrap.ps1 `
+    -ConfigPath $configPath -PlanPath $planPath -Mode Preview -Stage Identity `
+    -OwnerAuthorized -MicrosoftOwnedTestEnvironment
+
+# Owner reads this private plan locally and approves its exact actions/scopes.
+$approved = (Get-FileHash -LiteralPath $planPath -Algorithm SHA256).Hash.ToLowerInvariant()
+pwsh -NoProfile -File .\scripts\lab\Invoke-LabBootstrap.ps1 `
+    -ConfigPath $configPath -PlanPath $planPath -Mode Apply -Stage Identity `
+    -ApprovedPlanSha256 $approved -OwnerAuthorized -MicrosoftOwnedTestEnvironment
+```
+
+Preview makes GET requests only and writes a **new**, non-overwriting private
+plan. The plan contains exact targets/grants, non-secret variable values and
+config/state SHA-256 bindings; it is restricted infrastructure metadata, **not**
+a model-safe package. `issuedAt`/`expiresAt` are Unix seconds with a 30-minute
+lifetime. Apply verifies the owner-supplied plan hash, unchanged config text
+(including formatting), requested stage and newly checked state before mutation;
+approval lifetime/context are checked again before actions. A new identity's
+unknown principal/client IDs are resolved only from its owned, typed readback,
+not caller-supplied arbitrary IDs. Hashes are approval/integrity bindings under
+the owner-controlled filesystem model, not signatures or distributed locks.
+
+Identity creates missing exact resources only: deployment UAMI, protected `lab`
+environment with approved reviewers/no self-review/no admin bypass, branch
+policy admitting only branch `main`, one federated credential with issuer
+`https://token.actions.githubusercontent.com`, audience `api://AzureADTokenExchange`
+and subject `repo:<private owner/repo>:environment:lab`, six non-secret variables
+(`AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `AZURE_LOCATION`,
+`LAB_RESOURCE_GROUP`, `LAB_PROFILE`), and Contributor only at the lab group.
+Protection/branch controls are read back before new federation is enabled.
+Existing conflicting trust, protection, ownership, variables or visible roles
+refuse; the tool does not repair/overwrite them. No app secret, PAT, Entra
+application or application-role assignment is created.
+
+After T-703/T-704 provide all required resources, privately replace `runtime: null`
+with an object containing exactly `apim`, `gatewayIdentity`, `workerVm`,
+`keyVault`, `dnsZone`, `appInsights` resource **names**. IDs/types/scopes are
+derived within the configured lab group; custom scopes/role IDs are not inputs.
+All resources must carry the same ownership tag and configured location
+(DNS is global); APIM/worker use distinct system identities and the gateway a
+third UAMI, all distinct from deployment. The vault must use the matching tenant
+and Azure RBAC; the challenge zone must be public. This is not verification of
+later network, DNS delegation, certificate or telemetry readiness.
+
+| Principal | Fixed role | Exact scope |
+|---|---|---|
+| APIM system identity | Key Vault Secrets User | Dedicated lab vault |
+| Gateway UAMI | Key Vault Secrets User | Dedicated lab vault |
+| APIM system identity | Monitoring Metrics Publisher | Lab App Insights component |
+| Worker VM system identity | Key Vault Certificates Officer and Key Vault Secrets Officer | Dedicated lab vault |
+| Worker VM system identity | DNS Zone Contributor | Lab challenge zone |
+
+Use a different new plan for this **separately approved** stage:
+
+```powershell
+$runtimePlan = Join-Path $privateRoot 'runtime-plan-01.json'
+pwsh -NoProfile -File .\scripts\lab\Invoke-LabBootstrap.ps1 `
+    -ConfigPath $configPath -PlanPath $runtimePlan -Mode Preview -Stage Runtime `
+    -OwnerAuthorized -MicrosoftOwnedTestEnvironment
+
+# Owner reviews the private runtime grants and scopes before approving this hash.
+$approved = (Get-FileHash -LiteralPath $runtimePlan -Algorithm SHA256).Hash.ToLowerInvariant()
+pwsh -NoProfile -File .\scripts\lab\Invoke-LabBootstrap.ps1 `
+    -ConfigPath $configPath -PlanPath $runtimePlan -Mode Apply -Stage Runtime `
+    -ApprovedPlanSha256 $approved -OwnerAuthorized -MicrosoftOwnedTestEnvironment
+```
+
+Repeated **fresh** preview/apply on complete matching state performs no writes
+or duplicate grants. Missing groups/foundation/worker metadata yields
+`LAB_NOT_READY` (exit 2), never a successful runtime grant. Successful preview
+and apply emit only `LAB_PREVIEW_READY`/`LAB_APPLIED` (exit 0). Refusals emit
+fixed `LAB_*` codes (exit 1); no external stream, raw exception, identifier,
+metric or response is printed or logged. ARM and GitHub errors are not treated
+as success, missing protection evidence is not fabricated, and gh processing
+has bounded time/combined stdout-stderr size.
+
+`LAB_STATE_CHANGED` requires a new private preview/approval. Config/approval/
+preflight refusals require owner correction of the relevant private prerequisite.
+`LAB_APPLY_INCOMPLETE` means owned resources or grants may already exist: inspect
+them privately, retain evidence, and take a new preview after resolving conflicts.
+Some partial states (such as a created environment without the exact branch
+policy) deliberately refuse automatic repair; an authorized owner must correct
+them outside this tool before retrying. No automatic deletion/rollback, purge,
+policy exemption, broader grant or protection downgrade is performed.
+Role inventory is limited to assignments visible at/above/below the approved
+subscription for the selected principals, not a global effective-access audit.
+Live availability/permissions, consistency/propagation and recovery remain owner
+acceptance; mocked checks do not claim that live bootstrap has been exercised.
+
 ## Reusable collection smoke (Microsoft-owned test APIM only)
 
 The repeatable Bicep target is documented in
 `.azure\deployment-plan.md` and tasks T-701-T-712. It includes Log Analytics and
 workspace-based Application Insights, not just APIM/App Gateway.
-Offline implementation is approved, but no runnable deployment/bootstrap
-feature is available. Five OpenAPI 3.0.3 contracts and a stable inventory are
+Owner-only Identity/Runtime bootstrap tooling is available as documented above;
+the deployment/worker/certificate workflow is not implemented. Five OpenAPI 3.0.3
+contracts and a stable inventory are
 available under `infra\live-validation-lab\scenarios`: Supply Chain (3 operations),
 E-commerce (4), PLM (3), Manufacturing (3) and Service Management (3).
 Examples include shipment lines, order amounts, part revision/BOM, quality

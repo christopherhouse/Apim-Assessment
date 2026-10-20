@@ -1642,6 +1642,38 @@ permissions. Ordinary CI remains offline; only explicitly approved owner lab
 workflows may change test infrastructure. Live assessment collection remains
 maintainer-operated outside Copilot/CI, with raw evidence and reports restricted.
 
+T-702's separate source-checkout owner bootstrap uses closed configuration 1.0,
+two pre-existing resource groups tagged `apimAssessmentLab=<private labId>`, and
+a deployment UAMI in the identity group, outside its own Contributor scope.
+Only the lab group receives deployment Contributor. Owner preview writes a new
+private plan with exact intended actions, configuration/state digests and a
+30-minute lifetime. Apply requires the owner's exact plan SHA-256, fresh matching
+state, and unexpired approval/matching interactive Azure context before writes.
+Conflicting existing ownership, roles, federation, variables or protection
+settings fail closed rather than being automatically changed. GitHub's required
+reviewers, prevention of self-review/admin bypass and the exact `main` branch
+policy must be read back before new federation is activated; unsupported or
+missing control evidence blocks completion.
+
+Identity and post-foundation Runtime are separately previewed/approved stages.
+Runtime verifies all six named, tagged lab resources and distinct APIM,
+gateway-UAMI and worker-VM principals before granting fixed roles only on the
+dedicated vault, public challenge zone and App Insights component. Missing
+foundation/worker metadata is NotReady, never a successful grant or invented
+identity. Resource-audience applications and application-role assignments remain
+separate directory approvals. Owner execution must be serialized; these state
+digests are not signatures, distributed locks or a global effective-permission
+audit. Role inventory is limited to assignments visible at/above/below the
+approved subscription for each selected principal.
+
+Private configuration/approval plans stay outside all agent-visible roots on
+owner-controlled storage. The tool additionally rejects paths in/overlapping
+the checkout and linked path ancestors. It never retrieves tokens or secret
+values, changes assessment ARM exceptions, imports lab helpers into the module,
+or grants broker/agent access. All external streams/exception text are suppressed;
+the console receives only fixed outcomes. A failed apply may leave a partial
+owned setup; it never deletes resources or silently rolls back protection.
+
 The selected design uses DNS-only Cloudflare records with ACME challenge delegation
 to Azure DNS for managed-identity renewal. A direct Cloudflare token is an
 alternative requiring a new owner decision, not Azure identity authentication.

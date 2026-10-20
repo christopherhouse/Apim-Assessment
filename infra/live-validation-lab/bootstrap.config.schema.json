@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "labId", "tenantId", "subscriptionId", "location",
+    "labResourceGroup", "identityResourceGroup", "deploymentIdentityName",
+    "repository", "environment", "branch", "profile", "reviewers", "runtime"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "labId": { "type": "string", "pattern": "^[a-z][a-z0-9-]{2,39}$" },
+    "tenantId": { "$ref": "#/$defs/uuid" },
+    "subscriptionId": { "$ref": "#/$defs/uuid" },
+    "location": { "type": "string", "pattern": "^[a-z][a-z0-9]{1,39}$" },
+    "labResourceGroup": { "$ref": "#/$defs/name" },
+    "identityResourceGroup": { "$ref": "#/$defs/name" },
+    "deploymentIdentityName": { "$ref": "#/$defs/name" },
+    "repository": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9-]{0,38}/[A-Za-z0-9][A-Za-z0-9._-]{0,99}$"
+    },
+    "environment": { "const": "lab" },
+    "branch": { "const": "main" },
+    "profile": { "const": "baseline" },
+    "reviewers": {
+      "type": "array", "minItems": 1, "maxItems": 6, "uniqueItems": true,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["type", "id"],
+        "properties": {
+          "type": { "enum": ["User", "Team"] },
+          "id": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 }
+        }
+      }
+    },
+    "runtime": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["apim", "gatewayIdentity", "workerVm", "keyVault", "dnsZone", "appInsights"],
+          "properties": {
+            "apim": { "$ref": "#/$defs/name" },
+            "gatewayIdentity": { "$ref": "#/$defs/name" },
+            "workerVm": { "$ref": "#/$defs/name" },
+            "keyVault": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,22}[a-z0-9]$" },
+            "dnsZone": { "type": "string", "pattern": "^[a-z0-9][a-z0-9.-]{1,251}[a-z0-9]$" },
+            "appInsights": { "$ref": "#/$defs/name" }
+          }
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "not": { "const": "00000000-0000-0000-0000-000000000000" }
+    },
+    "name": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,62}[a-z0-9]$" }
+  }
+}

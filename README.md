@@ -199,7 +199,7 @@ data. The coding-agent checks use synthetic data only.
 | Guarded ARM transport with paging/retry; offline tracking, saved-run comparison, and cross-environment policy/API-presence drift | Full API-definition comparison |
 | Versioned run manifest lifecycle, exact scoring snapshot, APIM configuration collectors, scoped LA/App Gateway route aggregates, resource metrics, daily costs, cost-only Logic Apps and optional committed Git policy hashes | Maintainer live query acceptance |
 | Maintainer-only cumulative collection smoke script with local output validation (sixteen registered checks) and bounded observed-query coverage | Full live assessment acceptance |
-| Owner-approved offline lab plan plus five synthetic business OpenAPI contracts (16 operations) and scenario inventory | Bicep networking/APIM/observability, identity/bootstrap automation, API imports/policies and owner live acceptance |
+| Owner-run, mocked-tested lab identity/OIDC/GitHub bootstrap and staged runtime RBAC; five synthetic business OpenAPI contracts (16 operations) and scenario inventory | Bicep networking/APIM/observability, API imports/policies, certificate/worker automation and owner live acceptance |
 | Local saved-run secret-scan script for supported text and Excel artifacts, also required by smoke | Host-enforced model-safe admission acceptance |
 | Effective policy merge/flags, ten required models including source-bound observed exposure, and optional drift/portal/quality/governance/usage/capacity/cost with schema-gated loading | Remaining telemetry/PERF rules |
 | Optional pinned offline Spectral, trusted APIM style rules and source/settings-bound quality scores with description fallback | Full API-definition drift and maintainer live export validation |
@@ -229,8 +229,18 @@ private-only, initially dormant, product-context and bounded-failure scenarios.
 They are contracts, not deployed APIs or implemented authentication policies.
 The planned Bicep foundation owns a new VNet and four sized subnets; ACME
 challenge delegation to Azure DNS is the selected design.
-No lab deployment or bootstrap command is implemented or authorized yet.
-Provisioning will be separate from this read-only assessment runtime.
+`scripts\lab\Invoke-LabBootstrap.ps1` now provides owner-only Identity/Runtime
+preview and digest-approved apply stages. It requires separately owned, tagged
+lab/identity resource groups, private closed-schema configuration and a matching
+interactive Azure context. It verifies protected GitHub `lab` environment
+controls before enabling exact environment-scoped federation; routine deployment
+receives Contributor only on the lab group. Runtime grants are fixed and
+resource-scoped, and missing future foundation/worker resources yield NotReady.
+See the [owner bootstrap runbook](docs/RUNBOOK.md#owner-only-lab-bootstrap)
+for prerequisites, private approval commands and partial-failure handling.
+This source-checkout tooling is separate from the read-only assessment module
+and release package. Mocked checks are not live authorization: no bootstrap,
+deployment, DNS/certificate change or live inspection was performed.
 
 Run collection only in an authorized ordinary PowerShell terminal with an
 existing matching Azure context, never through Copilot or CI. Analyze and Report

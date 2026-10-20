@@ -245,7 +245,29 @@ variables or created with account-wide DNS authority.
 
 ## 5. CI/CD bootstrap and delivery
 
-Implement an idempotent owner-run bootstrap, with preview before mutation:
+T-702 implements separate owner-run tooling under D-67, tested with synthetic
+mocks only. `scripts\lab\Invoke-LabBootstrap.ps1` uses closed private
+configuration and a separate identity resource group: the routine deployment
+identity receives no write access to the resource containing its own federation.
+A read-only preview writes a private, expiring approval plan; apply must bind
+to that exact plan/configuration and freshly checked state. Existing conflicting
+trust/scopes/environment settings refuse rather than being silently overwritten.
+GitHub protections and branch policy must be read back successfully before
+federation becomes active. Unsupported or missing controls block completion.
+Runtime Azure RBAC is a separate owner-approved post-foundation stage; Entra
+resource-application creation/application-role assignments remain separate
+directory approvals, not inferred permission for this bootstrap.
+
+Owner bootstrap requires two pre-existing resource groups in the selected
+location, both tagged `apimAssessmentLab=<private labId>`: one lab group and a
+separate retained deployment-identity group. It does not create/tag arbitrary
+resource groups. The private config schema/sample are under
+`infra\live-validation-lab`; they are not assessment configuration or release
+assets. Follow `docs\RUNBOOK.md`'s owner-only lab bootstrap section, outside
+Copilot, only after the remaining private/live/lifecycle gates are approved.
+No command here has been executed against Azure or GitHub settings.
+
+The implemented idempotent bootstrap uses preview before mutation:
 
 - Confirm the private subscription/tenant/location, target resource groups,
   repository/environment and permissions; refuse mismatched existing resources.
@@ -267,6 +289,19 @@ Implement an idempotent owner-run bootstrap, with preview before mutation:
   administration. GitHub bootstrap authorization is separate from Azure OIDC.
 - Repeat bootstrap with the same inputs without duplicates; detect changed
   subjects/scopes/environment settings and require explicit update approval.
+
+Runtime stage requires the future tagged APIM, gateway UAMI, worker VM, vault,
+public challenge zone and App Insights component. It grants APIM/gateway
+Key Vault Secrets User on the dedicated vault; APIM Monitoring Metrics Publisher
+on App Insights; worker Key Vault Certificates Officer plus Secrets Officer on
+the vault and DNS Zone Contributor on the challenge zone. It never grants
+Key Vault Administrator, subscription-wide roles or role administration to CI.
+Missing metadata returns NotReady. Existing broader/unrelated assignments
+visible in the approved subscription refuse; this is not a global permissions
+audit. Plans expire after 30 minutes, bind exact config text and fresh state,
+and are neither distributed locks nor live-readiness proof. Partial failure
+requires private owner inspection and a fresh preview; conflicting settings are
+not automatically repaired and no automatic deletion/rollback occurs.
 
 Ordinary PR CI remains offline and unprivileged: Bicep build/lint, synthetic
 OpenAPI/policy/topology assertions, script tests and existing checks. It has no
@@ -297,7 +332,7 @@ These are planned quantities, not discovered resources or verified capacity.
 
 | Resource type / component | Planned quantity | Usage / quota / readiness |
 |---|---|---|
-| Resource groups | 1 lab; optionally a separately approved retained identity boundary | Not queried; owner selects ownership/scope |
+| Resource groups | 1 lab + 1 separately owned retained identity boundary | Owner-created/tagged bootstrap prerequisites; not queried |
 | APIM classic Developer | 1 | Not queried; confirm region, offer and service limit |
 | Application Gateway WAF_v2 + WAF policy | 1 each | Not queried; confirm regional capacity and approved maximum |
 | VNet / subnets / NSGs | 1 / 4 / at least 3 | Not queried; validate address space and platform rules |
