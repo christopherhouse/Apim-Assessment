@@ -124,8 +124,25 @@ TLS/JWT tests, bounded identity/network doubles and closed Linux publish checks
 extend the same offline gate. No Manufacturing traffic is generated initially.
 No runtime role grant, gateway listener, public certificate binding or live
 readiness is implied. Private binary/config/certificate delivery and protected
-invocation remain T-708; directory application roles, API trust/imports, ACME,
-remaining automation and actual GitHub/Azure execution are outstanding.
+invocation remain T-708; directory application roles, API trust/imports and
+actual GitHub/Azure execution are outstanding.
+T-705 adds separate owner-only, pinned ACME DNS-01 certificate tooling with
+closed private configuration, scoped public delegation checks, protected
+staging/production account/order state and an owned challenge journal.
+Only three fixed Azure DNS aliases use the existing zone grant; no Cloudflare
+token or broader role is introduced. Thirty-minute digest-bound previews,
+recent staging and explicit public-query/terms/CT acknowledgement gate production.
+Validate exact SANs/key/chain/full PFX and read back Key Vault certificate
+metadata; retain a private versionless reference pending actual consumer
+trust/refresh validation. Health distinguishes thirty-day renewal/seven-day
+critical expiry; new keys, explicit rotation, bounded retries/recovery and
+status-only process isolation are covered by synthetic/mocked acceptance.
+Real certificate issuance, consumer binding, protected delivery/scheduling and
+live acceptance are not implied by this offline slice.
+Static review identified a T-705 prerequisite gap: the unchanged T-702 worker
+roles do not cover its fresh VM/vault ownership-metadata reads. D-71 retains
+the checks and existing grants without inventing permission approval; T-705
+remains blocked pending an owner decision on narrowly scoped metadata reads.
 Actual provisioning remains T-114 and live acceptance
 T-710. Owner-selected subscription/region, quotas, budget/lifetime, permissions,
 DNS/certificate delegation and private output boundaries must be confirmed before

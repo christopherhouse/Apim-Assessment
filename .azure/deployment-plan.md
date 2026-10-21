@@ -1,12 +1,18 @@
 # Azure Deployment Plan: Synthetic APIM Validation Lab
 
-> **Status:** T-704 offline acceptance complete - full lab deployment blocked
+> **Status:** T-705 offline validation in progress; metadata-read decision blocked
 >
 > Not deployment-ready. Five business API contracts, owner bootstrap tooling
 > and the T-703 foundation pass offline acceptance;
 > T-704's owner-approved private VM worker/backend/jobs pass offline acceptance,
 > including complete Windows/Linux repository gates and an isolated local recheck.
-> Certificates, gateway, lifecycle and all live changes remain outstanding.
+> T-705's owner-only certificate lifecycle tooling passes its forty-two-case focused
+> synthetic gate; the complete repository gate is running.
+> D-70 records the closed contracts and pinned client integration.
+> Actual certificate issuance/binding, gateway, lifecycle and all live changes
+> remain outstanding.
+> Static role review found an unresolved VM/vault metadata-read prerequisite;
+> D-71 preserves existing grants and ownership checks pending owner approval.
 > Plan approval permits offline implementation, not deployment.
 
 Generated: 2026-10-19
@@ -459,6 +465,83 @@ deployment, private delivery, role grants and actual TLS/ingestion readiness are
 Azure context or private input to inspect. Do not run those recipe steps,
 call the full lab Validated/Ready for Deployment or invoke deployment.
 
+### 5.3 T-705 certificate lifecycle implementation
+
+The owner approved proceeding with T-705 on 2026-10-21 after #49 merged.
+Implement only separate owner-operated ACME DNS-01 certificate tooling:
+delegation checks, staging before explicitly approved production issuance,
+protected local account/order state, Key Vault certificate import, bounded
+renewal checks and rotation/expiry evidence. Ordinary CI uses synthetic/mocked
+inputs exclusively. No actual DNS, ACME, Azure identity/resource or certificate
+operation is authorized in this development session.
+
+D-70's implementation contract:
+
+- Pin Posh-ACME 4.35.0 (released 2026-10-12, source commit
+  `392c2e76ef8d3fcc0f131617549af4e1068d85e4`) and owner-only Az.Accounts
+  5.5.3, Az.Dns 2.2.0 and Az.KeyVault 6.6.1 in a separate lab runtime
+  dependency manifest. Ordinary offline tests do not import Az contexts or
+  issue certificates. Runtime installation is explicit, never automatic.
+- Use a custom Posh-ACME DNS-01 plugin for exactly the dedicated zone and
+  `gateway`, `apim` and `backend` TXT aliases. The built-in Azure plugin's
+  subscription-wide zone discovery is unsuitable for the existing zone-scoped
+  grant. Preserve T-702 roles: no extra permission, zone enumeration, Cloudflare
+  token, DNS application record or role assignment.
+- Check the public zone NS set and each direct per-hostname challenge CNAME via
+  fixed, credential-free Google Public DNS HTTPS queries. Private split DNS is
+  not public-delegation proof. Require explicit public-query acknowledgement,
+  normal TLS validation, no redirects/proxy, bounded responses/timeouts and
+  owner-approved `dns.google` HTTPS egress. Set `edns_client_subnet=0.0.0.0/0`;
+  only the configured public zone/challenge names are queried.
+- Closed private configuration supplies exact lab/tenant/subscription/resource
+  names, the three distinct hostnames, protected state directory and complete
+  host-visible roots. Reject unknown/duplicate fields, wildcards, noncanonical
+  names/paths, links, visible-root overlap and insufficient private permissions.
+  ACME account/order data never uses a default home directory.
+- A dedicated child process uses system-managed-identity authentication only,
+  process-local context/no autosave, matching tenant/subscription and fresh
+  owner-tagged VM/vault/zone evidence. Drain every child stdout/stderr stream;
+  a bounded exit-code protocol exposes fixed statuses only, even on failures.
+- Read-only health checks distinguish absent, renewal-due and critically
+  expiring certificates. Preview writes a new private configuration/state-bound
+  approval plan with a thirty-minute lifetime; apply requires its exact digest
+  and fresh matching evidence. Staging/production state is separate. Production
+  needs successful staging bound to this configuration within seven days,
+  explicit terms acceptance and certificate-transparency disclosure approval.
+- Request one narrowly named three-SAN certificate for the configured gateway,
+  APIM and backend names. Staging certificates are never imported or bound.
+  Validate candidate keys, exact SANs/dates and production system-root chain
+  before importing a full-chain PFX as the dedicated Key Vault certificate.
+  Read only certificate metadata, never vault secret values.
+- Preserve unrelated TXT values and use conditional DNS updates without
+  overwrite. Keep a private journal of this invocation's challenge changes for
+  bounded recovery; never delete a zone/record set. Serialize owner execution,
+  limit retries/backoff and bound the complete child process to fifteen minutes.
+  Approval/context checks apply before writes. A failed/terminated run can leave
+  owned challenge/pending state; it is not silently rolled back or called Ready.
+- Renew within thirty days of expiry; emit a fixed critical warning within seven
+  days. Support separately approved forced rotation, fresh keys and idempotent
+  recovery of a completed client certificate or successful import. Read back
+  the imported certificate before recording its versionless secret reference.
+  A receipt explicitly retains pending consumer refresh/trust validation; do
+  not claim that importing a new version proves gateway/APIM/backend rotation.
+
+Consumer binding/delivery/protected scheduling remain T-706-T-708. Persistent
+private account/order state and retained pending material require owner-controlled
+backup/retention; T-711 must preserve them during later lifecycle operations.
+Full lab deployment and all private/live acceptance gates remain blocked.
+
+**Static role blocker (D-71):** the current six T-702 Runtime assignments grant
+worker certificate/secret operations on the vault and DNS operations on the
+dedicated zone, but no Reader on its VM or vault ARM resource. The new fresh
+ownership GETs are therefore an unresolved permission prerequisite. Reader
+scoped only to those two resources was proposed through owner clarification;
+the owner was unavailable. Do not add grants, claim permission sufficiency,
+skip the ownership checks or mark T-705 Done. Keep the current Runtime matrix
+unchanged pending an explicit owner-approved metadata-read design. A synthetic
+forbidden-read test proves failure before public DNS or issuance, not permission
+approval or live readiness.
+
 ## 6. Inventory and owner-only deployment preflight
 
 These are planned quantities, not discovered resources or verified capacity.
@@ -555,6 +638,32 @@ Azure/GitHub calls and no actual bootstrap execution.
 
 Do not invoke `azure-deploy`: authenticated/owner/lifecycle checks have not passed.
 Offline proof is not live permission, certificate trust, telemetry ingestion or
+full lab readiness.
+
+### Validation proof: T-705 offline slice
+
+- [ ] All deployment validation checks pass (blocked; not deployment-ready).
+  - [ ] Core validation: CLI/authentication, ARM validation and what-if.
+    Not run: requires unauthorized live Azure access and private scope/parameters.
+  - [ ] Azure Policy validation. Not run; no subscription/resource inspection.
+  - [x] Focused build/lint: source-checkout PowerShell tooling and closed schemas
+      pass repository-wide PSScriptAnalyzer and the final forty-two-case synthetic
+    Pester gate. No Bicep/network/role assignment or module export is changed.
+- [ ] Static role verification: **blocked** on D-71. Existing scoped vault/DNS
+  roles are retained, but the fresh VM/vault ARM ownership reads need an explicit
+  owner decision. No Reader grant or weaker validation was implemented.
+- [x] `pwsh -NoProfile -File .\scripts\Invoke-Checks.ps1 -TestPath .\tests\unit\LabAcme.Tests.ps1 -OutputDirectory .\artifacts\lab-acme-checks`
+  passed all forty-two cases with zero failures/skips and repository-wide
+  lint clean, including strict private-state types and forbidden ownership reads.
+- `pwsh -NoProfile -File .\scripts\Invoke-Checks.ps1 -OutputDirectory .\artifacts\lab-acme-full-checks`
+  is running. Do not claim a full pass before its result.
+- Windows/Linux CI and committed-test evidence remain pending.
+
+The `azure-validate` Bicep recipe was reviewed for this separate tooling slice.
+Its authenticated core/policy steps are intentionally unexecuted and blocked;
+there is no private owner context to inspect. Do not set full `Validated` or
+invoke `azure-deploy`. Synthetic certificate validation does not establish live
+permission sufficiency, issuance, consumer trust/refresh, protected delivery or
 full lab readiness.
 
 ## 8. Acceptance gates
