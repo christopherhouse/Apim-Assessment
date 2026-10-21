@@ -1,11 +1,11 @@
 # Azure Deployment Plan: Synthetic APIM Validation Lab
 
-> **Status:** T-704 ready for offline validation only - full lab deployment blocked
+> **Status:** T-704 offline acceptance complete - full lab deployment blocked
 >
 > Not deployment-ready. Five business API contracts, owner bootstrap tooling
 > and the T-703 foundation pass offline acceptance;
-> T-704's owner-approved private VM worker/backend/jobs are implemented; its
-> final offline acceptance and complete repository gate are in progress.
+> T-704's owner-approved private VM worker/backend/jobs pass offline acceptance,
+> including complete Windows/Linux repository gates and an isolated local recheck.
 > Certificates, gateway, lifecycle and all live changes remain outstanding.
 > Plan approval permits offline implementation, not deployment.
 
@@ -445,11 +445,13 @@ Implement and test offline only. Actual private binary/config/certificate delive
 and protected Run Command orchestration remain T-708; public ACME stays T-705,
 and resource-application grants/APIM backend trust and imports stay owner/T-706
 gates. The VM agent channel is privileged, not a job/identity isolation boundary.
-**Validation scope:** Ready for Validation applies only to this offline T-704
+**Validation scope:** Offline acceptance applies only to this T-704
 slice. Final pinned Bicep build/lint, the evaluated two-resource VM/NIC graph,
 real synthetic TLS/JWT/operation/job acceptance and exact Linux-x64 publish
 allowlist all pass through twenty focused Pester checks with zero failures/skips.
-The complete repository gate remains in progress; Section 7 records the proof.
+Complete Windows/Linux repository gates pass. The local full run had one
+unchanged secret-scan regex timeout; its isolated suite passes without changes.
+Section 7 records both the original failure and the successful recheck.
 
 Authenticated ARM validation/what-if, policy/capacity/permission checks,
 deployment, private delivery, role grants and actual TLS/ingestion readiness are
@@ -535,8 +537,21 @@ Azure/GitHub calls and no actual bootstrap execution.
   passed: repository-wide PSScriptAnalyzer clean, twenty Pester tests passed,
   zero failed/skipped. Includes locked runtime build/publish, actual loopback
   TLS/JWT/contract acceptance, bounded private jobs and evaluated topology.
-- [ ] `pwsh -NoProfile -File .\scripts\Invoke-Checks.ps1 -OutputDirectory .\artifacts\lab-worker-full-checks`
-  running; record final result before accepting T-704.
+- Local full `pwsh -NoProfile -File .\scripts\Invoke-Checks.ps1 -OutputDirectory .\artifacts\lab-worker-full-checks`
+  completed: repository lint clean, 1454 tests passed, one failed and two existing
+  skips. The unchanged oversized-workbook total test hit a regex timeout;
+  this initial local run is not recorded as a clean pass.
+- [x] `pwsh -NoProfile -File .\scripts\Invoke-Checks.ps1 -TestPath .\tests\unit\RunSecretScan.Tests.ps1 -OutputDirectory .\artifacts\lab-worker-secret-scan-recheck`
+  passed: repository lint clean, all 76 tests passed, zero failed/skipped,
+  including the original timeout case. No code, tests or safety limits changed.
+- [x] `gh run watch 39507608895 --repo christopherhouse/Apim-Assessment --exit-status --interval 60`
+  passed on committed worker code `cdf1a80`: branch policy and complete
+  Windows/Linux lint/Pester gates. Windows: 1449 passed, zero failed, eight
+  existing skips; Linux: 1451 passed, zero failed, six existing skips. All twenty
+  worker tests ran without skips; the oversized-workbook case passed on both.
+  Six optional-tool skips and the two Windows platform/privilege skips are
+  pre-existing. Offline proof and implementation are submitted in #49;
+  required PR review and final-head checks remain separate.
 
 Do not invoke `azure-deploy`: authenticated/owner/lifecycle checks have not passed.
 Offline proof is not live permission, certificate trust, telemetry ingestion or
@@ -652,13 +667,15 @@ Owner approved offline implementation with D-66 refinements: five business
 APIs, new lab-owned networking and Azure DNS ACME delegation. T-701/T-712 design/
 contracts, T-702 bootstrap and T-703 foundation have committed offline acceptance.
 The owner-approved T-704 private VM, TLS backend/deny service and bounded jobs now
-pass twenty focused checks including closed Linux publishing. Its full repository
-gate, committed evidence and PR review are pending; no whole-lab acceptance is
-claimed.
+pass twenty focused checks including closed Linux publishing and the complete
+Windows/Linux repository gates. The local full run's single unchanged regex
+timeout passed on an isolated 76-test rerun without code or safety changes.
+Implementation/tests are committed in `cdf1a80` and submitted in #49; required
+PR review and final-head checks remain separate. No whole-lab acceptance is claimed.
 
 After T-704 acceptance/review, the next implementation slice is T-705 ACME.
 API/policy/trust binding, gateway routes, protected delivery/invocation, lifecycle
 and live acceptance remain T-705-T-711. Actual quota/context/cost/permission/DNS
 confirmation and owner bootstrap/deployment authorization remain blocked, not
-implicitly approved. Ready for offline validation applies only to T-704;
+implicitly approved. Completed offline acceptance applies only to T-704;
 do not mark the full lab Validated, Ready for Deployment or Deployed.
