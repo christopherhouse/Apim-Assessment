@@ -115,9 +115,17 @@ A direct workspace avoids AVM shared-key outputs. Closed private parameters are
 written only after canonical IPv4, capacity/containment/overlap, allowlist and
 budget validation. Synthetic Bicep snapshots evaluate the real module graph in
 the existing Windows/Linux test gate without Azure requests.
-No runtime role grant, VM, gateway listener, certificate binding or live readiness
-is implied. Worker, remaining lab automation and actual GitHub/Azure execution
-remain outstanding.
+T-704 adds the owner-approved small private Linux VM with pinned AVM, static
+worker-subnet NIC, system identity, Trusted Launch and no public IP/inbound SSH.
+Its separately pinned .NET application implements valid-TLS synthetic responses,
+tenant/audience/role/caller JWT validation, a never-forwarding deny endpoint and
+closed, serialized private traffic/readiness/fault jobs. Real synthetic loopback
+TLS/JWT tests, bounded identity/network doubles and closed Linux publish checks
+extend the same offline gate. No Manufacturing traffic is generated initially.
+No runtime role grant, gateway listener, public certificate binding or live
+readiness is implied. Private binary/config/certificate delivery and protected
+invocation remain T-708; directory application roles, API trust/imports, ACME,
+remaining automation and actual GitHub/Azure execution are outstanding.
 Actual provisioning remains T-114 and live acceptance
 T-710. Owner-selected subscription/region, quotas, budget/lifetime, permissions,
 DNS/certificate delegation and private output boundaries must be confirmed before

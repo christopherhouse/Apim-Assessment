@@ -1,0 +1,18 @@
+#cloud-config
+ssh_pwauth: false
+disable_root: true
+users:
+  - default
+  - name: apimlab
+    system: true
+    lock_passwd: true
+    shell: /usr/sbin/nologin
+    no_create_home: true
+runcmd:
+  - [systemctl, mask, --now, ssh.service, ssh.socket]
+  - [install, -d, -o, root, -g, apimlab, -m, "0750", /etc/apim-lab-worker]
+  - [install, -d, -o, root, -g, apimlab, -m, "0750", /etc/apim-lab-worker/tls]
+  - [install, -d, -o, root, -g, apimlab, -m, "0750", /opt/apim-lab-worker]
+  - [install, -d, -o, root, -g, apimlab, -m, "2750", /var/lib/apim-lab-worker]
+  - [install, -d, -o, apimlab, -g, apimlab, -m, "0750", /var/lib/apim-lab-worker/runtime]
+# No binary downloads, certificate generation or service start before private owner handoff.

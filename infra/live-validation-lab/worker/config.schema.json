@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Private installed lab worker application configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "tenantId", "backendAudienceClientId", "backendCallerClientIds", "frontendResourceClientId", "backendOrigin", "apimOrigin", "gatewayOrigin"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "tenantId": { "$ref": "#/$defs/id" },
+    "backendAudienceClientId": { "$ref": "#/$defs/id" },
+    "backendCallerClientIds": { "type": "array", "minItems": 1, "maxItems": 2, "uniqueItems": true, "items": { "$ref": "#/$defs/id" } },
+    "frontendResourceClientId": { "$ref": "#/$defs/id" },
+    "backendOrigin": { "$ref": "#/$defs/origin" },
+    "apimOrigin": { "$ref": "#/$defs/origin" },
+    "gatewayOrigin": { "$ref": "#/$defs/origin" }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$", "not": { "const": "00000000-0000-0000-0000-000000000000" } },
+    "origin": { "type": "string", "maxLength": 261, "pattern": "^https://(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}$" }
+  }
+}

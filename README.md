@@ -199,7 +199,7 @@ data. The coding-agent checks use synthetic data only.
 | Guarded ARM transport with paging/retry; offline tracking, saved-run comparison, and cross-environment policy/API-presence drift | Full API-definition comparison |
 | Versioned run manifest lifecycle, exact scoring snapshot, APIM configuration collectors, scoped LA/App Gateway route aggregates, resource metrics, daily costs, cost-only Logic Apps and optional committed Git policy hashes | Maintainer live query acceptance |
 | Maintainer-only cumulative collection smoke script with local output validation (sixteen registered checks) and bounded observed-query coverage | Full live assessment acceptance |
-| Owner-run lab bootstrap/staged RBAC, offline-tested pinned Bicep network/internal APIM/vault/observability foundation, and five synthetic business API contracts (16 operations) | Private worker, gateway, API imports/policies, certificate automation, protected delivery/lifecycle and owner live acceptance |
+| Owner-run lab bootstrap/staged RBAC, offline-tested Bicep foundation/private VM worker, synthetic TLS backend/bounded private jobs, and five business API contracts (16 operations) | Gateway, API imports/policies, certificate automation, protected delivery/lifecycle and owner live acceptance |
 | Local saved-run secret-scan script for supported text and Excel artifacts, also required by smoke | Host-enforced model-safe admission acceptance |
 | Effective policy merge/flags, ten required models including source-bound observed exposure, and optional drift/portal/quality/governance/usage/capacity/cost with schema-gated loading | Remaining telemetry/PERF rules |
 | Optional pinned offline Spectral, trusted APIM style rules and source/settings-bound quality scores with description fallback | Full API-definition drift and maintainer live export validation |
@@ -250,6 +250,18 @@ documents synthetic build/topology checks and a status-only private parameter
 writer. It rejects invalid/overlapping/undersized IPv4 layouts and empty or
 unrestricted internet lists before creating a new external parameter file.
 Private network collisions, permissions, cost and actual readiness are owner gates.
+`infra\live-validation-lab\worker.bicep` adds only a small private Linux VM/NIC,
+system identity and static worker-subnet address, without public IP or inbound
+SSH. Its separate, locked .NET application serves the sixteen synthetic business
+operations over validated TLS, validates tenant/v2 audience/application role/
+caller identity, and denies unmatched paths without forwarding. Private serialized
+jobs accept fixed traffic profiles and short-lived Service Management faults;
+they never accept arbitrary URLs/scripts, emit response bodies or deliberately
+exercise Manufacturing initially. The [private worker runbook](docs/RUNBOOK.md#offline-private-lab-worker)
+covers offline checks, closed parameters and Linux publishing. The guest does not
+download/start an unconfigured service; private binary/config/certificate delivery
+and protected invocation remain T-708. TLS trust, directory applications/roles,
+APIM backend binding, public ACME and live readiness remain separate owner gates.
 This source-checkout tooling is separate from the read-only assessment module
 and release package. Mocked checks are not live authorization: no bootstrap,
 deployment, DNS/certificate change or live inspection was performed.
@@ -366,7 +378,14 @@ KQL syntax checks, including an invalid-query control. It installs SHA-256-pinne
 Bicep 0.48.1 into ignored `.tools\bicep` and restores exact public AVM versions
 from MCR without Azure authentication. Build/lint and offline synthetic snapshots
 run in the existing Pester gate on Windows/Linux; snapshot evaluation makes no
-Azure requests. Network access is needed for dependency/module installation,
+Azure requests. For the separate lab worker, it reuses an installed exact .NET SDK
+10.0.402 or installs its SHA-512-pinned archive under ignored `.tools\dotnet`;
+the worker's `global.json` disallows SDK roll-forward. JWT bearer/ASP.NET Core
+10.0.13 and Linux runtime dependencies restore in locked mode from Microsoft's
+public `dotnet-public` mirror. Synthetic runtime acceptance uses generated test
+certificates/signing keys, real loopback HTTPS and fake identity/network clients;
+no Azure credentials or private certificate inputs are required.
+Network access is needed for dependency/module installation,
 not live infrastructure inspection. No parser or compiler is downloaded
 by collection or analysis. ImportExcel is used to generate
 and structurally validate the workbook template without desktop Excel.

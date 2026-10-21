@@ -1,0 +1,28 @@
+[Unit]
+Description=Synthetic APIM lab HTTPS backend
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=apimlab
+Group=apimlab
+WorkingDirectory=/opt/apim-lab-worker
+ExecStart=/opt/apim-lab-worker/LabWorker serve
+Restart=on-failure
+RestartSec=5
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadOnlyPaths=/etc/apim-lab-worker /var/lib/apim-lab-worker
+ReadWritePaths=/var/lib/apim-lab-worker/runtime
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+LimitNOFILE=256
+TasksMax=64
+
+[Install]
+WantedBy=multi-user.target

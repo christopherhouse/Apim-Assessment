@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Closed private lab worker job request",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "kind"],
+      "properties": { "schemaVersion": { "const": "1.0" }, "kind": { "enum": ["readiness", "clearFault"] } }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "kind", "profile", "requestCount", "intervalMilliseconds"],
+      "properties": {
+        "schemaVersion": { "const": "1.0" },
+        "kind": { "const": "traffic" },
+        "profile": { "enum": ["supply-chain", "e-commerce", "service-management", "plm-private", "unmatched-denied", "public-plm-denied"] },
+        "requestCount": { "type": "integer", "minimum": 1, "maximum": 20 },
+        "intervalMilliseconds": { "type": "integer", "minimum": 250, "maximum": 2000 }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "kind", "durationSeconds", "delayMilliseconds", "failureCount"],
+      "properties": {
+        "schemaVersion": { "const": "1.0" },
+        "kind": { "const": "fault" },
+        "durationSeconds": { "type": "integer", "minimum": 1, "maximum": 120 },
+        "delayMilliseconds": { "type": "integer", "minimum": 0, "maximum": 1000 },
+        "failureCount": { "type": "integer", "minimum": 0, "maximum": 10 }
+      },
+      "anyOf": [
+        { "properties": { "delayMilliseconds": { "minimum": 1 } } },
+        { "properties": { "failureCount": { "minimum": 1 } } }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "1.0",
+  "labId": "synthetic-lab",
+  "location": "eastus2",
+  "vnetName": "vnet-synthetic",
+  "workerVmName": "vm-synthetic-worker",
+  "workerCidr": "10.240.1.64/27",
+  "workerPrivateIp": "10.240.1.68",
+  "sshPublicKey": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC6zIN6emqIbrCsdR3Xzom2K5GnLoKdPwD+kMkCULpDMW99b+Zq10Ay9OpuEuxm9mZLWNgmqhER9k2k8DKg32nKLdPeq3BLq7rlwymZnvsvZG2AmDbpl+mAswpIDswOSGqqjdIuE66Xa+9xC3/fdciBjgaieq86xTK/6/T3ffSsxVz4OHhVeQPixm67xQ/lo4yqVEB9hOCnK5E5lGibl55GTVUaYLlPRBWSNKjq+D7+BebFWBdblz8rtH0RMz0trRzdGTjK7FkUuqrOkcsI2qz1yei4BqgCDACglUaENvORBYsYYK1X/fDyDgdU+Mu709S3r2QeF5aXCEPEDYfdBIGN synthetic-lab",
+  "vmSize": "Standard_B2ls_v2",
+  "ubuntuImageVersion": "latest",
+  "availabilityZone": 1
+}
