@@ -854,6 +854,15 @@ later network, DNS delegation, certificate or telemetry readiness.
 | APIM system identity | Monitoring Metrics Publisher | Lab App Insights component |
 | Worker VM system identity | Key Vault Certificates Officer and Key Vault Secrets Officer | Dedicated lab vault |
 | Worker VM system identity | DNS Zone Contributor | Lab challenge zone |
+| Worker VM system identity | Reader | Its own lab VM |
+| Worker VM system identity | Reader | Dedicated lab vault |
+
+D-72 adds only the two metadata-read assignments to the original six grants.
+Existing six-grant setups need a new Runtime preview at an unused private plan
+path; it proposes only those missing assignments. Review the exact principal and
+both resource scopes before approving the new digest. A pre-D-72 six-action
+approval is refused, not silently upgraded. No Reader is allowed on the lab
+group, subscription, DNS zone or another runtime principal.
 
 Use a different new plan for this **separately approved** stage:
 
@@ -1151,14 +1160,14 @@ issuance or Azure authentication from Copilot/CI. Never run owner commands in
 a model-visible terminal. Actual protected binary/private-input delivery and
 scheduling remain T-708; actual APIM/gateway/backend binding remains T-706/T-707.
 No assessment-module transport exception, export or broker permission changes.
-**Do not execute yet:** D-71 records an unresolved permission prerequisite.
-The existing six T-702 Runtime grants do not include all fresh VM/vault ARM
-ownership-metadata reads used by this tool. Reader scoped only to the worker VM
-and dedicated vault was proposed, but approval was unavailable. No grant was
-added; missing reads produce `LAB_ACME_INCOMPLETE` before DNS/issuance. Resolve
-that design through an explicit owner decision and separately reviewed bootstrap
-change, not ad hoc permission expansion or skipped ownership checks. The
-commands below document the subsequent owner workflow, not current readiness.
+**Authorization boundary:** D-72 approves the offline prerequisite code only,
+not Azure execution. The updated T-702 Runtime proposal preserves the six
+original grants and adds worker Reader on exactly its own VM and dedicated vault.
+Before certificate execution, the owner must separately review and apply a
+fresh Runtime plan, then verify the effective reads privately. No grant was
+applied by this change. Missing reads still produce `LAB_ACME_INCOMPLETE` before
+DNS/issuance; do not bypass ownership checks or expand scope ad hoc.
+The commands below document the subsequent owner workflow, not live readiness.
 
 The explicit owner installer pins Posh-ACME 4.35.0, Az.Accounts 5.5.3,
 Az.Dns 2.2.0 and Az.KeyVault 6.6.1 in
@@ -1174,9 +1183,10 @@ The owner must first arrange these prerequisites privately:
 - Provisioned tagged worker VM, Key Vault and dedicated **public** challenge
   subzone, matching the closed `acme.config.schema.json` configuration. Existing
   T-702 Runtime grants provide worker Key Vault Certificates Officer on that
-  vault and DNS Zone Contributor on that zone; no subscription-wide discovery,
-  broader DNS grant or direct Cloudflare token is required. Additional ownership
-  metadata reads remain the separate unresolved D-71 prerequisite above.
+  vault and DNS Zone Contributor on that zone, plus Reader on exactly the
+  worker VM and dedicated vault for fresh ownership metadata. No subscription-
+  wide discovery, broader DNS grant or direct Cloudflare token is required.
+  This prerequisite must be separately owner-applied and privately verified.
 - Public delegation of the challenge subzone to its Azure DNS NS set and direct
   `_acme-challenge` CNAMEs for the gateway/APIM/backend hostnames to
   `gateway`, `apim` and `backend` in that zone. Public application records and

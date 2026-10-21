@@ -1,19 +1,20 @@
 # Azure Deployment Plan: Synthetic APIM Validation Lab
 
-> **Status:** T-705 offline code gates pass; metadata-read decision blocked
+> **Status:** T-705 metadata-read design approved; final offline CI pending
 >
 > Not deployment-ready. Five business API contracts, owner bootstrap tooling
 > and the T-703 foundation pass offline acceptance;
 > T-704's owner-approved private VM worker/backend/jobs pass offline acceptance,
 > including complete Windows/Linux repository gates and an isolated local recheck.
-> T-705's owner-only certificate lifecycle tooling passes its forty-three-case focused
-> synthetic gate and complete Windows/Linux repository CI. Initial lock ownership
-> and key-size accessor portability defects are corrected without relaxing checks.
+> T-705's owner-only certificate lifecycle tooling passes its forty-three-case
+> focused synthetic gate. The updated bootstrap passes sixty-eight focused cases;
+> fresh complete Windows/Linux CI is pending on the approved prerequisite change.
 > D-70 records the closed contracts and pinned client integration.
 > Actual certificate issuance/binding, gateway, lifecycle and all live changes
 > remain outstanding.
-> Static role review found an unresolved VM/vault metadata-read prerequisite;
-> D-71 preserves existing grants and ownership checks pending owner approval.
+> D-72 resolves D-71's offline metadata-read design: retain six existing grants
+> and add worker Reader only on its own VM and dedicated vault, behind a fresh
+> owner-reviewed Runtime preview/apply. No live access or assignment is authorized.
 > Plan approval permits offline implementation, not deployment.
 
 Generated: 2026-10-19
@@ -304,7 +305,9 @@ Runtime stage requires the future tagged APIM, gateway UAMI, worker VM, vault,
 public challenge zone and App Insights component. It grants APIM/gateway
 Key Vault Secrets User on the dedicated vault; APIM Monitoring Metrics Publisher
 on App Insights; worker Key Vault Certificates Officer plus Secrets Officer on
-the vault and DNS Zone Contributor on the challenge zone. It never grants
+the vault and DNS Zone Contributor on the challenge zone. D-72 adds worker
+Reader only on its own VM and dedicated vault for ownership metadata, bringing
+the fixed Runtime matrix to eight assignments. It never grants
 Key Vault Administrator, subscription-wide roles or role administration to CI.
 Missing metadata returns NotReady. Existing broader/unrelated assignments
 visible in the approved subscription refuse; this is not a global permissions
@@ -393,8 +396,8 @@ existing skips; zero failures and lint clean on both. All 39 new tests execute
 without skips on both platforms. PR #48 remains subject to required review;
 final commands/results are recorded in the task register.
 Static role review confirms that this slice deliberately creates no grants;
-the six fixed vault/DNS/App Insights grants remain separately owner-approved
-T-702 Runtime operations and need the future worker identity.
+the fixed resource-scoped grants, including D-72's two metadata Readers, remain
+separately owner-approved T-702 Runtime operations and need the worker identity.
 The `azure-validate` Bicep recipe's authenticated ARM validation, what-if and
 policy/capacity checks were **not run**: they access live infrastructure and are
 outside this offline authorization. Full deployment validation is blocked,
@@ -532,16 +535,16 @@ private account/order state and retained pending material require owner-controll
 backup/retention; T-711 must preserve them during later lifecycle operations.
 Full lab deployment and all private/live acceptance gates remain blocked.
 
-**Static role blocker (D-71):** the current six T-702 Runtime assignments grant
-worker certificate/secret operations on the vault and DNS operations on the
-dedicated zone, but no Reader on its VM or vault ARM resource. The new fresh
-ownership GETs are therefore an unresolved permission prerequisite. Reader
-scoped only to those two resources was proposed through owner clarification;
-the owner was unavailable. Do not add grants, claim permission sufficiency,
-skip the ownership checks or mark T-705 Done. Keep the current Runtime matrix
-unchanged pending an explicit owner-approved metadata-read design. A synthetic
-forbidden-read test proves failure before public DNS or issuance, not permission
-approval or live readiness.
+**Scoped metadata prerequisite (D-72):** after clarification, the owner approved
+the offline bootstrap change resolving D-71. Preserve the six existing Runtime
+assignments and add Reader only for the worker identity on its own VM and
+dedicated vault. No subscription/resource-group/DNS Reader or other-principal
+Reader is allowed. These management-plane reads preserve fresh ownership checks
+without broadening the DNS grant. Existing six-grant installations propose only
+the two missing assignments; old six-action approvals refuse. Actual assignment
+still needs a fresh owner-reviewed digest-bound Runtime plan and private live
+permission validation. No Azure login or assignment is authorized by this code
+approval. Forbidden-read coverage remains, proving refusal before DNS/issuance.
 
 ## 6. Inventory and owner-only deployment preflight
 
@@ -648,13 +651,20 @@ full lab readiness.
     Not run: requires unauthorized live Azure access and private scope/parameters.
   - [ ] Azure Policy validation. Not run; no subscription/resource inspection.
   - [x] Focused build/lint: source-checkout PowerShell tooling and closed schemas
-      pass repository-wide PSScriptAnalyzer and the final forty-three-case synthetic
-    Pester gate. No Bicep/network/role assignment or module export is changed.
-- [ ] Static role verification: **blocked** on D-71. Existing scoped vault/DNS
-  roles are retained, but the fresh VM/vault ARM ownership reads need an explicit
-  owner decision. No Reader grant or weaker validation was implemented.
+    pass repository-wide PSScriptAnalyzer and sixty-eight bootstrap plus
+    forty-three ACME cases. No Bicep/network/module export or actual role
+    assignment is changed.
+- [x] Static role verification: D-72's approved fixed Runtime matrix includes
+  worker Reader on exactly its own VM and dedicated vault for ownership GETs.
+  Microsoft's built-in Reader definition supplies management-plane `*/read`
+  with no data actions or writes. The six existing grants and all DNS/ownership
+  guards are unchanged; actual effective permission validation remains owner-only.
+- [x] `pwsh -NoProfile -File .\scripts\Invoke-Checks.ps1 -TestPath .\tests\unit\LabBootstrap.Tests.ps1 -OutputDirectory .\artifacts\lab-acme-bootstrap-checks`
+  passed all sixty-eight cases with zero failures/skips in 16.9 seconds and
+  repository-wide lint clean. Covers exact Reader scopes/principal, legacy
+  six-grant upgrade, stale six-action approval refusal and broad-read rejection.
 - [x] `pwsh -NoProfile -File .\scripts\Invoke-Checks.ps1 -TestPath .\tests\unit\LabAcme.Tests.ps1 -OutputDirectory .\artifacts\lab-acme-checks`
-  passed all forty-three cases with zero failures/skips in 31.33 seconds and
+  passed all forty-three cases with zero failures/skips in 29.1 seconds and
   repository-wide lint clean. Includes strict private-state types, forbidden
   ownership reads, private lock ownership/reopening and real RSA/ECDSA keys.
 - `pwsh -NoProfile -File .\scripts\Invoke-Checks.ps1 -OutputDirectory .\artifacts\lab-acme-full-checks`
@@ -673,9 +683,9 @@ full lab readiness.
   existing skips; Linux: 1494 passed, zero failed, six existing skips.
   All forty-three ACME tests execute without skips. Six optional-tool skips
   and the two Windows platform/privilege skips are pre-existing.
-  Code/tests and evidence are submitted in draft #50. Only documentation
-  proof changes follow this successful code gate; final-head checks and
-  required review remain separate. D-71 remains unresolved.
+  This full code proof predates D-72's approved bootstrap prerequisite.
+- Fresh complete Windows/Linux CI is required on the D-72 change before
+  final offline acceptance and required PR review.
 
 The `azure-validate` Bicep recipe was reviewed for this separate tooling slice.
 Its authenticated core/policy steps are intentionally unexecuted and blocked;

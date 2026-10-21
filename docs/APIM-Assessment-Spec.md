@@ -1722,10 +1722,15 @@ all trusted roots; the owner must declare them completely and serialize issuers.
 Authenticate only using the worker system-assigned managed identity with
 process-local context/no autosave; reject App Service identity endpoint fallback,
 wrong account/cloud/tenant/subscription and mismatching fresh owned resources.
-The unchanged six T-702 Runtime grants do not supply all VM/vault ARM ownership
-metadata reads required here. D-71 records this unresolved prerequisite; no
-additional grant or weaker ownership check is authorized. T-705 execution
-remains blocked pending an explicit owner-approved metadata-read design.
+D-72 resolves D-71's offline design prerequisite by adding two fixed Reader
+assignments for the worker identity: its own VM and the dedicated vault only.
+The existing six Runtime assignments and all ownership checks remain intact.
+Reader provides management-plane reads, not data-plane or write permissions.
+No resource-group/subscription/DNS Reader or configurable role/scope is allowed.
+An existing six-grant setup needs a fresh owner-reviewed Runtime plan; old
+six-action approvals refuse rather than silently acquiring more permissions.
+Offline code approval does not authorize Azure login, actual assignment or
+certificate execution; missing effective permissions still fail closed.
 An IMDS resource-ID check binds execution to the expected worker VM without
 retrieving an access token. Before certificate activity, verify the dedicated
 public zone's NS set and all three direct per-hostname CNAME aliases through
@@ -1793,8 +1798,10 @@ missing control evidence blocks completion.
 
 Identity and post-foundation Runtime are separately previewed/approved stages.
 Runtime verifies all six named, tagged lab resources and distinct APIM,
-gateway-UAMI and worker-VM principals before granting fixed roles only on the
-dedicated vault, public challenge zone and App Insights component. Missing
+gateway-UAMI and worker-VM principals before proposing eight fixed assignments
+on the dedicated vault, public challenge zone, App Insights component and worker
+VM. Worker Reader is allowed only on its own VM and dedicated vault; DNS and all
+other principal/role scopes remain unchanged. Missing
 foundation/worker metadata is NotReady, never a successful grant or invented
 identity. Resource-audience applications and application-role assignments remain
 separate directory approvals. Owner execution must be serialized; these state
