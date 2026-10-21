@@ -31,13 +31,14 @@ function Assert-LabAcmeCertificateKey {
     Assert-LabCondition ($Certificate.HasPrivateKey)
     $rsa = [Security.Cryptography.X509Certificates.RSACertificateExtensions]::GetRSAPrivateKey($Certificate)
     if ($null -ne $rsa) {
-        try { Assert-LabCondition ($rsa.KeySize -ge 2048) }
+        # Invoke the inherited getter explicitly for OpenSSL-backed keys.
+        try { Assert-LabCondition ($rsa.get_KeySize() -ge 2048) }
         finally { $rsa.Dispose() }
         return
     }
     $ec = [Security.Cryptography.X509Certificates.ECDsaCertificateExtensions]::GetECDsaPrivateKey($Certificate)
     Assert-LabCondition ($null -ne $ec)
-    try { Assert-LabCondition ($ec.KeySize -ge 256) }
+    try { Assert-LabCondition ($ec.get_KeySize() -ge 256) }
     finally { $ec.Dispose() }
 }
 

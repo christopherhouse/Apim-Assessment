@@ -193,6 +193,10 @@ Describe 'Closed private ACME input and approval state' {
         $lock = Open-LabAcmeLock $script:acmeConfig
         try { { Open-LabAcmeLock $script:acmeConfig } | Should -Throw }
         finally { $lock.Dispose() }
+        { Assert-LabAcmePrivateAccess (Join-Path $script:acmeConfig.stateDirectory 'acme.lock') } |
+            Should -Not -Throw
+        $lock = Open-LabAcmeLock $script:acmeConfig
+        $lock.Dispose()
         if (-not $IsWindows) {
             [IO.File]::SetUnixFileMode($path, 420)
             { Read-LabAcmeConfig $path } | Should -Throw
@@ -645,6 +649,22 @@ Describe 'Real synthetic certificate material validation' {
         finally { $client.PfxPass.Dispose() }
     }
 
+    It 'accepts an ECDSA P-256 private key without changing its certificate trust' {
+        $key = [Security.Cryptography.ECDsa]::Create([Security.Cryptography.ECCurve+NamedCurves]::nistP256)
+        $certificate = $null
+        try {
+            $request = [Security.Cryptography.X509Certificates.CertificateRequest]::new(
+                'CN=synthetic.example', $key, [Security.Cryptography.HashAlgorithmName]::SHA256)
+            $certificate = $request.CreateSelfSigned([DateTimeOffset]::UtcNow.AddDays(-1),
+                [DateTimeOffset]::UtcNow.AddDays(1))
+            { Assert-LabAcmeCertificateKey $certificate } | Should -Not -Throw
+        }
+        finally {
+            if ($null -ne $certificate) { $certificate.Dispose() }
+            $key.Dispose()
+        }
+    }
+
     It 'rejects extra SANs, weak keys and expired certificates' -ForEach @(
         @{ Kind = 'extra-san' }, @{ Kind = 'weak-key' }, @{ Kind = 'expired' }
     ) {
@@ -654,7 +674,7 @@ Describe 'Real synthetic certificate material validation' {
         $client = Get-SyntheticAcmeCertificate $script:acmeConfig $names $bits $days
         try {
             $session = @{ config = $script:acmeConfig; stage = 'Staging'; home = (Split-Path $client.CertFile -Parent) }
-            { Assert-LabAcmeCandidate $session $client } | Should -Throw
+            { Assert-LabAcmeCandidate $session $client } | Should -Throw '*LAB_STATE_CONFLICT*'
         }
         finally { $client.PfxPass.Dispose() }
     }

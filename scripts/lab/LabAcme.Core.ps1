@@ -115,28 +115,36 @@ function Assert-LabAcmePrivateAccess {
     }
 }
 
+function Get-LabAcmeWindowsSecurity {
+    [CmdletBinding()]
+    [OutputType([Security.AccessControl.FileSystemSecurity])]
+    param([switch] $Directory)
+    $owner = [Security.Principal.WindowsIdentity]::GetCurrent().User
+    $acl = if ($Directory) { [Security.AccessControl.DirectorySecurity]::new() }
+        else { [Security.AccessControl.FileSecurity]::new() }
+    $acl.SetOwner($owner)
+    $acl.SetAccessRuleProtection($true, $false)
+    $inherit = if ($Directory) {
+        [Security.AccessControl.InheritanceFlags]'ContainerInherit, ObjectInherit'
+    } else { [Security.AccessControl.InheritanceFlags]::None }
+    foreach ($sid in @($owner.Value, 'S-1-5-18', 'S-1-5-32-544')) {
+        $identity = [Security.Principal.SecurityIdentifier]::new($sid)
+        $rule = [Security.AccessControl.FileSystemAccessRule]::new($identity,
+            [Security.AccessControl.FileSystemRights]::FullControl, $inherit,
+            [Security.AccessControl.PropagationFlags]::None,
+            [Security.AccessControl.AccessControlType]::Allow)
+        $null = $acl.AddAccessRule($rule)
+    }
+    return $acl
+}
+
 function Initialize-LabAcmePrivateAccess {
     [CmdletBinding()]
     param([Parameter(Mandatory)][string] $Path)
     $item = Get-Item -LiteralPath $Path -Force -ErrorAction Stop
     Assert-LabCondition (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -eq 0)
     if ($IsWindows) {
-        $owner = [Security.Principal.WindowsIdentity]::GetCurrent().User
-        $acl = if ($item.PSIsContainer) { [Security.AccessControl.DirectorySecurity]::new() }
-            else { [Security.AccessControl.FileSecurity]::new() }
-        $acl.SetOwner($owner)
-        $acl.SetAccessRuleProtection($true, $false)
-        $inherit = if ($item.PSIsContainer) {
-            [Security.AccessControl.InheritanceFlags]'ContainerInherit, ObjectInherit'
-        } else { [Security.AccessControl.InheritanceFlags]::None }
-        foreach ($sid in @($owner.Value, 'S-1-5-18', 'S-1-5-32-544')) {
-            $identity = [Security.Principal.SecurityIdentifier]::new($sid)
-            $rule = [Security.AccessControl.FileSystemAccessRule]::new($identity,
-                [Security.AccessControl.FileSystemRights]::FullControl, $inherit,
-                [Security.AccessControl.PropagationFlags]::None,
-                [Security.AccessControl.AccessControlType]::Allow)
-            $null = $acl.AddAccessRule($rule)
-        }
+        $acl = Get-LabAcmeWindowsSecurity -Directory:$item.PSIsContainer
         if ($item.PSIsContainer) { [IO.FileSystemAclExtensions]::SetAccessControl([IO.DirectoryInfo]$item, $acl) }
         else { [IO.FileSystemAclExtensions]::SetAccessControl([IO.FileInfo]$item, $acl) }
     }
@@ -237,7 +245,15 @@ function Open-LabAcmeLock {
     $path = Join-Path $Config.stateDirectory 'acme.lock'
     $null = Get-LabPrivatePath $path
     if (Test-Path -LiteralPath $path) { Assert-LabAcmePrivateAccess $path }
-    $lock = [IO.File]::Open($path, [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
+    $lock = if ($IsWindows) {
+        $security = [Security.AccessControl.FileSecurity](Get-LabAcmeWindowsSecurity)
+        [IO.FileSystemAclExtensions]::Create([IO.FileInfo]::new($path), [IO.FileMode]::OpenOrCreate,
+            [Security.AccessControl.FileSystemRights]::FullControl, [IO.FileShare]::None,
+            4096, [IO.FileOptions]::None, $security)
+    }
+    else {
+        [IO.File]::Open($path, [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
+    }
     try {
         if (-not $IsWindows) { [IO.File]::SetUnixFileMode($path, 384) }
         return $lock

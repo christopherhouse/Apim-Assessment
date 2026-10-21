@@ -6,8 +6,9 @@
 > and the T-703 foundation pass offline acceptance;
 > T-704's owner-approved private VM worker/backend/jobs pass offline acceptance,
 > including complete Windows/Linux repository gates and an isolated local recheck.
-> T-705's owner-only certificate lifecycle tooling passes its forty-two-case focused
-> synthetic gate; the complete repository gate is running.
+> T-705's owner-only certificate lifecycle tooling passes its forty-three-case focused
+> synthetic gate. Initial full CI exposed Windows lock ownership and Linux key-size
+> accessor defects; both are corrected and fresh complete CI is required.
 > D-70 records the closed contracts and pinned client integration.
 > Actual certificate issuance/binding, gateway, lifecycle and all live changes
 > remain outstanding.
@@ -647,17 +648,26 @@ full lab readiness.
     Not run: requires unauthorized live Azure access and private scope/parameters.
   - [ ] Azure Policy validation. Not run; no subscription/resource inspection.
   - [x] Focused build/lint: source-checkout PowerShell tooling and closed schemas
-      pass repository-wide PSScriptAnalyzer and the final forty-two-case synthetic
+      pass repository-wide PSScriptAnalyzer and the final forty-three-case synthetic
     Pester gate. No Bicep/network/role assignment or module export is changed.
 - [ ] Static role verification: **blocked** on D-71. Existing scoped vault/DNS
   roles are retained, but the fresh VM/vault ARM ownership reads need an explicit
   owner decision. No Reader grant or weaker validation was implemented.
 - [x] `pwsh -NoProfile -File .\scripts\Invoke-Checks.ps1 -TestPath .\tests\unit\LabAcme.Tests.ps1 -OutputDirectory .\artifacts\lab-acme-checks`
-  passed all forty-two cases with zero failures/skips and repository-wide
-  lint clean, including strict private-state types and forbidden ownership reads.
+  passed all forty-three cases with zero failures/skips in 31.33 seconds and
+  repository-wide lint clean. Includes strict private-state types, forbidden
+  ownership reads, private lock ownership/reopening and real RSA/ECDSA keys.
 - `pwsh -NoProfile -File .\scripts\Invoke-Checks.ps1 -OutputDirectory .\artifacts\lab-acme-full-checks`
-  is running. Do not claim a full pass before its result.
-- Windows/Linux CI and committed-test evidence remain pending.
+  was stopped as superseded after initial CI exposed portability defects; it
+  discovered before the final focused cases and is not claimed as a pass.
+- `gh run watch 39649898253 --repo christopherhouse/Apim-Assessment --exit-status --interval 60`
+  failed on initial committed code `07692ce`. Windows: 1485 passed, six failed,
+  eight existing skips; Linux: 1492 passed, one failed, six existing skips.
+  Failures identified default Windows lock ownership and PowerShell's OpenSSL
+  key-size property access. The lock now uses an explicit owner/DACL at atomic
+  creation, and certificate validation invokes the inherited getter directly;
+  existing unsafe-file refusal, locking and key-strength thresholds are unchanged.
+- Fresh complete Windows/Linux CI remains required on the portability fix.
 
 The `azure-validate` Bicep recipe was reviewed for this separate tooling slice.
 Its authenticated core/policy steps are intentionally unexecuted and blocked;
