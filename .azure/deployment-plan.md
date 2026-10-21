@@ -1,6 +1,6 @@
 # Azure Deployment Plan: Synthetic APIM Validation Lab
 
-> **Status:** T-705 metadata-read design approved; final offline CI pending
+> **Status:** T-705 offline acceptance complete; not deployment-ready
 >
 > Not deployment-ready. Five business API contracts, owner bootstrap tooling
 > and the T-703 foundation pass offline acceptance;
@@ -8,7 +8,8 @@
 > including complete Windows/Linux repository gates and an isolated local recheck.
 > T-705's owner-only certificate lifecycle tooling passes its forty-three-case
 > focused synthetic gate. The updated bootstrap passes sixty-eight focused cases;
-> fresh complete Windows/Linux CI is pending on the approved prerequisite change.
+> complete Windows/Linux repository gates pass on the approved prerequisite code.
+> Linux required one unchanged-code retry of an existing output-order assertion.
 > D-70 records the closed contracts and pinned client integration.
 > Actual certificate issuance/binding, gateway, lifecycle and all live changes
 > remain outstanding.
@@ -684,8 +685,20 @@ full lab readiness.
   All forty-three ACME tests execute without skips. Six optional-tool skips
   and the two Windows platform/privilege skips are pre-existing.
   This full code proof predates D-72's approved bootstrap prerequisite.
-- Fresh complete Windows/Linux CI is required on the D-72 change before
-  final offline acceptance and required PR review.
+- `gh run watch 39678315366 --repo christopherhouse/Apim-Assessment --exit-status --interval 60`
+  initially failed on committed D-72 code `b2e7200`: Windows lint/Pester passed
+  with 1498 passed, zero failed and eight existing skips in 1139 seconds; Linux
+  had 1499 passed, one failed and six existing skips in 608.95 seconds. The sole
+  failure was the unchanged secret-scan standalone process test's final merged
+  stdout/stderr line assertion. Neither its test nor entrypoint changed.
+- [x] `gh run rerun 39678315366 --repo christopherhouse/Apim-Assessment --failed`
+  followed by `gh run watch 39678315366 --repo christopherhouse/Apim-Assessment --exit-status --interval 60`
+  passed on the same `b2e7200` commit. Linux: 1500 passed, zero failed and six
+  existing skips in 674.5 seconds; branch policy and Windows remain green.
+  All sixty-eight bootstrap and forty-three ACME cases run without skips.
+  No code, test, output contract or safety limit changed for this retry; the
+  initial attempt is not claimed as a pass. T-705's offline acceptance is
+  complete; required PR review and final documentation-head checks are separate.
 
 The `azure-validate` Bicep recipe was reviewed for this separate tooling slice.
 Its authenticated core/policy steps are intentionally unexecuted and blocked;
@@ -810,9 +823,11 @@ timeout passed on an isolated 76-test rerun without code or safety changes.
 Implementation/tests are committed in `cdf1a80` and submitted in #49; required
 PR review and final-head checks remain separate. No whole-lab acceptance is claimed.
 
-After T-704 acceptance/review, the next implementation slice is T-705 ACME.
-API/policy/trust binding, gateway routes, protected delivery/invocation, lifecycle
-and live acceptance remain T-705-T-711. Actual quota/context/cost/permission/DNS
-confirmation and owner bootstrap/deployment authorization remain blocked, not
-implicitly approved. Completed offline acceptance applies only to T-704;
+T-705's separate certificate lifecycle and approved D-72 metadata-read
+prerequisite now have committed offline acceptance in #50, including complete
+Windows/Linux gates. Actual issuance, API/policy/trust binding, gateway routes,
+protected delivery/invocation, lifecycle and live acceptance remain owner gates
+or T-706-T-711. Actual quota/context/cost/permission/DNS confirmation and owner
+bootstrap/deployment authorization remain blocked, not implicitly approved.
+Completed offline acceptance applies only to the implemented T-701-T-705/T-712 slices;
 do not mark the full lab Validated, Ready for Deployment or Deployed.
