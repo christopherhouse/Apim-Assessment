@@ -1,14 +1,14 @@
 # Azure Deployment Plan: Synthetic APIM Validation Lab
 
-> **Status:** T-705 offline validation in progress; metadata-read decision blocked
+> **Status:** T-705 offline code gates pass; metadata-read decision blocked
 >
 > Not deployment-ready. Five business API contracts, owner bootstrap tooling
 > and the T-703 foundation pass offline acceptance;
 > T-704's owner-approved private VM worker/backend/jobs pass offline acceptance,
 > including complete Windows/Linux repository gates and an isolated local recheck.
 > T-705's owner-only certificate lifecycle tooling passes its forty-three-case focused
-> synthetic gate. Initial full CI exposed Windows lock ownership and Linux key-size
-> accessor defects; both are corrected and fresh complete CI is required.
+> synthetic gate and complete Windows/Linux repository CI. Initial lock ownership
+> and key-size accessor portability defects are corrected without relaxing checks.
 > D-70 records the closed contracts and pinned client integration.
 > Actual certificate issuance/binding, gateway, lifecycle and all live changes
 > remain outstanding.
@@ -667,7 +667,15 @@ full lab readiness.
   key-size property access. The lock now uses an explicit owner/DACL at atomic
   creation, and certificate validation invokes the inherited getter directly;
   existing unsafe-file refusal, locking and key-strength thresholds are unchanged.
-- Fresh complete Windows/Linux CI remains required on the portability fix.
+- [x] `gh run watch 39656977836 --repo christopherhouse/Apim-Assessment --exit-status --interval 60`
+  passed on committed portability code `9efbbdb`: branch policy and complete
+  Windows/Linux lint/Pester gates. Windows: 1492 passed, zero failed, eight
+  existing skips; Linux: 1494 passed, zero failed, six existing skips.
+  All forty-three ACME tests execute without skips. Six optional-tool skips
+  and the two Windows platform/privilege skips are pre-existing.
+  Code/tests and evidence are submitted in draft #50. Only documentation
+  proof changes follow this successful code gate; final-head checks and
+  required review remain separate. D-71 remains unresolved.
 
 The `azure-validate` Bicep recipe was reviewed for this separate tooling slice.
 Its authenticated core/policy steps are intentionally unexecuted and blocked;
