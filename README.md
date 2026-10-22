@@ -199,7 +199,7 @@ data. The coding-agent checks use synthetic data only.
 | Guarded ARM transport with paging/retry; offline tracking, saved-run comparison, and cross-environment policy/API-presence drift | Full API-definition comparison |
 | Versioned run manifest lifecycle, exact scoring snapshot, APIM configuration collectors, scoped LA/App Gateway route aggregates, resource metrics, daily costs, cost-only Logic Apps and optional committed Git policy hashes | Maintainer live query acceptance |
 | Maintainer-only cumulative collection smoke script with local output validation (sixteen registered checks) and bounded observed-query coverage | Full live assessment acceptance |
-| Owner-run lab bootstrap/staged RBAC, offline-tested Bicep foundation/private VM worker, synthetic TLS backend/bounded private jobs, and five business API contracts (16 operations) | Gateway, API imports/policies, certificate automation, protected delivery/lifecycle and owner live acceptance |
+| Owner-run lab bootstrap/staged RBAC, offline-tested Bicep foundation/private VM worker, synthetic TLS backend/bounded private jobs, owner-only ACME tooling, and five business API contracts (16 operations) | Gateway, API imports/policies, actual certificate consumer binding, protected delivery/scheduling/lifecycle and owner live acceptance |
 | Local saved-run secret-scan script for supported text and Excel artifacts, also required by smoke | Host-enforced model-safe admission acceptance |
 | Effective policy merge/flags, ten required models including source-bound observed exposure, and optional drift/portal/quality/governance/usage/capacity/cost with schema-gated loading | Remaining telemetry/PERF rules |
 | Optional pinned offline Spectral, trusted APIM style rules and source/settings-bound quality scores with description fallback | Full API-definition drift and maintainer live export validation |
@@ -261,7 +261,27 @@ exercise Manufacturing initially. The [private worker runbook](docs/RUNBOOK.md#o
 covers offline checks, closed parameters and Linux publishing. The guest does not
 download/start an unconfigured service; private binary/config/certificate delivery
 and protected invocation remain T-708. TLS trust, directory applications/roles,
-APIM backend binding, public ACME and live readiness remain separate owner gates.
+APIM backend binding, actual public ACME issuance and live readiness remain separate owner gates.
+`scripts\lab\Invoke-LabAcme.ps1` provides owner-only certificate health checks,
+private digest-bound previews and explicit staging/production apply operations.
+Its pinned client uses only three challenge aliases in the dedicated Azure DNS
+zone, without broader DNS permissions or a Cloudflare token. Closed configuration,
+ACME account/order state, challenge recovery journal and certificate material
+must remain on protected owner storage outside every declared model-visible root.
+The parent discards all child output and exposes only fixed status codes.
+Production requires recent successful staging, public-query/terms/CT approval,
+exact three-SAN/key/chain validation and metadata readback after Key Vault import.
+Renewal is due within thirty days; seven-day expiry is critical; explicit rotation
+is separately previewed. The private versionless reference remains
+`PendingConsumerValidation`, not proof of gateway/APIM/backend refresh or trust.
+See the [owner ACME runbook](docs/RUNBOOK.md#owner-only-lab-acme-certificates).
+Under D-72, the owner approved the offline bootstrap prerequisite: its eight
+fixed Runtime assignments include worker Reader on exactly its own VM and the
+dedicated Key Vault, preserving all six existing grants and ownership checks.
+Existing six-grant setups require a fresh owner-reviewed Runtime preview/apply;
+old approvals do not authorize the added assignments. No grants were applied,
+and missing metadata permissions still fail closed before DNS or issuance.
+Protected delivery/scheduling and actual consumer binding remain T-706-T-708.
 This source-checkout tooling is separate from the read-only assessment module
 and release package. Mocked checks are not live authorization: no bootstrap,
 deployment, DNS/certificate change or live inspection was performed.

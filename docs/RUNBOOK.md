@@ -854,6 +854,15 @@ later network, DNS delegation, certificate or telemetry readiness.
 | APIM system identity | Monitoring Metrics Publisher | Lab App Insights component |
 | Worker VM system identity | Key Vault Certificates Officer and Key Vault Secrets Officer | Dedicated lab vault |
 | Worker VM system identity | DNS Zone Contributor | Lab challenge zone |
+| Worker VM system identity | Reader | Its own lab VM |
+| Worker VM system identity | Reader | Dedicated lab vault |
+
+D-72 adds only the two metadata-read assignments to the original six grants.
+Existing six-grant setups need a new Runtime preview at an unused private plan
+path; it proposes only those missing assignments. Review the exact principal and
+both resource scopes before approving the new digest. A pre-D-72 six-action
+approval is refused, not silently upgraded. No Reader is allowed on the lab
+group, subscription, DNS zone or another runtime principal.
 
 Use a different new plan for this **separately approved** stage:
 
@@ -1141,14 +1150,184 @@ profile. Same-VM/root access is privileged: these limits are not isolation from
 a malicious administrator or job. Ordinary CI remains synthetic-only;
 no deployment, runtime grants, live backend access or full lab readiness is claimed.
 
+## Owner-only lab ACME certificates
+
+**Offline implementation only:** the separate
+`scripts\lab\Invoke-LabAcme.ps1` tooling is for an authorized maintainer on the
+approved private worker, after separate provisioning, runtime grants and egress
+approval. These instructions do not authorize deployment, DNS changes, ACME
+issuance or Azure authentication from Copilot/CI. Never run owner commands in
+a model-visible terminal. Actual protected binary/private-input delivery and
+scheduling remain T-708; actual APIM/gateway/backend binding remains T-706/T-707.
+No assessment-module transport exception, export or broker permission changes.
+**Authorization boundary:** D-72 approves the offline prerequisite code only,
+not Azure execution. The updated T-702 Runtime proposal preserves the six
+original grants and adds worker Reader on exactly its own VM and dedicated vault.
+Before certificate execution, the owner must separately review and apply a
+fresh Runtime plan, then verify the effective reads privately. No grant was
+applied by this change. Missing reads still produce `LAB_ACME_INCOMPLETE` before
+DNS/issuance; do not bypass ownership checks or expand scope ad hoc.
+The commands below document the subsequent owner workflow, not live readiness.
+
+The explicit owner installer pins Posh-ACME 4.35.0, Az.Accounts 5.5.3,
+Az.Dns 2.2.0 and Az.KeyVault 6.6.1 in
+`infra\live-validation-lab\acme.dependencies.psd1`, separate from CI tooling.
+It accepts the pinned packages' licenses but does not import them or authenticate:
+
+```powershell
+.\scripts\Install-LabAcmeDependencies.ps1
+```
+
+The owner must first arrange these prerequisites privately:
+
+- Provisioned tagged worker VM, Key Vault and dedicated **public** challenge
+  subzone, matching the closed `acme.config.schema.json` configuration. Existing
+  T-702 Runtime grants provide worker Key Vault Certificates Officer on that
+  vault and DNS Zone Contributor on that zone, plus Reader on exactly the
+  worker VM and dedicated vault for fresh ownership metadata. No subscription-
+  wide discovery, broader DNS grant or direct Cloudflare token is required.
+  This prerequisite must be separately owner-applied and privately verified.
+- Public delegation of the challenge subzone to its Azure DNS NS set and direct
+  `_acme-challenge` CNAMEs for the gateway/APIM/backend hostnames to
+  `gateway`, `apim` and `backend` in that zone. Public application records and
+  actual consumer bindings are separate tasks. Private split DNS is not proof.
+- Approved HTTPS egress for pinned package sources, the staging/production ACME
+  endpoints and `dns.google`. The credential-free Google query discloses only
+  the configured public zone/challenge names, sets
+  `edns_client_subnet=0.0.0.0/0`, verifies normal TLS and disables redirects/proxy.
+  Requests are limited to three seconds and 16 KiB. No network rule is changed
+  by this tool; the owner must maintain approved IP-based HTTPS destinations.
+- A precreated owner-only state directory and private configuration outside
+  the checkout and **every** Copilot trusted/allowed/model-visible root.
+  `modelVisibleRoots` must list the complete host scope; the tool cannot discover
+  all host trust configuration. Windows state root requires a protected DACL
+  allowing only the current owner, SYSTEM and Administrators; descendants retain
+  that restricted access. Unix directories/files require exact 0700/0600 and
+  current ownership. Config and all path ancestors must be free of links.
+- Serialized execution of all issuers for these aliases. The exclusive local
+  lock and DNS ETag checks are not distributed coordination with another host.
+  Protected owner-controlled backup/retention of the whole state directory,
+  including ACME accounts/orders, is required. Never copy state into CI artifacts,
+  release packages, a repository, chat or another model-visible location.
+
+`acme.sample.json` is synthetic, not runnable private configuration. Copy and
+edit it only in the private owner environment, replacing all identifiers, names
+and OS-specific absolute paths. Set permissions before executing the tool.
+It rejects unknown/missing/duplicate fields, wildcard/IP/noncanonical names,
+repeated SANs, relative/linked/visible paths and insufficient permissions.
+One certificate covers exactly the three configured DNS names. The worker uses
+system-assigned managed identity, process-local Azure context and fresh
+resource ownership/IMDS checks; interactive credentials and App Service identity
+endpoint fallback are not accepted. No Key Vault secret value is retrieved.
+
+In a private ordinary PowerShell 7.4+ terminal **on that worker**, set
+`$configPath`, `$stateDirectory` and the following arguments without printing any
+private values. On the Linux worker use native absolute Linux paths in the
+private JSON; path values in the synthetic sample demonstrate Windows syntax.
+The parent starts a fixed isolated PowerShell child with a private Unix umask
+and discards all child stdout/stderr, even Console writes and warnings/errors.
+
+```powershell
+$acme = @{
+    ConfigPath = $configPath
+    OwnerAuthorized = $true
+    MicrosoftOwnedTestEnvironment = $true
+    AcceptPublicDnsQueries = $true
+}
+.\scripts\lab\Invoke-LabAcme.ps1 @acme -Mode Check
+```
+
+Check reads Key Vault certificate metadata only; it does not issue, import,
+create a client profile or query public DNS. Exit 0 is `LAB_ACME_HEALTHY`;
+exit 3 is `LAB_ACME_CERTIFICATE_MISSING`, `LAB_ACME_RENEWAL_DUE` (at most thirty
+days) or `LAB_ACME_EXPIRY_CRITICAL` (at most seven days, including expired).
+Missing/malformed ownership, identity or inputs produce
+`LAB_ACME_INCOMPLETE` with exit 1, never a healthy/zero-expiry fallback.
+
+Every apply requires a **new** private preview and its exact approval digest.
+Preview writes a new `approval-<lowercase-slug>.json` directly under the state
+directory, with exact configuration/state/resource/certificate digests, stage,
+action, rotation flag and a thirty-minute lifetime. An existing plan is never
+overwritten. Inspect/approve its contents only in the private owner environment;
+do not echo the digest or plan to Copilot. Start with staging:
+
+```powershell
+$stagingPlan = Join-Path $stateDirectory 'approval-staging-initial.json'
+.\scripts\lab\Invoke-LabAcme.ps1 @acme -Mode Preview -Stage Staging -PlanPath $stagingPlan
+# Privately inspect and approve this exact file before assigning its digest.
+$stagingDigest = (Get-FileHash -LiteralPath $stagingPlan -Algorithm SHA256).Hash.ToLowerInvariant()
+.\scripts\lab\Invoke-LabAcme.ps1 @acme -Mode Apply -Stage Staging `
+    -PlanPath $stagingPlan -ApprovedPlanSha256 $stagingDigest -AcceptAcmeTerms
+```
+
+Staging success is `LAB_ACME_STAGING_VALIDATED` (exit 0); staging material is
+never imported or bound. Production requires a still-valid, successful staging
+proof bound to this exact configuration from the last seven days, plus explicit
+ACME terms and certificate-transparency disclosure approval. Public production
+names enter certificate-transparency records; do not use confidential names.
+Staging and production accounts/orders live in separate protected profiles.
+
+```powershell
+$productionPlan = Join-Path $stateDirectory 'approval-production-initial.json'
+.\scripts\lab\Invoke-LabAcme.ps1 @acme -Mode Preview -Stage Production -PlanPath $productionPlan
+$productionDigest = (Get-FileHash -LiteralPath $productionPlan -Algorithm SHA256).Hash.ToLowerInvariant()
+.\scripts\lab\Invoke-LabAcme.ps1 @acme -Mode Apply -Stage Production `
+    -PlanPath $productionPlan -ApprovedPlanSha256 $productionDigest `
+    -AcceptAcmeTerms -AcceptCertificateTransparency
+```
+
+Successful production import is
+`LAB_ACME_IMPORTED_PENDING_CONSUMER_VALIDATION` (exit 0), **not** proof that the
+gateway, APIM or backend consumes that version or trusts its chain. The private
+`lifecycle.json` receipt retains `PendingConsumerValidation` and a versionless
+Key Vault secret reference. The tool validates exact SANs, matching RSA-2048+/
+EC-256+ keys/dates, actual PEM/full-PFX chains and production system-root
+server-auth trust with intermediate downloads disabled. It does not establish
+revocation status or consumer refresh/trust. It reads back certificate metadata,
+not secret material, and refuses unowned existing names or older-certificate
+rollback. After completion it discards fixed PFX exports but retains account/
+order and key state required by the client. That retained state remains secret.
+
+Repeat Check under separately approved scheduling. For due renewal, obtain
+fresh staging proof if needed and use a fresh Production preview/apply.
+Healthy non-due production certificates yield `LAB_ACME_NOT_DUE` (exit 0)
+without issuance/import. Forced fresh-key rotation requires **both** Preview
+and Apply to include `-Rotate`; a plan without that flag cannot authorize it.
+No timer, deployment, consumer update, secret download or file delivery is added.
+
+Preview success is `LAB_ACME_APPROVAL_READY` (exit 0). Other failures, timeouts,
+unknown worker exits or more than 1 MiB of child output produce only
+`LAB_ACME_INCOMPLETE` (exit 1). The entire child has a fifteen-minute budget.
+Before every write the tool rechecks approval expiry/context. DNS updates
+preserve other TXT values and ETag conditions; it never deletes zones/record sets,
+uses overwrite or removes identical preexisting tokens. The private
+`dns-journal.json` records only owned new challenge intent. Known transient/
+conflict operations have at most three attempts with one-/two-second backoff.
+
+An incomplete/terminated apply can leave owned DNS challenges and protected
+issuance/import material; do not delete the state or rerun a stale plan.
+Privately inspect the pending state, correct the cause, and create/approve a new
+preview. Recovery uses the exact journaled challenges, a completed cached client
+certificate and metadata readback before retrying import, avoiding needless
+reissuance or duplicate versions after a lost response. No silent rollback,
+automatic teardown or full-lab Ready result is produced.
+
+Offline development/CI acceptance uses only synthetic certificate material,
+mocked Azure/ACME/DNS calls and local stream/timeout subprocesses:
+
+```powershell
+pwsh -NoProfile -File .\scripts\Invoke-Checks.ps1 `
+    -TestPath .\tests\unit\LabAcme.Tests.ps1 -OutputDirectory .\artifacts\lab-acme-checks
+```
+
 ## Reusable collection smoke (Microsoft-owned test APIM only)
 
 The repeatable Bicep target is documented in
 `.azure\deployment-plan.md` and tasks T-701-T-712. It includes Log Analytics and
 workspace-based Application Insights, not just APIM/App Gateway.
 Owner-only Identity/Runtime bootstrap, offline Bicep foundation/private worker,
-and synthetic backend/bounded job tooling are
-available as documented above; live deployment/delivery/certificate workflows
+synthetic backend/bounded jobs and owner ACME tooling are
+available as documented above; actual deployment/delivery/certificate execution
 remain planned. Five OpenAPI 3.0.3
 contracts and a stable inventory are
 available under `infra\live-validation-lab\scenarios`: Supply Chain (3 operations),

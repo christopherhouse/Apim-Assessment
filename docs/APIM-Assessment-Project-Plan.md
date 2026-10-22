@@ -124,8 +124,28 @@ TLS/JWT tests, bounded identity/network doubles and closed Linux publish checks
 extend the same offline gate. No Manufacturing traffic is generated initially.
 No runtime role grant, gateway listener, public certificate binding or live
 readiness is implied. Private binary/config/certificate delivery and protected
-invocation remain T-708; directory application roles, API trust/imports, ACME,
-remaining automation and actual GitHub/Azure execution are outstanding.
+invocation remain T-708; directory application roles, API trust/imports and
+actual GitHub/Azure execution are outstanding.
+T-705 adds separate owner-only, pinned ACME DNS-01 certificate tooling with
+closed private configuration, scoped public delegation checks, protected
+staging/production account/order state and an owned challenge journal.
+Only three fixed Azure DNS aliases use the existing zone grant; no Cloudflare
+token or broader DNS permission is introduced. Thirty-minute digest-bound previews,
+recent staging and explicit public-query/terms/CT acknowledgement gate production.
+Validate exact SANs/key/chain/full PFX and read back Key Vault certificate
+metadata; retain a private versionless reference pending actual consumer
+trust/refresh validation. Health distinguishes thirty-day renewal/seven-day
+critical expiry; new keys, explicit rotation, bounded retries/recovery and
+status-only process isolation are covered by synthetic/mocked acceptance.
+Real certificate issuance, consumer binding, protected delivery/scheduling and
+live acceptance are not implied by this offline slice.
+After static review identified D-71's metadata-read gap, the owner explicitly
+approved D-72's offline bootstrap change. Preserve the six existing Runtime
+assignments and add worker Reader only on its own VM and dedicated Key Vault.
+All eight assignments remain behind fresh owner-reviewed, digest-bound approval;
+old six-action plans refuse, and existing six-grant setups propose only the two
+missing assignments. Ownership checks and DNS scope are unchanged. This code
+approval does not authorize live Azure access or applying any grant.
 Actual provisioning remains T-114 and live acceptance
 T-710. Owner-selected subscription/region, quotas, budget/lifetime, permissions,
 DNS/certificate delegation and private output boundaries must be confirmed before

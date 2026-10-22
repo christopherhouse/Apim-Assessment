@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "labId", "tenantId", "subscriptionId", "location", "labResourceGroup", "workerVmName", "keyVaultName", "challengeZoneName", "certificateName", "hostnames", "stateDirectory", "modelVisibleRoots"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "labId": { "type": "string", "pattern": "^[a-z][a-z0-9-]{2,39}$" },
+    "tenantId": { "$ref": "#/$defs/guid" },
+    "subscriptionId": { "$ref": "#/$defs/guid" },
+    "location": { "type": "string", "pattern": "^[a-z][a-z0-9]{1,39}$" },
+    "labResourceGroup": { "type": "string", "pattern": "^[a-z][a-z0-9-]{2,79}$" },
+    "workerVmName": { "type": "string", "pattern": "^[a-z][a-z0-9-]{2,59}$" },
+    "keyVaultName": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,21}[a-z0-9]$" },
+    "challengeZoneName": { "$ref": "#/$defs/dns" },
+    "certificateName": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,125}[a-z0-9]$" },
+    "hostnames": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gateway", "apim", "backend"],
+      "properties": {
+        "gateway": { "$ref": "#/$defs/dns" },
+        "apim": { "$ref": "#/$defs/dns" },
+        "backend": { "$ref": "#/$defs/dns" }
+      }
+    },
+    "stateDirectory": { "type": "string", "minLength": 3, "maxLength": 1024 },
+    "modelVisibleRoots": {
+      "type": "array", "minItems": 1, "maxItems": 64, "uniqueItems": true,
+      "items": { "type": "string", "minLength": 3, "maxLength": 1024 }
+    }
+  },
+  "$defs": {
+    "guid": { "type": "string", "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$" },
+    "dns": { "type": "string", "maxLength": 253, "pattern": "^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z](?:[a-z0-9-]{0,61}[a-z0-9])?$" }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "1.0",
+  "labId": "synthetic-lab",
+  "tenantId": "11111111-1111-4111-8111-111111111111",
+  "subscriptionId": "22222222-2222-4222-8222-222222222222",
+  "location": "eastus",
+  "labResourceGroup": "rg-synthetic-lab",
+  "workerVmName": "vm-synthetic-worker",
+  "keyVaultName": "kv-synthetic-lab",
+  "challengeZoneName": "acme.synthetic.example",
+  "certificateName": "lab-tls",
+  "hostnames": {
+    "gateway": "gateway.synthetic.example",
+    "apim": "apim.synthetic.example",
+    "backend": "backend.synthetic.example"
+  },
+  "stateDirectory": "C:\\OwnerPrivate\\acme",
+  "modelVisibleRoots": ["C:\\Projects", "C:\\Users\\synthetic\\.copilot"]
+}

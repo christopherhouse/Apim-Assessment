@@ -361,25 +361,115 @@ Describe 'Owner-only synthetic lab bootstrap' {
         $script:writes.Count | Should -Be 0
     }
 
-    It 'previews and applies six fixed resource-scoped runtime roles, then makes repeat apply a no-op' {
+    It 'previews and applies eight fixed resource-scoped runtime roles, then makes repeat apply a no-op' {
         Initialize-TestLabComplete
         Initialize-TestLabRuntime
         $digest = Invoke-TestLabPreview Runtime
         $plan = Get-Content -LiteralPath $script:planPath -Raw | ConvertFrom-Json -AsHashtable
-        $plan.actions.Count | Should -Be 6
+        $plan.actions.Count | Should -Be 8
         foreach ($action in $plan.actions) {
             $action.code | Should -BeExactly 'CreateRole'
-            $action.path | Should -Match '/providers/(Microsoft.KeyVault/vaults|Microsoft.Network/dnsZones|Microsoft.Insights/components)/'
+            $action.path | Should -Match '/providers/(Microsoft.KeyVault/vaults|Microsoft.Network/dnsZones|Microsoft.Insights/components|Microsoft.Compute/virtualMachines)/'
             $action.body.properties.roleDefinitionId | Should -Not -Match 'b24988ac|8e3af657|00482a5a'
         }
+        $workerId = "$($script:target.lab)/providers/Microsoft.Compute/virtualMachines/vm-synthetic-worker"
+        $vaultId = "$($script:target.lab)/providers/Microsoft.KeyVault/vaults/kv-synthetic"
+        $readers = @($plan.actions | Where-Object {
+                $_.body.properties.roleDefinitionId -cmatch '/acdd72a7-3385-48ef-bd42-f606fba81ae7$'
+            })
+        $readers.Count | Should -Be 2
+        @($readers | ForEach-Object {
+                $_.path.Split('/providers/Microsoft.Authorization/roleAssignments/')[0]
+            } | Sort-Object) | Should -Be @($workerId, $vaultId | Sort-Object)
+        foreach ($reader in $readers) {
+            $reader.body.properties.principalId | Should -BeExactly $script:arm[$workerId].identity.principalId
+        }
+        $vmActions = @($plan.actions | Where-Object { $_.path.StartsWith("$workerId/providers/") })
+        $vmActions.Count | Should -Be 1
+        $vmActions[0].body.properties.roleDefinitionId | Should -Match '/acdd72a7-3385-48ef-bd42-f606fba81ae7$'
         (Invoke-LabBootstrap @script:parameters -Mode Apply -ApprovedPlanSha256 $digest).code | Should -BeExactly 'LAB_APPLIED'
-        $script:roles.Count | Should -Be 7
+        $script:roles.Count | Should -Be 9
         $script:parameters.PlanPath = Join-Path $script:privateRoot 'runtime-repeat.json'
         $script:planPath = $script:parameters.PlanPath
         $digest = Invoke-TestLabPreview Runtime
         $before = $script:writes.Count
         (Invoke-LabBootstrap @script:parameters -Mode Apply -ApprovedPlanSha256 $digest).code | Should -BeExactly 'LAB_APPLIED'
         $script:writes.Count | Should -Be $before
+    }
+
+    It 'adds only the missing metadata readers to an existing six-grant runtime' {
+        Initialize-TestLabComplete
+        Initialize-TestLabRuntime
+        $null = Invoke-TestLabPreview Runtime
+        $plan = Get-Content -LiteralPath $script:planPath -Raw | ConvertFrom-Json -AsHashtable
+        foreach ($action in $plan.actions | Where-Object {
+                $_.body.properties.roleDefinitionId -cnotmatch '/acdd72a7-3385-48ef-bd42-f606fba81ae7$'
+            }) {
+            $properties = @{} + $action.body.properties
+            $properties.scope = $action.path.Split('/providers/Microsoft.Authorization/roleAssignments/')[0]
+            $script:roles.Add(@{ properties = $properties })
+        }
+        $priorRoles = Get-LabObjectDigest $script:roles.ToArray()
+        $script:planPath = Join-Path $script:privateRoot 'runtime-metadata-upgrade.json'
+        $script:parameters.PlanPath = $script:planPath
+        $digest = Invoke-TestLabPreview Runtime
+        $plan = Get-Content -LiteralPath $script:planPath -Raw | ConvertFrom-Json -AsHashtable
+        $plan.actions.Count | Should -Be 2
+        foreach ($action in $plan.actions) {
+            $action.body.properties.roleDefinitionId | Should -Match '/acdd72a7-3385-48ef-bd42-f606fba81ae7$'
+        }
+        (Invoke-LabBootstrap @script:parameters -Mode Apply -ApprovedPlanSha256 $digest).code |
+            Should -BeExactly 'LAB_APPLIED'
+        $script:writes.Count | Should -Be 2
+        $script:roles.Count | Should -Be 9
+        $preserved = @($script:roles | Where-Object {
+                $_.properties.roleDefinitionId -cnotmatch '/acdd72a7-3385-48ef-bd42-f606fba81ae7$'
+            })
+        (Get-LabObjectDigest $preserved) | Should -BeExactly $priorRoles
+    }
+
+    It 'refuses an old six-action approval instead of silently adding metadata permissions' {
+        Initialize-TestLabComplete
+        Initialize-TestLabRuntime
+        $null = Invoke-TestLabPreview Runtime
+        $snapshot = Get-LabBootstrapSnapshot $script:configuration Runtime
+        $snapshot.actions = @($snapshot.actions | Where-Object {
+                $_.body.properties.roleDefinitionId -cnotmatch '/acdd72a7-3385-48ef-bd42-f606fba81ae7$'
+            })
+        $plan = Get-Content -LiteralPath $script:planPath -Raw | ConvertFrom-Json -AsHashtable
+        $plan.actions = $snapshot.actions
+        $plan.snapshotSha256 = Get-LabObjectDigest $snapshot
+        $plan | ConvertTo-Json -Depth 40 | Set-Content -LiteralPath $script:planPath
+        $digest = Get-LabDigest ([IO.File]::ReadAllText($script:planPath))
+        (Invoke-LabBootstrap @script:parameters -Mode Apply -ApprovedPlanSha256 $digest).code |
+            Should -BeExactly 'LAB_STATE_CHANGED'
+        $script:writes.Count | Should -Be 0
+    }
+
+    It 'refuses metadata Reader outside the approved resource and principal pairs' -ForEach @(
+        @{ Case = 'resource-group' }, @{ Case = 'subscription' }, @{ Case = 'dns-zone' }, @{ Case = 'other-principal' }
+    ) {
+        Initialize-TestLabComplete
+        Initialize-TestLabRuntime
+        $script:parameters.Stage = 'Runtime'
+        $workerId = "$($script:target.lab)/providers/Microsoft.Compute/virtualMachines/vm-synthetic-worker"
+        $principal = $script:arm[$workerId].identity.principalId
+        $scope = switch ($Case) {
+            'resource-group' { $script:target.lab }
+            'subscription' { $script:target.subscription }
+            'dns-zone' { "$($script:target.lab)/providers/Microsoft.Network/dnsZones/challenge.synthetic.invalid" }
+            'other-principal' { "$($script:target.lab)/providers/Microsoft.KeyVault/vaults/kv-synthetic" }
+        }
+        if ($Case -ceq 'other-principal') {
+            $principal = $script:arm["$($script:target.lab)/providers/Microsoft.ApiManagement/service/apim-synthetic"].identity.principalId
+        }
+        $script:roles.Add(@{ properties = @{
+                    principalId = $principal; principalType = 'ServicePrincipal'; scope = $scope
+                    roleDefinitionId = "$($script:target.subscription)/providers/Microsoft.Authorization/roleDefinitions/acdd72a7-3385-48ef-bd42-f606fba81ae7"
+                } })
+        (Invoke-LabBootstrap @script:parameters -Mode Preview).code |
+            Should -BeExactly 'LAB_PREFLIGHT_FAILED'
+        $script:writes.Count | Should -Be 0
     }
 
     It 'refuses unowned runtime resources, shared principals and access-policy vaults' -ForEach @(

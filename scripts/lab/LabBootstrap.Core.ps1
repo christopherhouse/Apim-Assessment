@@ -439,11 +439,13 @@ function Get-LabRuntimeSnapshot {
         secretsOfficer = 'b86a8fe4-44ce-4948-aee5-eccb2c155cd7'
         dnsContributor = 'befefa01-2a29-4197-83a8-272ff33ce314'
         metricsPublisher = '3913510d-42f4-4e42-8a64-420c390055eb'
+        reader = 'acdd72a7-3385-48ef-bd42-f606fba81ae7'
     }
     $assignments = @(
         @('apim', 'keyVault', 'secretsUser'), @('gatewayIdentity', 'keyVault', 'secretsUser'),
         @('apim', 'appInsights', 'metricsPublisher'), @('workerVm', 'keyVault', 'certificatesOfficer'),
-        @('workerVm', 'keyVault', 'secretsOfficer'), @('workerVm', 'dnsZone', 'dnsContributor')
+        @('workerVm', 'keyVault', 'secretsOfficer'), @('workerVm', 'dnsZone', 'dnsContributor'),
+        @('workerVm', 'workerVm', 'reader'), @('workerVm', 'keyVault', 'reader')
     )
     $actions = [System.Collections.Generic.List[object]]::new()
     $evidence.roles = [ordered]@{}

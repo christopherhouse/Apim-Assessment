@@ -1705,6 +1705,77 @@ between jobs/identities. T-704's binary publishing and offline acceptance do not
 implement private delivery/protected orchestration (T-708), public ACME (T-705),
 API imports/backend CA trust binding (T-706), or any live deployment/role grant.
 
+T-705 adds separate source-checkout owner certificate tooling, not assessment
+exports or broker operations. Its isolated PowerShell child pins Posh-ACME
+4.35.0, Az.Accounts 5.5.3, Az.Dns 2.2.0 and Az.KeyVault 6.6.1 through an explicit
+owner-only installer; ordinary offline tests neither load Azure contexts nor
+install runtime dependencies. Closed configuration 1.0 supplies exact tagged
+lab/tenant/subscription/VM/vault/zone/certificate names, three distinct canonical
+DNS names, protected state directory and the complete declared model-visible
+root list. Reject unknown/duplicate members, wildcards, IP hostnames, linked
+paths, checkout/visible-root overlap and non-private ownership/permissions.
+Owner storage uses Windows owner/SYSTEM/Administrators-only access or Unix
+0700 directories/0600 files, separate staging/production profiles and an
+exclusive local lock. This is not a distributed lock or automatic discovery of
+all trusted roots; the owner must declare them completely and serialize issuers.
+
+Authenticate only using the worker system-assigned managed identity with
+process-local context/no autosave; reject App Service identity endpoint fallback,
+wrong account/cloud/tenant/subscription and mismatching fresh owned resources.
+D-72 resolves D-71's offline design prerequisite by adding two fixed Reader
+assignments for the worker identity: its own VM and the dedicated vault only.
+The existing six Runtime assignments and all ownership checks remain intact.
+Reader provides management-plane reads, not data-plane or write permissions.
+No resource-group/subscription/DNS Reader or configurable role/scope is allowed.
+An existing six-grant setup needs a fresh owner-reviewed Runtime plan; old
+six-action approvals refuse rather than silently acquiring more permissions.
+Offline code approval does not authorize Azure login, actual assignment or
+certificate execution; missing effective permissions still fail closed.
+An IMDS resource-ID check binds execution to the expected worker VM without
+retrieving an access token. Before certificate activity, verify the dedicated
+public zone's NS set and all three direct per-hostname CNAME aliases through
+credential-free, normal-TLS Google Public DNS HTTPS requests. Require explicit
+public-query disclosure acknowledgement and separately approved HTTPS egress.
+No proxy/redirect/custom resolver, recursive zone discovery or broad role
+expansion is allowed; each query has a three-second/16-KiB bound and suppresses
+client subnet disclosure using `edns_client_subnet=0.0.0.0/0`.
+
+Check reads certificate metadata only and distinguishes missing, renewal due
+within thirty days and critical expiry within seven days. Preview creates a new
+private thirty-minute plan bound to configuration, local state, public resource/
+certificate metadata, stage, action and explicit rotation. Apply requires the
+exact plan digest, fresh matching snapshot and unexpired matching context before
+writes. Production requires successful configuration-bound staging within seven
+days, explicit ACME terms and certificate-transparency disclosure approval.
+Request exactly the gateway/APIM/backend SANs with a fresh key for new issuance;
+staging is never imported or bound. Validate SANs, dates, key strength/match,
+matching PEM/PFX chains and production server-auth trust against system roots,
+without fetching intermediates or bypassing TLS. Revocation/consumer refresh is
+not certified by this offline validation.
+
+The narrow DNS plugin changes only gateway/APIM/backend TXT aliases inside the
+dedicated owned zone. Preserve unrelated TXT values; journal only newly owned
+values before changes; never claim/remove identical preexisting values, delete
+zones/record sets or bypass ETag conditions. Known service/conflict retries have
+three attempts and one-/two-second backoff. A private journal/issuance intent
+permits approved recovery of partial DNS operations, a completed client order
+or an import whose response was lost; never silently roll back to an older
+certificate. Retain necessary account/order state and pending failure material.
+Import only the dedicated owned full-chain Key Vault certificate, never retrieve
+vault secret values, and read back public metadata before storing a private
+versionless reference with `PendingConsumerValidation`. Actual consumer binding/
+trust/refresh, protected private delivery and scheduling remain T-706-T-708.
+
+The public parent drains/discards all child stdout/stderr, including Console
+and PowerShell streams; enforce a 1-MiB total-output limit and fifteen-minute
+whole-process deadline. A closed worker exit protocol yields one fixed public
+status and exit 0/3/1 for success/action-needed/incomplete. Unknown exits, excess
+output, timeout or validation failures cannot become success. Failed/terminated
+operations may leave protected recovery material and owned DNS challenges;
+operator-reviewed recovery is required, not automatic deletion. Owner-controlled
+backup/retention and later teardown remain T-711. No real Azure/DNS/ACME
+operations or certificate issuance occur in the development/CI acceptance gate.
+
 Provisioning, identity/RBAC bootstrap, certificate import/renewal and DNS writes
 belong only to separately invoked lab tooling. They never extend the assessment
 module, guarded ARM wrapper, collectors, broker operations or assessment-agent
@@ -1727,8 +1798,10 @@ missing control evidence blocks completion.
 
 Identity and post-foundation Runtime are separately previewed/approved stages.
 Runtime verifies all six named, tagged lab resources and distinct APIM,
-gateway-UAMI and worker-VM principals before granting fixed roles only on the
-dedicated vault, public challenge zone and App Insights component. Missing
+gateway-UAMI and worker-VM principals before proposing eight fixed assignments
+on the dedicated vault, public challenge zone, App Insights component and worker
+VM. Worker Reader is allowed only on its own VM and dedicated vault; DNS and all
+other principal/role scopes remain unchanged. Missing
 foundation/worker metadata is NotReady, never a successful grant or invented
 identity. Resource-audience applications and application-role assignments remain
 separate directory approvals. Owner execution must be serialized; these state

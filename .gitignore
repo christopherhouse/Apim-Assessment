@@ -29,6 +29,8 @@ Thumbs.db
 !/infra/live-validation-lab/foundation.sample.json
 !/infra/live-validation-lab/worker.config.schema.json
 !/infra/live-validation-lab/worker.sample.json
+!/infra/live-validation-lab/acme.config.schema.json
+!/infra/live-validation-lab/acme.sample.json
 /infra/live-validation-lab/*.bicepparam
 !/infra/live-validation-lab/foundation.synthetic.bicepparam
 !/infra/live-validation-lab/worker.synthetic.bicepparam
