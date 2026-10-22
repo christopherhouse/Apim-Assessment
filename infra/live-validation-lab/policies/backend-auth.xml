@@ -1,0 +1,6 @@
+<fragment>
+  <set-header name="Authorization" exists-action="delete" />
+  <set-header name="Ocp-Apim-Subscription-Key" exists-action="delete" />
+  <set-query-parameter name="subscription-key" exists-action="delete" />
+  <authentication-managed-identity resource="api://__BACKEND_ID__" ignore-error="false" />
+</fragment>

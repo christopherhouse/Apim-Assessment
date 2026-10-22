@@ -52,4 +52,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Pinned public Bicep module restore failed.' }
 $worker = Join-Path (Split-Path $PSScriptRoot -Parent) 'infra\live-validation-lab\worker.bicep'
 & $binary restore $worker
 if ($LASTEXITCODE -ne 0) { throw 'Pinned public worker module restore failed.' }
+$apis = Join-Path (Split-Path $PSScriptRoot -Parent) 'infra\live-validation-lab\apis.bicep'
+& $binary restore $apis
+if ($LASTEXITCODE -ne 0) { throw 'Pinned public API module restore failed.' }
 Write-Verbose "Ready: Bicep $version"

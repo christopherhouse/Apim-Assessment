@@ -146,6 +146,19 @@ All eight assignments remain behind fresh owner-reviewed, digest-bound approval;
 old six-action plans refuse, and existing six-grant setups propose only the two
 missing assignments. Ownership checks and DNS scope are unchanged. This code
 approval does not authorize live Azure access or applying any grant.
+T-706 adds separately pinned AVM child deployments for the five APIs/sixteen
+operations, five strict-HTTPS backend bindings, two products/seven memberships
+and two tracing-disabled product-scoped subscriptions. Global/product/API/
+operation policies preserve inheritance and expose only fixed scope markers;
+caller/backend fragments enforce exact Entra v2 tenant/audience/application roles
+and system-identity backend authentication. Product-context guards reject
+all-API/API-scoped bypass; PLM additionally requires the private worker source
+and its extra application role. A closed offline writer emits new private
+parameters only, not Azure requests or subscription keys. Evaluated Bicep,
+real inherited-policy merging and compiled guard expressions qualify synthetic
+acceptance, not actual gateway behavior. Private DNS/hostname/certificate binding,
+directory role assignment and protected product-key delivery remain owner gates
+or T-707/T-708; existing traffic jobs do not yet supply those keys.
 Actual provisioning remains T-114 and live acceptance
 T-710. Owner-selected subscription/region, quotas, budget/lifetime, permissions,
 DNS/certificate delegation and private output boundaries must be confirmed before

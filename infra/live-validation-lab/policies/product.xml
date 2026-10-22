@@ -1,0 +1,12 @@
+<policies>
+  <inbound>
+    <base />
+    <set-variable name="labProduct" value="__PRODUCT_ID__" />
+  </inbound>
+  <backend><base /></backend>
+  <outbound>
+    <base />
+    <set-header name="X-Lab-Product" exists-action="override"><value>__PRODUCT_ID__</value></set-header>
+  </outbound>
+  <on-error><base /></on-error>
+</policies>

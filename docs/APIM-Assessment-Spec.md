@@ -1776,6 +1776,55 @@ operator-reviewed recovery is required, not automatic deletion. Owner-controlled
 backup/retention and later teardown remain T-711. No real Azure/DNS/ACME
 operations or certificate issuance occur in the development/CI acceptance gate.
 
+T-706 adds a separate resource-group-scoped API deployment template targeting
+only children of the existing dedicated lab APIM. Import exactly the five T-712
+OpenAPI documents/sixteen operations, preserving schemas/examples while replacing
+only placeholder server origins. Pin AVM child modules for APIs, HTTPS backends,
+products, subscriptions and global/operation policies; disable module telemetry.
+Two direct 2024-05-01 policy-fragment resources fill the missing published AVM
+fragment module. Do not redeploy the parent service or change its network,
+hostname, diagnostics or runtime grants.
+
+The two fixed products are business and partner, with seven inventory-defined
+memberships and two standalone active product-scoped subscriptions. Require
+subscription approval, disable tracing, let APIM generate keys and never retrieve
+or output them. API policies require real matching product context and the
+executed product-policy marker; API-scoped/all-API subscriptions cannot bypass
+product enforcement. Frontend authentication uses Microsoft Entra token
+validation for the exact tenant, v2 frontend audience, worker client ID and
+`Lab.Frontend.Invoke` application role; delegated `scp` claims reject even when
+empty. PLM also requires the exact private worker source and `Lab.Plm.Invoke`.
+Do not trust forwarded source headers or introduce a publicly weak negative profile.
+
+Preserve subordinate base inheritance across all four policy sections. Fixed
+global/product/API/operation response markers make inheritance observable without
+logging identities, tokens, request headers or bodies. Normalize operation policy
+targets to the imported lowercase resource names. Bind each API to its exact
+HTTPS worker-origin path with certificate chain/name validation enabled, strip
+caller authorization/subscription credentials and use the APIM system identity
+for the distinct `api://` backend resource. Backend redirects are disabled and
+response-header waiting is bounded to three seconds. Manufacturing remains
+excluded from initial traffic; no public fault-toggle operation is added.
+
+The closed version 1.0 API configuration/parameter writer requires distinct
+frontend/backend/caller IDs, a canonical HTTPS DNS origin and non-overlapping
+RFC1918 gateway/worker ranges with an unreserved worker address. Unknown/duplicate
+members, noncanonical/public ranges, arbitrary URL paths/ports/credentials,
+linked/relative/checkout paths and existing output files reject. The owner
+privately confirms correspondence with the foundation/worker/certificate inputs;
+local validation cannot discover effective resource ownership, DNS or permission
+sufficiency. The command prints only fixed status, not private parameter contents.
+Offline acceptance compiles/evaluates the actual template, merges the generated
+policies/fragments through the existing deterministic engine and compiles the
+actual guard expressions against synthetic contexts. This is not APIM gateway
+execution or a live authorization verdict.
+
+Creating resource applications, requesting v2 access tokens, assigning frontend/
+PLM/backend application roles, protected subscription-key handling, exact private
+DNS/hostname binding and actual certificate consumer trust/refresh remain separate
+owner gates or T-707/T-708. Existing worker traffic jobs do not yet supply product
+keys and must remain NotReady for this baseline until protected integration.
+
 Provisioning, identity/RBAC bootstrap, certificate import/renewal and DNS writes
 belong only to separately invoked lab tooling. They never extend the assessment
 module, guarded ARM wrapper, collectors, broker operations or assessment-agent
