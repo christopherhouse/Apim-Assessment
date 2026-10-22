@@ -1,6 +1,6 @@
 # Azure Deployment Plan: Synthetic APIM Validation Lab
 
-> **Status:** T-706 offline API/policy implementation; full gate pending
+> **Status:** T-706 offline acceptance complete; live gates remain
 >
 > Not deployment-ready. Five business API contracts, owner bootstrap tooling
 > and the T-703 foundation pass offline acceptance;
@@ -19,7 +19,9 @@
 > Plan approval permits offline implementation, not deployment.
 > T-706 now supplies API/product/subscription/backend/policy templates and a
 > private parameter writer. Thirty-nine focused cases and the twenty-two source
-> contract cases pass; complete repository CI and committed evidence are pending.
+> contract cases pass; complete Windows/Linux repository gates pass on committed
+> implementation/tests `fff902b` in #51. Required PR review and final
+> documentation-head checks remain separate; no deployment readiness is claimed.
 
 Generated: 2026-10-19
 
@@ -593,9 +595,17 @@ through the real inheritance engine, and compile the actual guard expressions
 against synthetic contexts, including denied/missing context. Official
 `Invoke-Checks.ps1` with `-TestPath .\tests\unit\LabOpenApi.Tests.ps1 -OutputDirectory .\artifacts\lab-api-contract-checks`
 passes lint and all 22 cases, zero failures/skips, in 37.89 seconds, including
-the five installed pinned Spectral validations. Complete repository CI remains
-required before offline task completion. No actual APIM/Entra/Azure request,
-key retrieval, private DNS/certificate access, deployment or release was performed.
+the five installed pinned Spectral validations.
+
+**Complete code evidence:** CI run 39790189051 on committed implementation/tests
+`fff902b` passed its first attempt. Windows passed 1537 tests, zero failed and
+eight existing skips, in 1945.42 seconds; Linux passed 1539 tests, zero failed and
+six existing skips, in 487.16 seconds. Branch policy and repository-wide lint
+pass; all 39 new API cases execute without skips on both platforms.
+`gh run watch 39790189051 --repo christopherhouse/Apim-Assessment --exit-status --interval 60`
+passed. T-706 is Done at 100%; required PR review and final documentation-head
+checks remain separate. No actual APIM/Entra/Azure request, key retrieval,
+private DNS/certificate access, deployment or release was performed.
 
 ## 6. Inventory and owner-only deployment preflight
 
@@ -876,10 +886,12 @@ PR review and final-head checks remain separate. No whole-lab acceptance is clai
 
 T-705's separate certificate lifecycle and approved D-72 metadata-read
 prerequisite have committed offline acceptance in merged #50, including complete
-Windows/Linux gates. T-706's API/product/policy templates pass focused acceptance;
-complete repository CI and committed tests remain pending. Actual issuance,
+Windows/Linux gates. T-706's API/product/policy templates and tests are committed
+in `fff902b` and #51, with focused acceptance and complete Windows/Linux code
+gates passing. Required PR review and final documentation-head checks remain
+separate. Actual issuance,
 deployment/trust binding, gateway routes, protected delivery/invocation, lifecycle
 and live acceptance remain owner gates or T-707-T-711. Actual quota/context/cost/permission/DNS confirmation and owner
 bootstrap/deployment authorization remain blocked, not implicitly approved.
-Completed offline acceptance applies only to the implemented T-701-T-705/T-712 slices;
+Completed offline acceptance applies only to the implemented T-701-T-706/T-712 slices;
 do not mark the full lab Validated, Ready for Deployment or Deployed.
