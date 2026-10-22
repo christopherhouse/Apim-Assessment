@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "1.0",
+  "apimName": "apim-synthetic",
+  "tenantId": "11111111-1111-1111-1111-111111111111",
+  "frontendResourceClientId": "55555555-5555-5555-5555-555555555555",
+  "backendAudienceClientId": "33333333-3333-3333-3333-333333333333",
+  "workerClientId": "66666666-6666-6666-6666-666666666666",
+  "backendOrigin": "https://backend.synthetic.invalid",
+  "gatewayCidr": "10.240.0.0/24",
+  "workerCidr": "10.240.1.64/27",
+  "workerPrivateIp": "10.240.1.68"
+}

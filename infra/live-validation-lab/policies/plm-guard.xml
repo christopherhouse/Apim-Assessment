@@ -1,0 +1,5 @@
+<choose>
+  <when condition='@(context.Request.IpAddress != "__WORKER_IP__" || !((Jwt)context.Variables["labCaller"]).Claims.ContainsKey("roles") || !((Jwt)context.Variables["labCaller"]).Claims["roles"].Contains("Lab.Plm.Invoke"))'>
+    <return-response><set-status code="403" reason="Forbidden" /></return-response>
+  </when>
+</choose>

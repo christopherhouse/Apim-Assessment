@@ -1,0 +1,14 @@
+<policies>
+  <inbound>
+    <ip-filter action="allow">
+      <address-range from="__GATEWAY_START__" to="__GATEWAY_END__" />
+      <address>__WORKER_IP__</address>
+    </ip-filter>
+    <include-fragment fragment-id="lab-caller-auth" />
+  </inbound>
+  <backend><forward-request timeout="3" follow-redirects="false" /></backend>
+  <outbound>
+    <set-header name="X-Lab-Global" exists-action="override"><value>baseline</value></set-header>
+  </outbound>
+  <on-error />
+</policies>

@@ -1,6 +1,6 @@
 # Azure Deployment Plan: Synthetic APIM Validation Lab
 
-> **Status:** T-705 offline acceptance complete; not deployment-ready
+> **Status:** T-706 offline acceptance complete; live gates remain
 >
 > Not deployment-ready. Five business API contracts, owner bootstrap tooling
 > and the T-703 foundation pass offline acceptance;
@@ -17,6 +17,11 @@
 > and add worker Reader only on its own VM and dedicated vault, behind a fresh
 > owner-reviewed Runtime preview/apply. No live access or assignment is authorized.
 > Plan approval permits offline implementation, not deployment.
+> T-706 now supplies API/product/subscription/backend/policy templates and a
+> private parameter writer. Thirty-nine focused cases and the twenty-two source
+> contract cases pass; complete Windows/Linux repository gates pass on committed
+> implementation/tests `fff902b` in #51. Required PR review and final
+> documentation-head checks remain separate; no deployment readiness is claimed.
 
 Generated: 2026-10-19
 
@@ -142,8 +147,8 @@ and `inventory.json` in `infra/live-validation-lab/scenarios/`. Schemas include
 bounded line arrays, enums, dates, quantities and currency-qualified integer
 minor-unit amounts, without personal, payment, address or credential examples.
 Local references keep each file self-contained. Non-routable `backend.invalid`
-servers are placeholders, not deployed backends. T-706 binds private backend
-URLs and imports the contracts; security declarations alone do not enforce
+servers are placeholders, not deployed backends. T-706's separate template binds
+private backend URLs and imports the contracts; security declarations alone do not enforce
 APIM policies. The inventory records stable API paths, intended publication,
 traffic controls, product membership and future assertions, not live results.
 
@@ -547,6 +552,61 @@ still needs a fresh owner-reviewed digest-bound Runtime plan and private live
 permission validation. No Azure login or assignment is authorized by this code
 approval. Forbidden-read coverage remains, proving refusal before DNS/issuance.
 
+### 5.4 T-706 offline API and policy implementation
+
+After merged #50, implement only the five existing T-712 APIs/sixteen operations.
+`apis.bicep` targets children of the existing APIM, never the parent service.
+Pin API 0.2.2, backend 0.2.2, product 0.2.3, subscription 0.1.3, global policy
+0.1.2 and operation policy 0.1.0 AVM child modules with telemetry disabled.
+Two direct 2024-05-01 policy-fragment resources fill the absent published AVM
+fragment module. No network, hostname, diagnostic or runtime grant changes.
+
+The evaluated topology contains 47 children: five APIs, five backends, two
+products, seven product/API memberships, two active product-scoped subscriptions,
+one global policy, two product policies, five API policies, sixteen operation
+policies and two fragments. Preserve the original schemas/examples, replacing
+only non-routable server placeholders; operation policy targets use APIM's
+normalized lowercase operation IDs.
+
+Frontend Entra validation requires the exact tenant, v2 frontend GUID audience,
+worker application and `Lab.Frontend.Invoke`; delegated tokens reject. PLM
+also requires the exact private worker source and `Lab.Plm.Invoke`. Real matching
+product context plus an executed product-policy marker is mandatory; API/all-API
+keys cannot bypass product policy. Preserve subordinate inheritance and fixed
+non-sensitive scope markers. Backends require HTTPS/chain/name validation;
+strip caller authorization/subscription credentials and use APIM's system identity
+for the distinct backend `api://` resource. No redirects or public fault toggles.
+Manufacturing remains initially dormant.
+
+The closed version 1.0 API configuration validates canonical private source
+ranges, their non-overlap and worker containment, distinct application IDs and
+an HTTPS DNS origin. `New-LabApiParameters.ps1` writes only new external files
+with fixed status output. It cannot confirm resource ownership, network collision,
+live DNS, trust, application-role assignment or effective permissions.
+Private certificate/DNS/hostname binding and protected product-key delivery/use
+remain owner/T-707/T-708 gates. Current worker jobs do not send product keys;
+their existence is not a product-context readiness pass.
+
+**Focused evidence:** official `Invoke-Checks.ps1` with
+`-TestPath .\tests\unit\LabApis.Tests.ps1 -OutputDirectory .\artifacts\lab-api-checks`
+passes repository-wide lint and all 39 cases, zero failures/skips, in 17.42 seconds.
+Tests compile/evaluate the real template, merge all 23 product-operation paths
+through the real inheritance engine, and compile the actual guard expressions
+against synthetic contexts, including denied/missing context. Official
+`Invoke-Checks.ps1` with `-TestPath .\tests\unit\LabOpenApi.Tests.ps1 -OutputDirectory .\artifacts\lab-api-contract-checks`
+passes lint and all 22 cases, zero failures/skips, in 37.89 seconds, including
+the five installed pinned Spectral validations.
+
+**Complete code evidence:** CI run 39790189051 on committed implementation/tests
+`fff902b` passed its first attempt. Windows passed 1537 tests, zero failed and
+eight existing skips, in 1945.42 seconds; Linux passed 1539 tests, zero failed and
+six existing skips, in 487.16 seconds. Branch policy and repository-wide lint
+pass; all 39 new API cases execute without skips on both platforms.
+`gh run watch 39790189051 --repo christopherhouse/Apim-Assessment --exit-status --interval 60`
+passed. T-706 is Done at 100%; required PR review and final documentation-head
+checks remain separate. No actual APIM/Entra/Azure request, key retrieval,
+private DNS/certificate access, deployment or release was performed.
+
 ## 6. Inventory and owner-only deployment preflight
 
 These are planned quantities, not discovered resources or verified capacity.
@@ -757,7 +817,8 @@ expiry, DNS cleanup and continued charges must be explicit.
 | Location | Intended content |
 |---|---|
 | `infra/live-validation-lab/` | Bicep entry points, pinned modules and synthetic parameter examples |
-| `infra/live-validation-lab/scenarios/` | Five OpenAPI contracts/inventory implemented in T-712; multi-scope policies and deployment bindings remain T-706 |
+| `infra/live-validation-lab/scenarios/` | Five original OpenAPI contracts/inventory implemented in T-712 |
+| `infra/live-validation-lab/apis.bicep` and `policies/` | T-706 offline API/product/subscription/backend deployment and multi-scope policy bindings; actual execution remains gated |
 | `scripts/lab/` | Separate owner bootstrap, bounded jobs, readiness/validation and cleanup tooling |
 | `.github/workflows/lab-*.yml` | Offline lab validation and separately protected manual delivery |
 | `tests/unit/` and `tests/integration/` | Offline lab contracts, mocks and synthetic assertion tests |
@@ -824,10 +885,13 @@ Implementation/tests are committed in `cdf1a80` and submitted in #49; required
 PR review and final-head checks remain separate. No whole-lab acceptance is claimed.
 
 T-705's separate certificate lifecycle and approved D-72 metadata-read
-prerequisite now have committed offline acceptance in #50, including complete
-Windows/Linux gates. Actual issuance, API/policy/trust binding, gateway routes,
-protected delivery/invocation, lifecycle and live acceptance remain owner gates
-or T-706-T-711. Actual quota/context/cost/permission/DNS confirmation and owner
+prerequisite have committed offline acceptance in merged #50, including complete
+Windows/Linux gates. T-706's API/product/policy templates and tests are committed
+in `fff902b` and #51, with focused acceptance and complete Windows/Linux code
+gates passing. Required PR review and final documentation-head checks remain
+separate. Actual issuance,
+deployment/trust binding, gateway routes, protected delivery/invocation, lifecycle
+and live acceptance remain owner gates or T-707-T-711. Actual quota/context/cost/permission/DNS confirmation and owner
 bootstrap/deployment authorization remain blocked, not implicitly approved.
-Completed offline acceptance applies only to the implemented T-701-T-705/T-712 slices;
+Completed offline acceptance applies only to the implemented T-701-T-706/T-712 slices;
 do not mark the full lab Validated, Ready for Deployment or Deployed.

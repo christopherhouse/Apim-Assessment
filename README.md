@@ -199,7 +199,7 @@ data. The coding-agent checks use synthetic data only.
 | Guarded ARM transport with paging/retry; offline tracking, saved-run comparison, and cross-environment policy/API-presence drift | Full API-definition comparison |
 | Versioned run manifest lifecycle, exact scoring snapshot, APIM configuration collectors, scoped LA/App Gateway route aggregates, resource metrics, daily costs, cost-only Logic Apps and optional committed Git policy hashes | Maintainer live query acceptance |
 | Maintainer-only cumulative collection smoke script with local output validation (sixteen registered checks) and bounded observed-query coverage | Full live assessment acceptance |
-| Owner-run lab bootstrap/staged RBAC, offline-tested Bicep foundation/private VM worker, synthetic TLS backend/bounded private jobs, owner-only ACME tooling, and five business API contracts (16 operations) | Gateway, API imports/policies, actual certificate consumer binding, protected delivery/scheduling/lifecycle and owner live acceptance |
+| Owner-run lab bootstrap/staged RBAC, offline-tested Bicep foundation/private VM worker, synthetic TLS backend/bounded private jobs, owner-only ACME tooling, and five-API/product/policy deployment templates (16 operations) | Gateway, actual certificate consumer binding, protected key/input delivery/scheduling/lifecycle and owner live acceptance |
 | Local saved-run secret-scan script for supported text and Excel artifacts, also required by smoke | Host-enforced model-safe admission acceptance |
 | Effective policy merge/flags, ten required models including source-bound observed exposure, and optional drift/portal/quality/governance/usage/capacity/cost with schema-gated loading | Remaining telemetry/PERF rules |
 | Optional pinned offline Spectral, trusted APIM style rules and source/settings-bound quality scores with description fallback | Full API-definition drift and maintainer live export validation |
@@ -226,7 +226,9 @@ are available in `infra\live-validation-lab\scenarios`: Supply Chain,
 E-commerce, PLM, Manufacturing and Service Management. Their sixteen operations
 use small representative schemas and synthetic examples; the inventory maps
 private-only, initially dormant, product-context and bounded-failure scenarios.
-They are contracts, not deployed APIs or implemented authentication policies.
+They are not deployed APIs. The separate T-706 templates implement their
+caller/product/backend policy configuration; contract security declarations
+alone are not enforcement.
 `infra\live-validation-lab\foundation.bicep` supplies the offline-tested foundation:
 a new VNet/four sized NSG-protected subnets, explicit worker NAT egress, internal
 classic Developer APIM, gateway identity, protected Key Vault/private DNS,
@@ -281,7 +283,25 @@ dedicated Key Vault, preserving all six existing grants and ownership checks.
 Existing six-grant setups require a fresh owner-reviewed Runtime preview/apply;
 old approvals do not authorize the added assignments. No grants were applied,
 and missing metadata permissions still fail closed before DNS or issuance.
-Protected delivery/scheduling and actual consumer binding remain T-706-T-708.
+Protected delivery/scheduling and actual consumer binding remain owner/T-707/T-708 gates.
+`infra\live-validation-lab\apis.bicep` adds the five API imports, five
+HTTPS/name-and-chain-validated backend bindings, business/partner products with
+seven memberships, two tracing-disabled product-scoped subscriptions, and
+global/product/API/operation policies plus caller/backend fragments. Pinned AVM
+child modules target only the existing APIM's children; they do not redeploy the
+parent service or retrieve keys. All sixteen operation policies preserve base
+inheritance and expose fixed non-sensitive scope markers.
+Frontend policies require the exact Entra tenant/v2 audience, worker caller and
+`Lab.Frontend.Invoke`, rejecting delegated tokens and missing/wrong product
+context. PLM additionally requires the exact private worker source and
+`Lab.Plm.Invoke`; Manufacturing still has no initial traffic.
+`scripts\lab\New-LabApiParameters.ps1` validates closed private inputs and writes
+a new external parameter file without printing identifiers or overwriting files.
+See the [offline API and policy runbook](docs/RUNBOOK.md#offline-lab-apis-and-policies).
+Directory applications/application-role assignments, exact private DNS, trusted
+certificate delivery and protected product-key handling remain owner gates.
+The current worker traffic jobs do not supply product keys and cannot establish
+the new product-context baseline until that separate delivery work is complete.
 This source-checkout tooling is separate from the read-only assessment module
 and release package. Mocked checks are not live authorization: no bootstrap,
 deployment, DNS/certificate change or live inspection was performed.
